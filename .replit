@@ -1,6 +1,6 @@
 run = "npm install && npm run dev"
 entrypoint = "src/main.jsx"
-modules = ["nodejs-20"]
+modules = ["nodejs-22"]
 
 [[ports]]
 localPort = 5173
