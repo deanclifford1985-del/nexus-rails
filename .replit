@@ -1,0 +1,12 @@
+run = "npm install && npm run dev"
+entrypoint = "src/main.jsx"
+modules = ["nodejs-20"]
+
+[[ports]]
+localPort = 5173
+externalPort = 80
+
+[deployment]
+deploymentTarget = "static"
+build = ["sh", "-c", "npm install && npm run build"]
+publicDir = "dist"
