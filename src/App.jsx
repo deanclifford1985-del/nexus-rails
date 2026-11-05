@@ -14,10 +14,13 @@ import Research from './screens/Research.jsx';
 import Station from './screens/Station.jsx';
 import Armory from './screens/Armory.jsx';
 import Festival from './screens/Festival.jsx';
+import Talents from './screens/Talents.jsx';
+import Crates from './screens/Crates.jsx';
+import { IS_NFT } from './edition.js';
 
 // Screens that fill the window on their own, without the top bar and tabs.
 const FULL = { create: Create, setup: Setup, race: Race, receipt: Receipt };
-const TABS = { yard: Yard, jobs: Jobs, depot: Depot, armory: Armory, festival: Festival, workshop: Workshop, research: Research, station: Station };
+const TABS = { yard: Yard, jobs: Jobs, depot: Depot, armory: Armory, festival: Festival, workshop: Workshop, research: Research, station: Station, ...(IS_NFT ? { talents: Talents, crates: Crates } : {}) };
 
 export default function App() {
   const { screen, conductor, toasts } = useGame();

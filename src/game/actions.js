@@ -18,6 +18,8 @@ import {
 } from './jobs.js';
 import { RESEARCH, containerPrice, depotPrice, depotStockLeft, fuelMarket, generateStationStock, mythicForSale, phoenixForSale, pumpPrice, repairMult, repairQuote, researchRates, stagesUnlocked, upgradeCost, weekNow, weeklyDeal } from './economy.js';
 import { festivalInfo, runMinutes, weekOf } from './calendar.js';
+import { pointsSpent, talent, talentBlocker } from './captain.js';
+import { applyCrew, assignCrew } from './crates.js';
 import { armoryOffers, baseOf, isWeaponItem, rollWeapon, standardWeapon, weaponPrice, WEAPON_BASES } from './weapons.js';
 import { CONTESTS, PRIZES, medalFor } from './festival.js';
 import { findRun } from './setup.js';
@@ -374,6 +376,7 @@ export function buyLoco(conductor, { id }) {
 
 export function sellLoco(conductor, { id }) {
   if (conductor.locos.length <= 1) fail('You cannot sell your only locomotive.');
+  if (conductor.locos.find((item) => item.id === id)?.nftId) fail('NFT locomotives go back to the Vault, not the station.');
   if (id === conductor.activeLocoId) fail('Switch to another locomotive before selling this one.');
   const loco = conductor.locos.find((item) => item.id === id);
   if (!loco) fail('Locomotive not found.');
@@ -391,6 +394,36 @@ export function sellLoco(conductor, { id }) {
 export function setActiveLoco(conductor, { id }) {
   if (!conductor.locos.some((loco) => loco.id === id)) fail('Locomotive not found.');
   conductor.activeLocoId = id;
+  applyCrew(conductor);
+  return {};
+}
+
+// ---------- Captain (NFT edition) ----------
+
+export function spendTalent(conductor, { id }) {
+  const why = talentBlocker(conductor, id);
+  if (why) fail(why);
+  conductor.captain.talents = { ...conductor.captain.talents, [id]: (conductor.captain.talents[id] ?? 0) + 1 };
+  return { id, rank: conductor.captain.talents[id] };
+}
+
+// Wipe every talent point, for a fee that grows with level.
+export const respecCost = (conductor) => 100 * Math.max(1, conductor.level ?? 1);
+export function resetTalents(conductor) {
+  if (!conductor.captain) fail('Only a Captain has talents.');
+  if (pointsSpent(conductor) === 0) fail('No talents to reset.');
+  spend(conductor, respecCost(conductor), 'a talent reset');
+  conductor.captain.talents = {};
+  return {};
+}
+
+export function seatCrew(conductor, { locoId, crewId }) {
+  if (!conductor.captain) fail('Only a Captain hires crew.');
+  try {
+    assignCrew(conductor, { locoId, crewId });
+  } catch (error) {
+    fail(error.message);
+  }
   return {};
 }
 
@@ -398,7 +431,7 @@ export function setActiveLoco(conductor, { id }) {
 
 function gainReputation(conductor, companyId, points) {
   const record = { ...companyRecord(conductor, companyId) };
-  const gain = Math.floor(points * (1 + B.JOBS.reputation.diplomat * traitPower(conductor, 'diplomat')));
+  const gain = Math.floor(points * (1 + B.JOBS.reputation.diplomat * traitPower(conductor, 'diplomat')) * (1 + talent(conductor, 'rep')));
   record.rep += gain;
   conductor.companies[companyId] = record;
   return gain;
@@ -570,6 +603,11 @@ export function settleRun(conductor, { ctx, result, now }) {
           receipt.negotiated = true;
         }
       }
+      // Captain talent Closer: a chance to talk the contract out of 2nd place.
+      if (!won && arrived && result.place === 2 && talent(conductor, 'negotiate') > 0 && rng() < talent(conductor, 'negotiate')) {
+        won = true;
+        receipt.negotiated = true;
+      }
       receipt.outcome = forfeit ? 'forfeit' : won ? 'won' : 'lost';
       if (won) {
         const record = { ...companyRecord(conductor, job.companyId) };
@@ -611,6 +649,14 @@ export function settleRun(conductor, { ctx, result, now }) {
       }
     }
 
+    // Captain talents (NFT edition): Business pay, contract-job pay and the Rail Magnate purse.
+    if (conductor.captain && !forfeit) {
+      const earned = receipt.payout;
+      const pay = talent(conductor, 'pay') + (ctx.kind === 'company' ? talent(conductor, 'contractPay') : 0);
+      if (earned > 0 && pay > 0 && ['delivery', 'company', 'race'].includes(ctx.kind)) add('Captain: Business', Math.floor(earned * pay));
+      if (ctx.kind === 'contract' && job && talent(conductor, 'magnate') > 0) add('Captain: Rail Magnate purse', Math.round(job.distance * 25));
+    }
+
     fillCompanyJobs(rng, conductor);
 
     // Knocking rivals off the rails, and clearing boulders, are worth a little experience of their own.
@@ -622,12 +668,12 @@ export function settleRun(conductor, { ctx, result, now }) {
     const loco = conductor.locos.find((item) => item.id === conductor.activeLocoId) ?? conductor.locos[0];
     const L = B.LOCO;
     // Pulling closer to the towing limit wears the engine faster.
-    const wear = result.distance * L.wearPerMile * (1 + L.wearPerLoad * Math.min(1.5, result.towUse ?? 0)) + (result.hullLost ?? 0) * L.wearPerHull + (result.crashes ?? 0) * L.wearPerCrash;
+    const wear = (1 - Math.min(0.5, talent(conductor, 'wear'))) * result.distance * L.wearPerMile * (1 + L.wearPerLoad * Math.min(1.5, result.towUse ?? 0)) + (result.hullLost ?? 0) * L.wearPerHull + (result.crashes ?? 0) * L.wearPerCrash;
     const before = loco.condition ?? 1;
     loco.condition = Math.max(0, Math.round((before - wear) * 10000) / 10000);
     receipt.wear = before - loco.condition;
     receipt.condition = loco.condition;
-    xp = Math.floor(xp * (1 + B.XP.leader * traitPower(conductor, 'leader')));
+    xp = Math.floor(xp * (1 + B.XP.leader * traitPower(conductor, 'leader')) * (1 + talent(conductor, 'xp')));
     receipt.xp = xp;
     receipt.levels = addXp(conductor, xp);
     receipt.profit = receipt.payout - receipt.fuelCost - receipt.ammoCost;

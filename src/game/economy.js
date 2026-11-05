@@ -1,3 +1,4 @@
+import { talent } from './captain.js';
 import { B } from './balance.js';
 import { makeRng, pick, round1 } from './rng.js';
 import { traitPower } from './traits.js';
@@ -26,8 +27,8 @@ export function weeklyDeal(week) {
   return { id, ...B.WEEK.deals[id] };
 }
 const dealMult = (conductor, key) => weeklyDeal(weekNow(conductor))?.[key] ?? 1;
-export const containerPrice = (conductor) => Math.round(B.FUEL.containerPrice * dealMult(conductor, 'container'));
-export const repairMult = (conductor) => dealMult(conductor, 'repair');
+export const containerPrice = (conductor) => Math.round(B.FUEL.containerPrice * dealMult(conductor, 'container') * (1 - Math.min(0.5, talent(conductor, 'containerPrice'))));
+export const repairMult = (conductor) => dealMult(conductor, 'repair') * (1 - Math.min(0.5, talent(conductor, 'containerPrice')));
 
 export function depotStockLeft(conductor) {
   const market = fuelMarket(weekNow(conductor));
@@ -40,6 +41,7 @@ export function depotPrice(conductor, gallons = 0) {
   const F = B.FUEL;
   let price = fuelMarket(weekNow(conductor)).price * dealMult(conductor, 'fuel');
   price *= 1 - Math.min(0.5, F.economist * traitPower(conductor, 'economist'));
+  price *= 1 - Math.min(0.5, talent(conductor, 'fuelPrice'));
   if (gallons >= F.preparedAt) price *= 1 - Math.min(0.5, F.prepared * traitPower(conductor, 'prepared'));
   return Math.round(price * 100) / 100;
 }
@@ -73,13 +75,13 @@ export function researchRates(conductor, tier) {
   const R = B.RESEARCH;
   const cost = R.costs[tier];
   const influence = 1 + traitPower(conductor, 'influencer');
-  const speed = 1 + conductor.int * B.ATTR.researchSpeedPerInt * influence + R.genius * traitPower(conductor, 'genius');
+  const speed = (1 + conductor.int * B.ATTR.researchSpeedPerInt * influence + R.genius * traitPower(conductor, 'genius')) * (1 + talent(conductor, 'research') + talent(conductor, 'breakthrough'));
   const match = 1 + conductor.int * B.ATTR.researchMatchPerInt * influence;
   return {
     cost,
     speed,
     match,
-    price: Math.ceil(cost / match),
+    price: Math.ceil((cost / match) * (1 - Math.min(0.5, talent(conductor, 'researchPrice')))),
     minutes: Math.round((R.days[tier] * 24 * 60) / speed),
   };
 }

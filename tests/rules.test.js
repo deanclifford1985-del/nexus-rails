@@ -1135,3 +1135,54 @@ describe('boot-up, heat, Endurance and the Journey', () => {
     expect(generateLoco(makeRng(1), 'longrun', { rarity: 'epic' }).name).toBe('The Journey');
   });
 });
+
+describe('Nexus Rail (NFT edition): Captain, talents, crates and crew', () => {
+  it('a Captain earns a talent point a level, tiers open every 5 points, capstones need the focus', async () => {
+    const { makeCaptainSave } = await import('../src/game/crates.js');
+    const { pointsLeft, talentBlocker, talent } = await import('../src/game/captain.js');
+    const c = makeCaptainSave(newConductor(), { focus: 'engineering', crewName: 'Rookie' });
+    expect(c.crew[0].str).toBe(c.str);
+    expect(pointsLeft(c)).toBe(1);
+    expect(talentBlocker(c, 'flanges')).toMatch(/Needs 5 points/);
+    actions.spendTalent(c, { id: 'tuning' });
+    expect(pointsLeft(c)).toBe(0);
+    c.level = 30;
+    for (let i = 0; i < 4; i++) actions.spendTalent(c, { id: 'tuning' });
+    expect(talentBlocker(c, 'flanges')).toBeNull();
+    expect(talentBlocker(c, 'magnate')).toMatch(/Capstone/);
+    const lite = newConductor();
+    expect(deriveStats(activeLoco(c), c).hp).toBeGreaterThan(deriveStats(activeLoco(lite), { ...lite, str: c.str, agi: c.agi, int: c.int, end: c.end, traits: c.traits }).hp);
+    expect(talent(lite, 'power')).toBe(0);
+    addXp(c, 1e9);
+    expect(c.level).toBe(30);
+  });
+  it('crates reveal from a visible, shrinking pool; picking costs 10% more; stat budgets hold', async () => {
+    const C = await import('../src/game/crates.js');
+    const v = C.emptyVault();
+    expect(() => C.openCrate(v, { tier: 'rare' })).toThrow(/Not enough Nexus/);
+    C.adminGrant(v, { amount: 500 });
+    const before = C.remaining(v, 'rare').length;
+    expect(before).toBe(100);
+    const nft = C.openCrate(v, { tier: 'rare', rng: () => 0.3 });
+    expect(C.remaining(v, 'rare').length).toBe(99);
+    expect(v.nexus).toBe(475);
+    const pickId = C.remaining(v, 'legendary')[0].id;
+    const picked = C.openCrate(v, { tier: 'legendary', pickId });
+    expect(picked.id).toBe(pickId);
+    expect(v.nexus).toBe(475 - 275);
+    for (const entry of C.poolOf('epic')) {
+      if (entry.kind === 'loco') expect(entry.data.power + entry.data.efficiency + entry.data.durability + entry.data.endurance).toBe(32);
+      else expect(entry.data.str + entry.data.agi + entry.data.int + entry.data.end).toBe(56);
+    }
+    expect(C.poolOf('rare')[0].id).toBe(C.seasonPool('rare')[0].id); // same pool on every device
+    // Deploy into a Captain's save and seat the conductor
+    const save = C.makeCaptainSave(newConductor(), { focus: 'business', crewName: 'Rookie' });
+    const crewNft = C.poolOf('legendary').find((e) => e.kind === 'conductor');
+    v.owned.push({ id: crewNft.id, kind: 'conductor', tier: 'legendary', data: structuredClone(crewNft.data), deployedTo: null });
+    C.deployNft(v, save, { nftId: crewNft.id, saveId: 1 });
+    expect(() => C.deployNft(v, save, { nftId: crewNft.id, saveId: 1 })).toThrow(/already/);
+    actions.seatCrew(save, { locoId: save.activeLocoId, crewId: crewNft.data.id });
+    expect(save.str).toBe(crewNft.data.str);
+    expect(nft.data).toBeTruthy();
+  });
+});

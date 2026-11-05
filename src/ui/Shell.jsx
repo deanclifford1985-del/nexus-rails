@@ -1,5 +1,7 @@
 import React from 'react';
-import { ClipboardList, Coins, FlaskConical, Fuel, Home, Shield, Store, TrainFront, Wrench } from 'lucide-react';
+import { Box, ClipboardList, Coins, Crown, FlaskConical, Fuel, Gem, Home, Shield, Store, TrainFront, Wrench } from 'lucide-react';
+import { IS_NFT } from '../edition.js';
+import { pointsLeft } from '../game/captain.js';
 import { useGame } from '../state/store.jsx';
 import { gal, lt } from './format.js';
 import { festivalInfo, fmtShortDate } from '../game/calendar.js';
@@ -17,6 +19,17 @@ const NAV = [
     ],
   },
   { group: 'Invest', items: [{ id: 'research', label: 'Lab', icon: FlaskConical }] },
+  ...(IS_NFT
+    ? [
+        {
+          group: 'Captain',
+          items: [
+            { id: 'talents', label: 'Captain', icon: Crown },
+            { id: 'crates', label: 'Crates', icon: Box },
+          ],
+        },
+      ]
+    : []),
 ];
 
 function NavLink({ item, current, go, flag }) {
@@ -31,10 +44,11 @@ function NavLink({ item, current, go, flag }) {
 }
 
 export function Shell({ children }) {
-  const { conductor, screen, go } = useGame();
+  const { conductor, screen, go, vault } = useGame();
   const flags = {
     yard: conductor.attributePoints > 0,
     research: false,
+    talents: IS_NFT && pointsLeft(conductor) > 0,
   };
   return (
     <div className="shell">
@@ -45,6 +59,7 @@ export function Shell({ children }) {
             <b>
               NEXUS<span>RAIL</span>
             </b>
+            <small className={`edition-tag ${IS_NFT ? 'nft' : ''}`}>{IS_NFT ? 'NFT' : 'LITE'}</small>
           </button>
           <nav className="nav" aria-label="Main">
             {NAV.map((section) => (
@@ -57,6 +72,12 @@ export function Shell({ children }) {
             ))}
           </nav>
           <div className="balances">
+            {IS_NFT ? (
+              <button type="button" className="chip chip-nexus" title="Nexus" onClick={() => go('crates')}>
+                <Gem aria-hidden="true" />
+                {vault.nexus.toLocaleString()} <small>NXS</small>
+              </button>
+            ) : null}
             <span className="chip" title="LocoTokens">
               <Coins className="brass" aria-hidden="true" />
               {lt(conductor.lt)} <small>LT</small>

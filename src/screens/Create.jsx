@@ -1,3 +1,6 @@
+import { FOCUSES } from '../game/captain.js';
+import { makeCaptainSave } from '../game/crates.js';
+import { IS_NFT } from '../edition.js';
 import React, { useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Dices, RefreshCw, TrainFront } from 'lucide-react';
 import { B } from '../game/balance.js';
@@ -36,6 +39,7 @@ export default function Create() {
   const slot = screen.slot ?? Math.max(0, saves.slots.findIndex((item) => !item));
 
   const [step, setStep] = useState(0);
+  const [focus, setFocus] = useState('business');
   const [name, setName] = useState('');
   const [offers, setOffers] = useState(() => dealOffers(rng.current, B.START.traitOffers));
   const [chosenKeys, setChosenKeys] = useState([]);
@@ -182,6 +186,7 @@ export default function Create() {
       seed: newSeed(),
       now: Date.now(),
     });
+    if (IS_NFT) makeCaptainSave(conductor, { focus, crewName: randomName(rng.current) });
     createSave(slot, conductor);
     go('setup', { ctx: { kind: 'test' } });
   }
@@ -193,7 +198,7 @@ export default function Create() {
     <div className="page" style={{ paddingBottom: 48 }}>
       <div className="page-head">
         <div className="spread">
-          <h1>New conductor</h1>
+          <h1>{IS_NFT ? 'New Captain' : 'New conductor'}</h1>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => go('title')}>
             Cancel
           </button>
@@ -211,7 +216,8 @@ export default function Create() {
         <section className="stack">
           {step === 0 ? (
             <div className="plate riveted stack">
-              <h2>Who is at the controls?</h2>
+              <h2>{IS_NFT ? 'Who is the Captain?' : 'Who is at the controls?'}</h2>
+              {IS_NFT ? <p className="muted">You are the Captain: you own the trains and hire conductors to drive them. Next you roll your first conductor.</p> : null}
               <form
                 className="stack"
                 onSubmit={(event) => {
@@ -220,7 +226,7 @@ export default function Create() {
                 }}
               >
                 <label className="label" htmlFor="conductor-name">
-                  Conductor name
+                  {IS_NFT ? 'Captain name' : 'Conductor name'}
                 </label>
                 <div className="row" style={{ flexWrap: 'nowrap' }}>
                   <input id="conductor-name" className="field" style={{ background: 'var(--paper)' }} value={name} maxLength={28} autoComplete="off" placeholder="Captain Rex" onChange={(event) => setName(event.target.value)} />
@@ -229,8 +235,22 @@ export default function Create() {
                     <span className="hide-narrow">Suggest</span>
                   </button>
                 </div>
+                {IS_NFT ? (
+                  <div className="stack-sm">
+                    <span className="label">Your focus</span>
+                    <div className="focus-pick">
+                      {Object.entries(FOCUSES).map(([id, f]) => (
+                        <button type="button" key={id} className={`focus-card ${focus === id ? 'on' : ''}`} aria-pressed={focus === id} onClick={() => setFocus(id)}>
+                          <b>{f.name}</b>
+                          <span>{f.blurb}</span>
+                          <small>{f.perk}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <button type="submit" className="btn btn-brass btn-lg" disabled={!name.trim()}>
-                  Choose traits
+                  {IS_NFT ? "Roll your first conductor's traits" : 'Choose traits'}
                   <ArrowRight aria-hidden="true" />
                 </button>
               </form>

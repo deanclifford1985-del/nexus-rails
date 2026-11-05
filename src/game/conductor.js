@@ -156,10 +156,11 @@ export function xpForLevel(level) {
 export function addXp(conductor, amount) {
   conductor.xp += Math.max(0, Math.floor(amount));
   let gained = 0;
-  while (conductor.xp >= xpForLevel(conductor.level)) {
+  const cap = conductor.captain ? 30 : Infinity;
+  while (conductor.level < cap && conductor.xp >= xpForLevel(conductor.level)) {
     conductor.xp -= xpForLevel(conductor.level);
     conductor.level += 1;
-    conductor.attributePoints += 1;
+    if (!conductor.captain) conductor.attributePoints += 1;
     gained += 1;
   }
   return gained;

@@ -1,3 +1,4 @@
+import { talent } from './captain.js';
 import { B } from './balance.js';
 import { activeLoco } from './conductor.js';
 import { MODELS, cargoFits, deriveStats, makeBenchmark } from './locomotives.js';
@@ -105,7 +106,7 @@ export function describeRun(conductor, ctx) {
     distance = job.distance;
     weight = job.weight;
     containers = job.containers;
-    timeLimit = job.timeLimit ?? null;
+    timeLimit = job.timeLimit ? job.timeLimit * (1 + talent(conductor, 'timeLimit')) : null;
     courseSeed = job.id;
     boulders = job.boulders ?? [];
     if (ctx.kind !== 'contract' && ctx.kind !== 'race') {

@@ -2,7 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import * as actions from '../game/actions.js';
 import { GameError } from '../game/actions.js';
 import { RESEARCH } from '../game/economy.js';
-import { loadSaves, storeSaves } from '../game/storage.js';
+import { loadSaves, loadVault, storeSaves, storeVault } from '../game/storage.js';
+import { VaultError, deployNft } from '../game/crates.js';
 
 // One place holds the saves and the current screen. Screens never write a save
 // themselves: they call act('buyFuel', {...}) and the store applies the named action.
@@ -14,6 +15,9 @@ export function GameProvider({ children }) {
   const [saves, setSaves] = useState(loadSaves);
   const [screen, setScreen] = useState({ name: 'title' });
   const [toasts, setToasts] = useState([]);
+  const [vault, setVault] = useState(loadVault);
+  const vaultRef = useRef(vault);
+  vaultRef.current = vault;
   const savesRef = useRef(saves);
   const screenRef = useRef(screen);
   savesRef.current = saves;
@@ -106,10 +110,58 @@ export function GameProvider({ children }) {
     return () => window.clearInterval(timer);
   }, [act, notify]);
 
+  // NFT edition: run a rule against the account Vault (crates, admin grants).
+  const actVault = useCallback(
+    (fn, args = {}) => {
+      const next = structuredClone(vaultRef.current);
+      try {
+        const report = fn(next, { ...args, now: Date.now() });
+        vaultRef.current = next;
+        setVault(next);
+        storeVault(next);
+        return report ?? {};
+      } catch (error) {
+        if (error instanceof VaultError) {
+          notify(error.message, 'error');
+          return null;
+        }
+        throw error;
+      }
+    },
+    [notify],
+  );
+
+  // Move an NFT from the Vault into the active Captain's save.
+  const deploy = useCallback(
+    (nftId) => {
+      const current = savesRef.current;
+      if (current.active === null) return null;
+      const save = structuredClone(current.slots[current.active]);
+      const nextVault = structuredClone(vaultRef.current);
+      try {
+        const nft = deployNft(nextVault, save, { nftId, saveId: save.createdAt });
+        const slots = current.slots.slice();
+        slots[current.active] = save;
+        commit({ slots, active: current.active });
+        vaultRef.current = nextVault;
+        setVault(nextVault);
+        storeVault(nextVault);
+        return nft;
+      } catch (error) {
+        if (error instanceof VaultError) {
+          notify(error.message, 'error');
+          return null;
+        }
+        throw error;
+      }
+    },
+    [commit, notify],
+  );
+
   const conductor = saves.active === null ? null : saves.slots[saves.active];
   const value = useMemo(
-    () => ({ saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot }),
-    [saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot],
+    () => ({ saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, actVault, deploy }),
+    [saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, actVault, deploy],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

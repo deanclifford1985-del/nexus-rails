@@ -611,3 +611,54 @@ h1 .hl-purple {
 @media (min-width: 900px) {
   .title-card > .phantom-hero.phantom-3d { width: 100%; }
 }
+
+/* ---------- NFT edition ---------- */
+.focus-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.focus-card { text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); color: var(--steam); cursor: pointer; font: inherit; }
+.focus-card b { font-family: var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; }
+.focus-card span { font-size: 0.9rem; color: var(--ash); }
+.focus-card small { font-size: 0.8rem; color: var(--cyan); }
+.focus-card.on { border-color: var(--cyan); background: rgba(25, 195, 230, 0.1); box-shadow: 0 0 0 1px var(--cyan); }
+.edition-tag { font-family: var(--font-label); font-weight: 700; font-size: 0.6rem; letter-spacing: 0.14em; padding: 2px 6px; margin-left: 6px; border-radius: 6px; border: 1px solid rgba(25, 195, 230, 0.6); color: var(--cyan); vertical-align: middle; }
+.edition-tag.nft { border-color: rgba(165, 107, 255, 0.7); color: #d6c2ff; background: rgba(165, 107, 255, 0.12); }
+.hero-brand .edition-tag { font-size: 0.7rem; }
+.chip-nexus { color: #e3d2ff; border-color: rgba(165, 107, 255, 0.5); cursor: pointer; }
+.chip-nexus svg { color: #b88cff; }
+.talent-trees { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.talent-tree.focus { border-color: rgba(25, 195, 230, 0.55); box-shadow: 0 0 30px rgba(25, 195, 230, 0.12); }
+.talent-tier { display: grid; gap: 4px; padding: 8px 0; border-top: 1px dashed var(--line); }
+.talent-tier.locked { opacity: 0.55; }
+.talent-tier-label { font-family: var(--font-label); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); display: inline-flex; gap: 4px; align-items: center; }
+.talent-tier-label svg { width: 12px; height: 12px; }
+.talent-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+.talent { position: relative; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); color: var(--steam); font: inherit; cursor: pointer; }
+.talent:disabled { cursor: not-allowed; }
+.talent b { font-size: 0.92rem; color: #fff; padding-right: 34px; }
+.talent small { font-size: 0.76rem; color: var(--ash); line-height: 1.25; }
+.talent-rank { position: absolute; top: 8px; right: 10px; font-family: var(--font-label); font-weight: 700; font-size: 0.78rem; color: var(--dim); }
+.talent.has { border-color: rgba(165, 107, 255, 0.6); background: rgba(165, 107, 255, 0.1); }
+.talent.has .talent-rank { color: #d6c2ff; }
+.talent.max { border-color: #b88cff; box-shadow: 0 0 0 1px #b88cff inset; }
+.talent.capstone { border-style: double; border-width: 3px; }
+.talent:not(:disabled):hover { border-color: var(--cyan); }
+.nft-card { display: flex; flex-direction: column; gap: 6px; }
+.nft-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 0.85rem; }
+.nft-stats span { padding: 4px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.05); text-align: center; }
+.nft-rare, .crate-rare { border-color: rgba(80, 160, 255, 0.5); }
+.nft-epic, .crate-epic { border-color: rgba(165, 107, 255, 0.6); }
+.nft-legendary, .crate-legendary { border-color: rgba(255, 179, 71, 0.7); box-shadow: 0 0 30px rgba(255, 157, 28, 0.15); }
+.pool-meter { height: 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.pool-meter i { display: block; height: 100%; background: linear-gradient(90deg, #a56bff, #19c3e6); }
+.crate-reveal { position: relative; max-width: 460px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; animation: crate-in 0.5s ease-out both; }
+.crate-burst { position: absolute; inset: -40px; z-index: -1; background: radial-gradient(circle, rgba(165, 107, 255, 0.45), transparent 60%); animation: crate-burst 1.2s ease-out both; }
+@keyframes crate-in { from { opacity: 0; transform: scale(0.8) rotate(-2deg); } to { opacity: 1; transform: none; } }
+@keyframes crate-burst { from { opacity: 0; transform: scale(0.3); } 40% { opacity: 1; } to { opacity: 0.6; transform: scale(1); } }
+.ledger { display: grid; gap: 4px; }
+@media (max-width: 1500px) and (min-width: 900px) {
+  .nav-link { padding-left: 7px; padding-right: 7px; font-size: 0.86rem; }
+  .nav-link svg { display: none; }
+  .nav-group { padding-left: 4px; margin-left: 4px; }
+  .balances { gap: 4px; }
+  .balances .chip small { display: none; }
+  .balances .chip { padding-left: 8px; padding-right: 8px; }
+}

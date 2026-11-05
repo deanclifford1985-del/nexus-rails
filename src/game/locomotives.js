@@ -1,4 +1,5 @@
 import { gripFor, hillGripFor } from './course.js';
+import { talent } from './captain.js';
 import { B } from './balance.js';
 import { clamp, pick, randInt, randRange, uid } from './rng.js';
 import { traitPower } from './traits.js';
@@ -270,8 +271,10 @@ export function deriveStats(loco, conductor = null) {
 
   const growth = Math.pow(loco.growth, loco.power - 1);
   const engine = product(up.engine ?? []) * kit.power * worn;
-  const hp = loco.hpBase * growth * engine * (1 + strength) * (superTrait?.hp ?? 1);
-  const tq = loco.tqBase * growth * engine * (1 + strength) * (superTrait?.tq ?? 1);
+  // Captain talents (NFT edition): Engineering power and the Masterwork capstone. 0 in Lite.
+  const capPower = 1 + talent(conductor, 'power') + talent(conductor, 'masterwork');
+  const hp = loco.hpBase * growth * engine * (1 + strength) * (superTrait?.hp ?? 1) * capPower;
+  const tq = loco.tqBase * growth * engine * (1 + strength) * (superTrait?.tq ?? 1) * capPower;
 
   const extra = (B.MYTHIC[loco.model]?.extraWeight ?? 0) + (B.FRONTS[loco.front ?? 'cowcatcher']?.weight ?? 0);
   const weight = loco.fixedWeight ?? (L.weightBase + L.weightPerDurability * loco.durability + extra + kit.weight) * (1 - agility);
@@ -280,7 +283,7 @@ export function deriveStats(loco, conductor = null) {
   const tmpg = Math.max(L.tmpgMin, tmpgRaw) * product(up.aero ?? []) * (1 + agility) * (superTrait?.tmpg ?? 1);
 
   const tank = L.tankBase + kit.fuel;
-  const tow = hp * (L.towBase + loco.durability) * product(up.body ?? []);
+  const tow = hp * (L.towBase + loco.durability) * product(up.body ?? []) * (1 + talent(conductor, 'tow'));
 
   // Cargo this conductor and locomotive can shrug off (Elevate, Heavy Hauler).
   const elevate = clamp(traitPower(conductor, 'elevate') * 0.15, 0, 0.6);
@@ -296,24 +299,31 @@ export function deriveStats(loco, conductor = null) {
     tank,
     tow,
     cargoFactor,
-    grip: conductor ? gripFor(conductor.agi ?? 0, traitPower(conductor, 'influencer')) : 0,
-    hillGrip: conductor ? hillGripFor(conductor.str ?? 0, traitPower(conductor, 'influencer')) : 0,
+    grip: conductor ? Math.min(B.TRACK.gripMax + 0.15, gripFor(conductor.agi ?? 0, traitPower(conductor, 'influencer')) + talent(conductor, 'grip')) : 0,
+    hillGrip: conductor ? Math.min(0.85, hillGripFor(conductor.str ?? 0, traitPower(conductor, 'influencer')) + (talent(conductor, 'masterwork') > 0 ? 0.5 : 0)) : 0,
     // Endurance: the locomotive's and the conductor's both cut the heat each mile builds.
     endurance: loco.endurance ?? 5,
     heatMult:
       (1 / (1 + (loco.endurance ?? 5) * B.HEAT.perLocoEnd + (conductor?.end ?? 0) * B.HEAT.perCondEnd * (1 + (conductor ? traitPower(conductor, 'influencer') : 0)))) *
-      (1 - 0.2 * (conductor ? traitPower(conductor, 'marathoner') : 0)),
+      (1 - 0.2 * (conductor ? traitPower(conductor, 'marathoner') : 0)) *
+      (1 - Math.min(0.5, talent(conductor, 'cool'))),
+    overHeatMult: 1 - talent(conductor, 'overHeat'),
+    bootMult: 1 / (1 + talent(conductor, 'boot')),
+    dotMult: 1 + talent(conductor, 'dot'),
+    spellCdMult: 1 - Math.min(0.4, talent(conductor, 'spellCd')),
+    mpCostMult: 1 - talent(conductor, 'breakthrough'),
+    mpRegenMult: 1 + talent(conductor, 'mp'),
     coolMult: 1 + 0.25 * (conductor ? traitPower(conductor, 'marathoner') : 0),
     secondWind: conductor ? traitPower(conductor, 'secondwind') : 0,
     journey: !!loco.journey,
     // Intelligence sharpens spells.
-    spellPower: 1 + (conductor?.int ?? 0) * B.COMBAT.spellPerInt * (1 + (conductor ? traitPower(conductor, 'influencer') : 0)),
-    accel: 1 + (conductor?.agi ?? 0) * L.accelPerAgi * (1 + (conductor ? traitPower(conductor, 'influencer') : 0)),
+    spellPower: (1 + (conductor?.int ?? 0) * B.COMBAT.spellPerInt * (1 + (conductor ? traitPower(conductor, 'influencer') : 0))) * (1 + talent(conductor, 'spell')),
+    accel: (1 + (conductor?.agi ?? 0) * L.accelPerAgi * (1 + (conductor ? traitPower(conductor, 'influencer') : 0))) * (1 + talent(conductor, 'accel')),
     topSpeed: topSpeedFor(hp, lightWeight),
     accelSeconds: accelSecondsFor(tq, lightWeight) / B.TIME_SCALE / (1 + (conductor?.agi ?? 0) * L.accelPerAgi),
     accelMiles: ((accelSecondsFor(tq, lightWeight) / (1 + (conductor?.agi ?? 0) * L.accelPerAgi)) * topSpeedFor(hp, lightWeight) * 0.55) / 3600,
     hull: Math.round(
-      (B.COMBAT.hullBase + B.COMBAT.hullPerDurability * loco.durability + (B.MYTHIC[loco.model]?.hullBonus ?? 0)) * (L.wearHullFloor + (1 - L.wearHullFloor) * condition),
+      (B.COMBAT.hullBase + B.COMBAT.hullPerDurability * loco.durability + (B.MYTHIC[loco.model]?.hullBonus ?? 0)) * (L.wearHullFloor + (1 - L.wearHullFloor) * condition) * (1 + talent(conductor, 'hull')),
     ),
     ability: loco.ability,
     condition,
@@ -324,9 +334,10 @@ export function deriveStats(loco, conductor = null) {
     spells: spellsOf(loco),
     arms: [...spellsOf(loco), ...kit.weapons],
     ammo: kit.ammo,
-    charge: kit.charge,
+    charge: Math.round(kit.charge * (1 + talent(conductor, 'charge'))),
+    chargeRegenMult: 1 + talent(conductor, 'charge'),
     weaponStats: kit.weaponStats,
-    sight: kit.sight,
+    sight: kit.sight * (1 + talent(conductor, 'sight')),
     front: loco.front ?? 'cowcatcher',
     armor: Math.min(B.ARMOR.max, B.ARMOR.perPoint * loco.durability),
   };

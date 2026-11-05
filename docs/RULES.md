@@ -269,6 +269,20 @@ All **new** (Dean, 3 Nov), numbers are first guesses.
 | Old saves | Version 6: conductors get Endurance 8; locomotives get Endurance from their model; Epic and Legendary Long Runs become the Journey. |
 | Spells | Epic Stable and Long Run now know Frost Breath; Legendary engines know Fire, Bolt, Barrier and Frost Breath. |
 
+## Nexus Rail (NFT edition) (Dean, 5 Nov)
+
+| Rule | Value |
+|---|---|
+| Editions | One codebase. Lite is the default; the NFT edition is built with VITE_EDITION=nft. Lite saves never see any of this. |
+| Captain | In the NFT edition the player is the Captain: a name and a focus (Business, Engineering or Scientist), then the usual traits, dice and starter locomotive roll the Captain's first conductor (crew, not an NFT). Max level 30; one talent point per level and no attribute points. |
+| Focus perks | Business +1% pay per level; Engineering +0.5% horsepower and torque per level; Scientist +1% research speed and +0.5% spell damage per level. |
+| Talent trees | Three trees of six tiers, 10 talents each. Tier n opens at 5 x (n - 1) points in that tree; the tier-6 capstone only in your focus tree. Business: Haggler, Thrifty, Good Word, Closer, Bulk Buyer, Expedite, Portfolio, Mentor, Tycoon, Rail Magnate. Engineering: Fine Tuning, Coolant Loops, Deep Flanges, Low Gearing, Reinforced Chassis, Hull Plating, Precision Fit, Turbo Feed, Overdrive, Masterwork Engine. Scientist: Lab Work, Applied Arcana, Grants, Focus, Forecasting, Capacitors, Channeling, Sensor Array, Catalyst, Breakthrough. Reset costs 100 LT x level. |
+| Crew | Each locomotive is driven by one conductor; the active locomotive's conductor supplies Strength, Agility, Intelligence, Endurance and traits. Seat conductors on the Crates > Crew tab. |
+| Nexus | The NFT edition's premium currency, awarded only by admins (test-build admin panel behind a passcode). 5% of every Nexus spend counts as burned. |
+| Crates | Season 1, four tiers: Uncommon 10 Nexus (pool 200), Rare 25 (100), Epic 75 (50), Legendary 250 (20). 60% locomotives, 40% conductors. Stat budgets: locomotives 20/26/32/40 points across Power, Efficiency, Armor and Endurance; conductors 36/46/56/66 attribute points with 1/2/3/4 traits. Open at random, or pick a specific one for +10%. Pools are the same on every device; each NFT has an ID like NXR-S1-L-007. |
+| Vault | Account-wide: Nexus, owned NFTs and opened pool entries. An NFT is sent to one Captain at a time. NFT locomotives cannot be sold at the station. |
+| Test build | Everything lives in the browser until the game has a server; nothing is on a blockchain yet. |
+
 ## Not built yet
 
 Track pirates, loans and bank reputation, talent trees, missions, turrets, forming a business, temporary workshop boosts, the Station Upgrade research, fuel stations on long routes, the live-stat picker in the cab, player accounts.

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Clapperboard, Play, Plus } from 'lucide-react';
 import { Trailer, trailerSeen } from '../ui/Trailer.jsx';
+import { IS_NFT } from '../edition.js';
 import { TRAILER_SRC } from '../ui/trailerSource.js';
 import { useGame } from '../state/store.jsx';
 import { PhantomNeonViewer } from '../ui/PhantomNeonViewer.jsx';
@@ -27,12 +28,16 @@ export default function Title() {
       <div className="title-card">
         <div>
           <div className="hero-brand">
-            NEXUS<span>RAIL</span>
+            NEXUS<span>RAIL</span> <small className={`edition-tag ${IS_NFT ? 'nft' : ''}`}>{IS_NFT ? 'NFT' : 'LITE'}</small>
           </div>
           <div className="wordmark">
             Forge your <span>Iron Legacy</span>
           </div>
-          <p className="tagline">The RPG locomotive racer. Roll a conductor, arm an engine, haul, race and fight your way down the line to the dragon.</p>
+          <p className="tagline">
+            {IS_NFT
+              ? 'Captain a fleet. Hire conductors, open crates for locomotive and conductor NFTs, and race your way to the dragon.'
+              : 'The RPG locomotive racer. Roll a conductor, arm an engine, haul, race and fight your way down the line to the dragon. Free to play.'}
+          </p>
         </div>
         {showTrailer ? <div className="phantom-hero phantom-3d"><div className="phantom-3d-stage" /></div> : <PhantomNeonViewer />}
 
@@ -68,7 +73,7 @@ export default function Title() {
         {freeSlot >= 0 ? (
           <button type="button" className={`btn btn-lg ${hasSaves ? '' : 'btn-brass'}`} onClick={() => go('create', { slot: freeSlot })}>
             <Plus aria-hidden="true" />
-            New conductor
+            {IS_NFT ? 'New Captain' : 'New conductor'}
           </button>
         ) : (
           <p className="muted">All three save slots are in use. Delete one to start a new conductor.</p>

@@ -100,6 +100,13 @@ function makeTrain(spec, isPlayer) {
     heatMult: spec.stats.heatMult ?? 1,
     coolMult: spec.stats.coolMult ?? 1,
     secondWind: spec.stats.secondWind ?? 0,
+    overHeatMult: spec.stats.overHeatMult ?? 1,
+    bootMult: spec.stats.bootMult ?? 1,
+    dotMult: spec.stats.dotMult ?? 1,
+    spellCdMult: spec.stats.spellCdMult ?? 1,
+    mpCostMult: spec.stats.mpCostMult ?? 1,
+    mpRegenMult: spec.stats.mpRegenMult ?? 1,
+    chargeRegenMult: spec.stats.chargeRegenMult ?? 1,
     secondWindUsed: false,
     journey: !!spec.stats.journey,
     journeyStacks: 0,
@@ -124,7 +131,7 @@ export function bootStatus(race, train, key) {
   if (train.online[key] || race.bootInstant) return null;
   const boot = bootOf(train, key);
   if (!boot) return null;
-  const mult = boot.mult ?? 1;
+  const mult = (boot.mult ?? 1) * (train.bootMult ?? 1);
   if (boot.onHit && train.hitOnce) return null;
   if (boot.type === 'time') {
     const left = boot.s * mult - race.real;
@@ -326,7 +333,7 @@ function advanceTrain(race, train, h) {
   if (!train.parked) {
     const H = B.HEAT;
     const lever = train.lever * (1 + boost);
-    const leverHeat = lever <= 1 ? 0.4 + 0.6 * lever * lever : 1 + 8 * (lever - 1);
+    const leverHeat = lever <= 1 ? 0.4 + 0.6 * lever * lever : 1 + 8 * (lever - 1) * train.overHeatMult;
     const journeyCool = train.journey ? 1 - train.journeyStacks * B.JOURNEY.heat : 1;
     const gain = (H.perMile * leverHeat + Math.max(0, grade) * H.climb) * train.heatMult * journeyCool;
     const shed = H.passive * train.coolMult * (1 + H.ease * Math.max(0, 0.9 - train.lever));
@@ -596,7 +603,7 @@ export function castBlocker(race, from, kind) {
   if (booting) return booting;
   if ((from.cooldown[kind] ?? 0) > 0) return 'Reloading';
   if (cooler && from.heat < 3) return 'Engine is cool';
-  if (resource(from, arm.use) < arm.cost) return arm.use === 'mp' ? 'Not enough MP' : arm.use === 'ammo' ? 'Out of ammo' : 'Battery low';
+  if (resource(from, arm.use) < arm.cost * (arm.use === 'mp' ? from.mpCostMult ?? 1 : 1)) return arm.use === 'mp' ? 'Not enough MP' : arm.use === 'ammo' ? 'Out of ammo' : 'Battery low';
   if (arm.range && !targetFor(race, from, arm.range)) return 'Nothing in range';
   return null;
 }
@@ -606,12 +613,12 @@ export function castSpell(race, from, kind) {
   const arm = armOf(from, kind);
   // A missile launcher fires as much of its burst as the ammo allows.
   const burst = arm.burst ? Math.max(1, Math.min(arm.burst, Math.floor(from.ammo / arm.cost))) : 1;
-  if (arm.use === 'mp') from.mp -= arm.cost;
+  if (arm.use === 'mp') from.mp -= arm.cost * (from.mpCostMult ?? 1);
   else if (arm.use === 'ammo') {
     from.ammo -= arm.cost * burst;
     from.roundsFired += arm.cost * burst;
   } else from.charge -= arm.cost;
-  from.cooldown[kind] = arm.cooldown + (arm.channel ?? 0);
+  from.cooldown[kind] = (arm.cooldown + (arm.channel ?? 0)) * (arm.use === 'mp' || arm.channel ? from.spellCdMult ?? 1 : 1);
   if (COOLERS.includes(kindOf(kind))) {
     const before = from.heat;
     from.heat = Math.max(0, from.heat - arm.vent);
@@ -704,8 +711,11 @@ function hurt(race, from, targetId, damage, { kind, crit = false, pen = 0, dot =
 }
 
 // Burn and Poison stacks, on whatever was hit.
-function afflict(race, targetId, burn, poison) {
+function afflict(race, targetId, burn, poison, from = null) {
   if (!burn && !poison) return;
+  const k = from?.dotMult ?? 1;
+  burn = Math.round(burn * k);
+  poison = Math.round(poison * k);
   const thing = race.obstacles.find((item) => item.id === targetId) ?? race.trains.find((train) => train.id === targetId);
   if (!thing) return;
   thing.burn = (thing.burn ?? 0) + burn;
@@ -731,7 +741,7 @@ function land(race, shot) {
   damage = Math.round(damage);
   const crit = race.rng() < (arm.crit ?? C.crit);
   if (crit) damage = Math.round(damage * (arm.critMult ?? C.critMult));
-  if (hurt(race, from, shot.to, damage, { kind: shot.kind, crit, pen: arm.pen ?? 0 })) afflict(race, shot.to, arm.burn ?? 0, arm.poison ?? 0);
+  if (hurt(race, from, shot.to, damage, { kind: shot.kind, crit, pen: arm.pen ?? 0 })) afflict(race, shot.to, arm.burn ?? 0, arm.poison ?? 0, from);
 }
 
 // Lightning channels tick: base + amp x ticks so far, every quarter second, while the target holds.
@@ -756,7 +766,7 @@ function updateChannels(race, h) {
       if (from) from.hits += 1;
       if (!hurt(race, from, c.to, damage, { kind: 'arc', pen: c.pen })) break;
       const arm = from ? armOf(from, c.key) : null;
-      if (arm) afflict(race, c.to, arm.burn ?? 0, arm.poison ?? 0);
+      if (arm) afflict(race, c.to, arm.burn ?? 0, arm.poison ?? 0, from);
     }
   }
 }
@@ -807,8 +817,8 @@ function think(race, rival, h) {
 // MP, charge and cooldowns tick in every race, so coolers work even without a fight.
 function updateResources(race, h) {
   for (const train of race.trains) {
-    train.mp = Math.min(C.mpMax, train.mp + C.mpRegen * train.mpRegen * h);
-    if (train.chargeMax > 0) train.charge = Math.min(train.chargeMax, train.charge + C.chargeRegen * h);
+    train.mp = Math.min(C.mpMax, train.mp + C.mpRegen * train.mpRegen * train.mpRegenMult * h);
+    if (train.chargeMax > 0) train.charge = Math.min(train.chargeMax, train.charge + C.chargeRegen * train.chargeRegenMult * h);
     for (const kind of Object.keys(train.cooldown)) train.cooldown[kind] = Math.max(0, train.cooldown[kind] - h);
     train.barrier = Math.max(0, train.barrier - h);
   }

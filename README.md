@@ -1,4 +1,4 @@
-# Nexus Rails
+# Nexus Rail
 
 A fantasy railroad RPG. Roll a conductor, arm a locomotive, haul freight, race and fight for contracts, and work up to the dragon. (Formerly Iron Rails.)
 
@@ -71,3 +71,13 @@ Next, roughly in order:
 6. Missions
 
 `docs/RULES.md` marks every rule that was newly invented for this build, so those are easy to find and change.
+
+
+## Two editions, one codebase
+
+- **Nexus Rail Lite** (free to play) is the default build.
+- **Nexus Rail** (the NFT edition) is the same code built with `VITE_EDITION=nft`. It adds the Captain (focus and talent trees, level 30), conductor crew, Nexus, Season 1 crates and the Vault.
+
+Every change lands in both. On Replit, the NFT project is a second import of this same GitHub repo with a Secret named `VITE_EDITION` set to `nft` (and optionally `VITE_ADMIN_CODE` for the test admin panel). Run `VITE_EDITION=nft npm run dev` to try it locally.
+
+The NFT edition is a test build: Nexus, pools and NFTs are stored in the browser until the game has a server, and nothing is on a blockchain yet. The smart contracts live in a separate project (`nexus-contracts`).

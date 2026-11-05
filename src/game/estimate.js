@@ -1,3 +1,4 @@
+import { talent } from './captain.js';
 import { B } from './balance.js';
 import { hashSeed } from './course.js';
 import { traitPower } from './traits.js';
@@ -6,7 +7,7 @@ import { traitPower } from './traits.js';
 export function estimateBand(conductor) {
   const E = B.ESTIMATE;
   const int = (conductor?.int ?? 0) * (1 + traitPower(conductor, 'influencer'));
-  return Math.max(E.min, E.band - E.perInt * int);
+  return Math.max(E.min, (E.band - E.perInt * int) * (1 - Math.min(0.6, talent(conductor, 'estimate'))));
 }
 
 /**
