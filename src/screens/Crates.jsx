@@ -124,6 +124,12 @@ export default function Crates() {
         </div>
       ) : null}
 
+      {tab === 'crates' && !conductor.locos.length ? (
+        <p className="note">
+          <TrainFront aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Your garage is empty. Every Captain's first locomotive comes out of a crate: open one (or pick a locomotive from a pool) and send it to {conductor.captain?.name ?? 'your Captain'}. {vault.nexus < cratePrice('uncommon') ? 'Nexus is awarded by the admin team.' : ''}
+        </p>
+      ) : null}
+
       {tab === 'crates' ? (
         <>
           <div className="row" style={{ gap: 8 }}>

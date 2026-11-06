@@ -274,7 +274,9 @@ export function generateBoard(rng, week) {
 // and that at least one of them is a job the player can take today.
 export function fillCompanyJobs(rng, conductor) {
   const board = conductor.board;
-  const stats = deriveStats(activeLoco(conductor), conductor);
+  const loco = activeLoco(conductor);
+  if (!loco || !board) return; // a Captain still waiting on their first crate locomotive
+  const stats = deriveStats(loco, conductor);
   for (const [companyId, record] of Object.entries(conductor.companies)) {
     if ((record.contracts ?? 0) <= 0) continue;
     const jobs = board.company[companyId] ?? [];

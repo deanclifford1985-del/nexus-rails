@@ -29,7 +29,8 @@ import { LocoArt } from '../ui/LocoArt.jsx';
 import { RarityTag, Stat, TraitChips, TraitRarityTag } from '../ui/bits.jsx';
 import { fmt, lb } from '../ui/format.js';
 
-const STEPS = ['Name', 'Traits', 'Roll', 'Assign', 'Locomotive'];
+// Nexus Rail Captains get no free starter: their first locomotive comes from a crate.
+const STEPS = IS_NFT ? ['Name', 'Traits', 'Roll', 'Assign'] : ['Name', 'Traits', 'Roll', 'Assign', 'Locomotive'];
 const ATTR_KEYS = ['str', 'agi', 'int', 'end'];
 
 export default function Create() {
@@ -182,13 +183,14 @@ export default function Create() {
       chosen,
       attributes,
       rerollsLeft: Math.max(0, rerollsLeft),
-      loco,
+      loco: IS_NFT ? null : loco,
       seed: newSeed(),
       now: Date.now(),
     });
     if (IS_NFT) makeCaptainSave(conductor, { focus, crewName: randomName(rng.current) });
     createSave(slot, conductor);
-    go('setup', { ctx: { kind: 'test' } });
+    if (IS_NFT) go('crates', { tab: 'crates' });
+    else go('setup', { ctx: { kind: 'test' } });
   }
 
   const advice = allAssigned ? recommendStarter(attributes) : null;
@@ -405,10 +407,17 @@ export default function Create() {
                   <ArrowLeft aria-hidden="true" />
                   Dice
                 </button>
-                <button type="button" className="btn btn-brass btn-lg grow" disabled={!allAssigned} onClick={toLocomotive}>
-                  Choose a locomotive
-                  <ArrowRight aria-hidden="true" />
-                </button>
+                {IS_NFT ? (
+                  <button type="button" className="btn btn-brass btn-lg grow" disabled={!allAssigned} onClick={finish}>
+                    Hire them and head to the Crates
+                    <ArrowRight aria-hidden="true" />
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn-brass btn-lg grow" disabled={!allAssigned} onClick={toLocomotive}>
+                    Choose a locomotive
+                    <ArrowRight aria-hidden="true" />
+                  </button>
+                )}
               </div>
             </div>
           ) : null}
@@ -516,7 +525,7 @@ export default function Create() {
           <div>
             <span className="label">Locomotive</span>
             <div className="row">
-              <b>{loco ? loco.name : 'Not chosen'}</b>
+              <b>{IS_NFT ? 'From your first crate' : loco ? loco.name : 'Not chosen'}</b>
               {loco ? <RarityTag rarity={loco.rarity} /> : null}
             </div>
           </div>

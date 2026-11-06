@@ -1186,3 +1186,26 @@ describe('Nexus Rail (NFT edition): Captain, talents, crates and crew', () => {
     expect(nft.data).toBeTruthy();
   });
 });
+
+describe('Nexus Rail Captain with no starter', () => {
+  it('starts with an empty garage, survives world refresh, and takes its first train from a crate', async () => {
+    const C = await import('../src/game/crates.js');
+    const save = buildConductor({ name: 'Cap', chosen: [], attributes: { str: 8, agi: 7, int: 6, end: 5 }, rerollsLeft: 0, loco: null, seed: 7, now: NOW });
+    C.makeCaptainSave(save, { focus: 'engineering', crewName: 'Rookie' });
+    expect(save.locos).toEqual([]);
+    expect(save.activeLocoId).toBeNull();
+    expect(save.str).toBe(0); // nobody driving yet
+    expect(() => actions.refreshWorld(save, { now: NOW + 60000 })).not.toThrow();
+    const v = C.emptyVault();
+    C.adminGrant(v, { amount: 100 });
+    const locoEntry = C.poolOf('uncommon').find((e) => e.kind === 'loco');
+    const nft = C.openCrate(v, { tier: 'uncommon', pickId: locoEntry.id });
+    C.deployNft(v, save, { nftId: nft.id, saveId: save.createdAt });
+    expect(save.locos).toHaveLength(1);
+    expect(save.activeLocoId).toBe(save.locos[0].id);
+    expect(save.locos[0].crewId).toBe('crew-rookie');
+    expect(save.locos[0].fit).toEqual(B.ARMORY.startKit);
+    expect(save.str).toBe(8); // the rookie now drives it
+    expect(() => deriveStats(activeLoco(save), save)).not.toThrow();
+  });
+});

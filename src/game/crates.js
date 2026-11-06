@@ -13,6 +13,7 @@ import { FIRST_NAMES, LAST_NAMES } from './conductor.js';
 import { generateLoco, STARTER_MODELS } from './locomotives.js';
 import { makeRng, pick, randInt, shuffle } from './rng.js';
 import { hashSeed } from './course.js';
+import { B } from './balance.js';
 
 export const VAULT_VERSION = 1;
 export const SEASON = 1;
@@ -160,8 +161,19 @@ export function deployNft(vault, save, { nftId, saveId }) {
   if (!nft) fail('You do not own that NFT.');
   if (nft.deployedTo) fail('That NFT is already with a Captain.');
   if (!save?.captain) fail('Only a Captain can take NFTs.');
-  if (nft.kind === 'loco') save.locos.push({ ...structuredClone(nft.data), crewId: null });
-  else save.crew = [...(save.crew ?? []), structuredClone(nft.data)];
+  if (nft.kind === 'loco') {
+    const loco = { condition: 1, ...structuredClone(nft.data), crewId: null };
+    // An empty-fitted crate locomotive comes with the starter kit: a missile launcher and fuel storage.
+    if (!loco.fit?.length) loco.fit = [...B.ARMORY.startKit];
+    save.locos.push(loco);
+    // A Captain's first locomotive becomes the active one, with an idle conductor at the controls.
+    if (!save.locos.some((item) => item.id === save.activeLocoId)) {
+      save.activeLocoId = loco.id;
+      const seated = new Set(save.locos.map((item) => item.crewId).filter(Boolean));
+      loco.crewId = (save.crew ?? []).find((c) => !seated.has(c.id))?.id ?? null;
+    }
+  } else save.crew = [...(save.crew ?? []), structuredClone(nft.data)];
+  applyCrew(save);
   nft.deployedTo = saveId;
   return nft;
 }
@@ -192,6 +204,7 @@ export function makeCaptainSave(save, { focus, crewName }) {
   const rookie = { id: 'crew-rookie', nftId: null, name: crewName, rarity: 'common', traits: [...save.traits], str: save.str, agi: save.agi, int: save.int, end: save.end };
   save.crew = [rookie];
   for (const loco of save.locos) loco.crewId = loco.id === save.activeLocoId ? rookie.id : null;
+  // No starter train in Nexus Rail: the first locomotive comes from a crate.
   applyCrew(save);
   return save;
 }

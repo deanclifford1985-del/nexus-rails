@@ -95,7 +95,8 @@ export function recommendStarter({ str, agi, int, end = 0 }) {
 export function buildConductor({ name, chosen, attributes, rerollsLeft, loco, seed, now }) {
   const traits = chosen.flatMap(traitsFromOffer);
   // The starting kit: a Basic Cannon and one Fuel Storage slot fitted, and one container.
-  loco = { ...loco, fit: [...B.ARMORY.startKit], condition: 1 };
+  // A Captain in Nexus Rail starts with no locomotive: their first one comes from a crate.
+  loco = loco ? { ...loco, fit: [...B.ARMORY.startKit], condition: 1 } : null;
   const conductor = {
     version: 6,
     clock: B.CALENDAR.startMinute, // game minutes since Day 1, Month 1, Year 1
@@ -115,8 +116,8 @@ export function buildConductor({ name, chosen, attributes, rerollsLeft, loco, se
     fuel: { gallons: 0, basis: 0 },
     containers: B.FUEL.startContainers,
     gear: {}, // modules bought but not fitted: { moduleId: count }
-    locos: [loco],
-    activeLocoId: loco.id,
+    locos: loco ? [loco] : [],
+    activeLocoId: loco?.id ?? null,
     research: { done: { engine: 0, efficiency: 0, structure: 0 }, active: null },
     companies: {},
     board: null,
@@ -131,7 +132,7 @@ export function buildConductor({ name, chosen, attributes, rerollsLeft, loco, se
   const economist = traitPower(conductor, 'economist');
   conductor.lt = Math.floor(S.lt * (1 + 0.25 * economist)) + rerollsLeft * S.rerollBonusLt;
   const prepared = traitPower(conductor, 'prepared');
-  const gallons = S.fuel + Math.round(B.FUEL.preparedStartPerPower * loco.power * prepared);
+  const gallons = S.fuel + Math.round(B.FUEL.preparedStartPerPower * (loco?.power ?? 0) * prepared);
   conductor.fuel = { gallons, basis: gallons * S.fuelPrice };
   return conductor;
 }

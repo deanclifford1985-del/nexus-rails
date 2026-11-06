@@ -51,7 +51,7 @@ export default function Title() {
                     <div className="grow">
                       <h3 className="wrap-anywhere">{slot.name}</h3>
                       <span className="muted small">
-                        Level {slot.level}, {lt(slot.lt)} LT, {activeLoco(slot).name}
+                        Level {slot.level}, {lt(slot.lt)} LT, {activeLoco(slot)?.name ?? 'no locomotive yet'}
                       </span>
                     </div>
                     <div className="row">

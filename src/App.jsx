@@ -22,12 +22,38 @@ import { IS_NFT } from './edition.js';
 const FULL = { create: Create, setup: Setup, race: Race, receipt: Receipt };
 const TABS = { yard: Yard, jobs: Jobs, depot: Depot, armory: Armory, festival: Festival, workshop: Workshop, research: Research, station: Station, ...(IS_NFT ? { talents: Talents, crates: Crates } : {}) };
 
+// A Nexus Rail Captain with an empty garage can only reach the Crates and Talents until a crate
+// gives them a locomotive.
+const NO_TRAIN_OK = ['crates', 'talents'];
+
+function NoTrain() {
+  const { go } = useGame();
+  return (
+    <div className="plate riveted stack" style={{ maxWidth: 560, margin: '40px auto' }}>
+      <h1>
+        No locomotive <span className="hl-purple">yet</span>
+      </h1>
+      <p className="muted">Every Captain's first locomotive comes out of a crate. Open one with Nexus, send the locomotive to your Captain, and your conductor takes the controls.</p>
+      <button type="button" className="btn btn-arcane btn-lg" onClick={() => go('crates', { tab: 'crates' })}>
+        Go to the Crates
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const { screen, conductor, toasts } = useGame();
+  const noTrain = IS_NFT && conductor && !(conductor.locos?.length > 0);
   let view;
   if (screen.name === 'create') view = <Create />;
   else if (!conductor || screen.name === 'title') view = <Title />;
-  else if (FULL[screen.name]) {
+  else if (noTrain && !NO_TRAIN_OK.includes(screen.name)) {
+    view = (
+      <Shell>
+        <NoTrain />
+      </Shell>
+    );
+  } else if (FULL[screen.name]) {
     const Screen = FULL[screen.name];
     // A new key per visit gives each run a fresh screen.
     view = <Screen key={screen.name === 'race' ? JSON.stringify(screen.ctx) + (screen.config?.player.fuel ?? '') : screen.name} />;
