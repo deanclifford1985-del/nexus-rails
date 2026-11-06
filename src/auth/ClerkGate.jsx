@@ -6,7 +6,12 @@ import { Session } from './AccountGate.jsx';
 import { GAME_NAME } from '../edition.js';
 
 const appearance = {
-  variables: { colorPrimary: '#19c3e6', colorBackground: '#0b1118', colorText: '#eef6ff', colorInputBackground: '#111a24', colorInputText: '#eef6ff', borderRadius: '10px' },
+  variables: { colorPrimary: '#19c3e6', colorBackground: '#0b1118', colorText: '#eef6ff', colorTextSecondary: '#a9b8c9', colorInputBackground: '#111a24', colorInputText: '#eef6ff', borderRadius: '10px' },
+  elements: {
+    socialButtonsBlockButton: { backgroundColor: '#ffffff', color: '#1f2328', border: '1px solid #d0d7de' },
+    socialButtonsBlockButtonText: { color: '#1f2328', fontWeight: 600 },
+    formButtonPrimary: { color: '#03141a', fontWeight: 700 },
+  },
 };
 
 function Inner({ children }) {
