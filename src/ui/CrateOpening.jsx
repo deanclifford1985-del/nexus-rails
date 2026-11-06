@@ -1,23 +1,25 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FastForward } from 'lucide-react';
-import { CRATE_TIERS } from '../game/crates.js';
+import { CRATE_TIERS, crateRarity } from '../game/crates.js';
 import { ratingOf } from '../game/power.js';
+import { B } from '../game/balance.js';
 import { NftGameCard } from './GameCard.jsx';
 
 // The crate-opening scene: the crate shakes and glows, the lid blows off in a flash of light,
-// sparks fly, and the NFT's card spins up out of the crate. Rarer crates shake longer and burn
+// sparks fly, and the two cards inside (locomotive and conductor) spin up out of the crate. Rarer crates shake longer and burn
 // brighter; Legendary gets wide gold beams. Tap anywhere (or Skip) to jump to the card.
 
 const TIMING = {
-  uncommon: { shake: 1000, burst: 450, reveal: 1700, sparks: 18 },
-  rare: { shake: 1300, burst: 500, reveal: 1800, sparks: 26 },
-  epic: { shake: 1700, burst: 550, reveal: 1900, sparks: 36 },
-  legendary: { shake: 2400, burst: 650, reveal: 2100, sparks: 54 },
+  uncommon: { shake: 1000, burst: 450, reveal: 2100, sparks: 18 },
+  rare: { shake: 1300, burst: 500, reveal: 2200, sparks: 26 },
+  epic: { shake: 1700, burst: 550, reveal: 2300, sparks: 36 },
+  legendary: { shake: 2400, burst: 650, reveal: 2500, sparks: 54 },
 };
 const HEADLINE = { uncommon: 'Uncommon', rare: 'Rare!', epic: 'Epic!', legendary: 'Legendary!!' };
 
-export default function CrateOpening({ nft, children, onDone }) {
-  const rarity = CRATE_TIERS[nft.tier]?.rarity ?? 'uncommon';
+export default function CrateOpening({ opened, children, onDone }) {
+  const { tier, nfts } = opened;
+  const rarity = CRATE_TIERS[tier] ? crateRarity(tier) : 'uncommon';
   const T = TIMING[rarity] ?? TIMING.uncommon;
   const [phase, setPhase] = useState('shake');
   const timers = useRef([]);
@@ -43,7 +45,7 @@ export default function CrateOpening({ nft, children, onDone }) {
       onDone?.();
     });
     return () => timers.current.forEach(clearTimeout);
-  }, [nft.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [opened.crate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const skip = () => {
     if (phase === 'done') return;
@@ -61,14 +63,15 @@ export default function CrateOpening({ nft, children, onDone }) {
       }),
     [T.sparks, rarity],
   );
-  const rating = ratingOf(nft.kind, nft.data);
+  const ratings = nfts.map((n) => `${n.data.name} ${ratingOf(n.kind, n.data).toLocaleString()}`).join(', ');
+  const mix = nfts.map((n) => B.RARITY[n.data.rarity]?.label ?? n.data.rarity).join(' + ');
 
   return (
     <div
       className={`copen copen-${rarity} ph-${phase}`}
       role="dialog"
       aria-modal="true"
-      aria-label={`Opening ${CRATE_TIERS[nft.tier]?.name ?? 'crate'}`}
+      aria-label={`Opening ${CRATE_TIERS[tier]?.name ?? 'crate'}`}
       style={{ '--shake': `${T.shake}ms` }}
       onClick={phase !== 'done' ? skip : undefined}
     >
@@ -78,11 +81,16 @@ export default function CrateOpening({ nft, children, onDone }) {
           <FastForward aria-hidden="true" /> Skip
         </button>
       ) : null}
-      <div className="copen-stage">
+      <div className="copen-stage pair">
         <div className="copen-rays" aria-hidden="true" />
         <div className="copen-glow" aria-hidden="true" />
         <div className="copen-headline" aria-live="polite">
-          {phase === 'reveal' || phase === 'done' ? HEADLINE[rarity] : ''}
+          {phase === 'reveal' || phase === 'done' ? (
+            <>
+              {HEADLINE[rarity]}
+              <span className="copen-mix">{mix}</span>
+            </>
+          ) : ''}
         </div>
         <div className="copen-pit">
           <div className="copen-crate" aria-hidden="true">
@@ -90,26 +98,30 @@ export default function CrateOpening({ nft, children, onDone }) {
             <div className="copen-box" />
             <div className="copen-seam" />
             <div className="copen-gem" />
-            <div className="copen-label">{CRATE_TIERS[nft.tier]?.name}</div>
+            <div className="copen-label">{CRATE_TIERS[tier]?.name}</div>
             <div className="copen-sparks">
               {sparks.map((s, i) => (
                 <i key={i} style={{ '--x': `${s.x}px`, '--y': `${s.y}px`, '--d': `${s.delay}s` }} />
               ))}
             </div>
           </div>
-          <div className="copen-card">
-            <div className="copen-card-inner">
-              <div className="copen-front">
-                <NftGameCard nft={nft} size="lg" />
-              </div>
-              <div className="copen-back" aria-hidden="true">
-                NEXUS
-              </div>
+          <div className="copen-card pair">
+            <div className="gpair">
+              {nfts.map((n, i) => (
+                <div className="copen-card-inner" key={n.id} style={{ animationDelay: `${0.35 + i * 0.45}s` }}>
+                  <div className="copen-front">
+                    <NftGameCard nft={n} />
+                  </div>
+                  <div className="copen-back" aria-hidden="true">
+                    NEXUS
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
         <div className="copen-actions" aria-hidden={phase !== 'done'}>
-          <span className="sr-only">Power rating {rating.toLocaleString()}</span>
+          <span className="sr-only">Power ratings: {ratings}</span>
           {children}
         </div>
       </div>

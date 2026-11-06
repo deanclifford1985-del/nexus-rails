@@ -118,7 +118,7 @@ export async function createApp({ repo = null, authMode = null } = {}) {
   app.post('/api/session', route(async (who) => ({ ...(await bank.signIn(repo, who)), admin: isAdmin(who) })));
   app.get('/api/state', route(async (who) => ({ ...(await bank.state(repo, who.id)), admin: isAdmin(who) })));
   app.post('/api/name', route((who, req) => bank.rename(repo, who.id, req.body?.name)));
-  app.post('/api/crates/open', route((who, req) => bank.open(repo, who.id, { tier: req.body?.tier, pickId: req.body?.pickId ?? null, needLoco: !!req.body?.needLoco })));
+  app.post('/api/crates/open', route((who, req) => bank.open(repo, who.id, { tier: req.body?.tier, pickId: req.body?.pickId ?? null })));
   app.post('/api/nft/deploy', route((who, req) => bank.deploy(repo, who.id, { nftId: req.body?.nftId, saveId: req.body?.saveId })));
   app.post('/api/send', route((who, req) => bank.send(repo, who.id, { to: req.body?.to, amount: req.body?.amount, note: req.body?.note ?? '' })));
   app.get('/api/players', route((who, req) => bank.findPlayers(repo, req.query.q)));

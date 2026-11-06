@@ -318,7 +318,25 @@ Track pirates, loans and bank reputation, talent trees, missions, turrets, formi
   - Locomotives: Power ×1.45, Efficiency ×1.0, Endurance ×0.85, Armor ×0.7; super trait +3.5, each spell +1.4, the Journey +2.5, mythic engine +6.
   - Conductors: Agility ×1.25, Strength ×1.1, Endurance ×0.85, Intelligence ×0.8; each trait +3.2 (Profound ×1.2).
   - A and k are fitted so the Uncommon crate tier sits around 700 and the Legendary tier around 6,000; above the Legendary mark the curve climbs at half rate.
-  - Season 1 pools: Uncommon 590 to 830, Rare about 1,000 to 1,500, Epic about 1,900 to 2,900, Legendary about 4,400 to 6,700.
+  - Season 1 NFTs: Uncommon 585 to 860, Rare about 820 to 1,750, Epic about 1,350 to 3,800, Legendary about 4,350 to 7,350.
 - Art: rendered studio shots for all ten locomotive models (public/art/locos). Conductors get a portrait drawn from their id, so each one always looks the same; trim and glow follow rarity.
 - Crate opening: the crate shakes and glows, the lid blows off in a flash, sparks and light rays, and the card spins up out of the crate. Rarer crates shake longer and burn brighter; Legendary gets wide gold beams. Tap anywhere or Skip to jump to the card.
 - Cards appear in the crate pools (sorted by power, 24 at a time), the Vault, the Crew tab and a Card collection on Fleet (both editions).
+
+## Crates hold a pair (Dean, 6 Nov)
+
+Every crate holds one locomotive and one conductor, so no Captain ends up with a train and nobody to drive it. The better one side is, the plainer the other, and no crate holds two Legendaries.
+
+| Crate | Price (Nexus) | Pool | Inside |
+|---|---|---|---|
+| Basic | 10 | 200 | Uncommon train + Uncommon conductor |
+| Rare | 30 | 120 | Rare + Rare |
+| Elite | 60 | 80 | Epic one side, Rare the other |
+| Epic | 100 | 50 | Epic + Epic |
+| Legendary | 200 | 24 | Legendary one side, Rare the other |
+| Mythic | 300 | 12 | Legendary one side, Epic the other |
+
+- In the mixed crates, half the pool has the better locomotive and half the better conductor. Picking a specific crate still costs 10% more, and the pick list shows both cards and the pair's total power.
+- Each half is its own NFT (crate id + "-T" and "-C") and can be kept or sent on its own. "Send both" sends the pair; the crate's conductor drives the crate's locomotive, except that on the locomotive already on the main line the higher-rated conductor keeps the controls.
+- The 10 welcome Nexus buys a Basic crate: a new Captain's first crate gets them a train and a driver.
+- Crates opened before this change keep their single NFTs.

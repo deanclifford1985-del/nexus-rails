@@ -14,20 +14,44 @@ import { generateLoco, STARTER_MODELS } from './locomotives.js';
 import { makeRng, pick, randInt, shuffle } from './rng.js';
 import { hashSeed } from './course.js';
 import { B } from './balance.js';
+import { crewRating } from './power.js';
 
 export const VAULT_VERSION = 1;
 export const SEASON = 1;
 export const PICK_PREMIUM = 0.1;
 export const BURN_SHARE = 0.05; // of every Nexus spend, taken out of circulation
 
+// Every crate holds a matched pair: one locomotive and one conductor. The better one side is, the
+// plainer the other: no crate holds two Legendaries. In the mixed tiers half the pool has the better
+// locomotive and half the better conductor.
 export const CRATE_TIERS = {
-  uncommon: { name: 'Uncommon Crate', rarity: 'uncommon', price: 10, pool: 200, locoBudget: 20, crewBudget: 36, traits: 1 },
-  rare: { name: 'Rare Crate', rarity: 'rare', price: 25, pool: 100, locoBudget: 26, crewBudget: 46, traits: 2 },
-  epic: { name: 'Epic Crate', rarity: 'epic', price: 75, pool: 50, locoBudget: 32, crewBudget: 56, traits: 3 },
-  legendary: { name: 'Legendary Crate', rarity: 'legendary', price: 250, pool: 20, locoBudget: 40, crewBudget: 66, traits: 4 },
+  basic: { name: 'Basic Crate', loco: 'uncommon', crew: 'uncommon', price: 10, pool: 200 },
+  rare: { name: 'Rare Crate', loco: 'rare', crew: 'rare', price: 30, pool: 120 },
+  elite: { name: 'Elite Crate', high: 'epic', low: 'rare', price: 60, pool: 80 },
+  epic: { name: 'Epic Crate', loco: 'epic', crew: 'epic', price: 100, pool: 50 },
+  legendary: { name: 'Legendary Crate', high: 'legendary', low: 'rare', price: 200, pool: 24 },
+  mythic: { name: 'Mythic Crate', high: 'legendary', low: 'epic', price: 300, pool: 12 },
 };
 export const TIER_IDS = Object.keys(CRATE_TIERS);
-const LOCO_SHARE = 0.6; // the rest of each pool is conductors
+// The stat budget of each rarity: locomotive stat points, conductor attribute points and traits.
+export const RARITY_BUDGET = {
+  uncommon: { loco: 20, crew: 36, traits: 1 },
+  rare: { loco: 26, crew: 46, traits: 2 },
+  epic: { loco: 32, crew: 56, traits: 3 },
+  legendary: { loco: 40, crew: 66, traits: 4 },
+};
+const RANK = ['uncommon', 'rare', 'epic', 'legendary'];
+// The best rarity in a crate (for its colour and its opening scene).
+export const crateRarity = (tier) => {
+  const T = CRATE_TIERS[tier];
+  return T.high ?? (RANK.indexOf(T.loco) >= RANK.indexOf(T.crew) ? T.loco : T.crew);
+};
+// "Legendary + Rare", "Epic train or conductor + Rare", ...
+export function crateMix(tier) {
+  const T = CRATE_TIERS[tier];
+  const L = (r) => B.RARITY[r].label;
+  return T.high ? `${L(T.high)} train or conductor, ${L(T.low)} other` : `${L(T.loco)} train, ${L(T.crew)} conductor`;
+}
 const CREATION_TRAITS = ['lucky', 'consistent', 'focused', 'secondchances', 'prodigy'];
 const CREW_TRAITS = ACTIVE_TRAIT_IDS.filter((id) => !CREATION_TRAITS.includes(id));
 
@@ -52,36 +76,46 @@ function spread(rng, total, n, lo, hi) {
   return out;
 }
 
-const tierLetter = { uncommon: 'U', rare: 'R', epic: 'E', legendary: 'L' };
+const tierCode = { basic: 'BAS', rare: 'RAR', elite: 'ELI', epic: 'EPI', legendary: 'LEG', mythic: 'MYT' };
 
-// One season's pool for one tier, the same on every device. Entries are what the crate can reveal.
+function makeLoco(rng, rarity, model, id) {
+  const [power, efficiency, durability, endurance] = spread(rng, RARITY_BUDGET[rarity].loco, 4, 2, 15);
+  const loco = generateLoco(rng, model, { rarity, power, efficiency, durability, endurance, hpBase: 1750, tqBase: 3900, growth: 1.095 });
+  loco.id = `loco-${id}`;
+  loco.nftId = id;
+  return loco;
+}
+function makeCrew(rng, rarity, id) {
+  const R = RARITY_BUDGET[rarity];
+  const [str, agi, int, end] = spread(rng, R.crew, 4, 3, 20);
+  const traits = shuffle(rng, CREW_TRAITS).slice(0, R.traits);
+  return { id: `crew-${id}`, nftId: id, name: `${pick(rng, FIRST_NAMES)} ${pick(rng, LAST_NAMES)}`, rarity, traits, str, agi, int, end };
+}
+
+// One season's pool for one tier, the same on every device. Each entry is a crate: its id, and the
+// locomotive and conductor inside it (each its own NFT, id + "-T" and id + "-C").
 export function seasonPool(tier, season = SEASON) {
   const T = CRATE_TIERS[tier];
-  const rng = makeRng(hashSeed(`nexus-season-${season}-${tier}`));
+  const rng = makeRng(hashSeed(`nexus-season-${season}-pair-${tier}`));
   const entries = [];
-  const locos = Math.round(T.pool * LOCO_SHARE);
   for (let i = 0; i < T.pool; i++) {
-    const id = `NXR-S${season}-${tierLetter[tier]}-${String(i + 1).padStart(3, '0')}`;
-    if (i < locos) {
-      const model = STARTER_MODELS[i % STARTER_MODELS.length];
-      const [power, efficiency, durability, endurance] = spread(rng, T.locoBudget, 4, 2, 15);
-      const loco = generateLoco(rng, model, { rarity: T.rarity, power, efficiency, durability, endurance, hpBase: 1750, tqBase: 3900, growth: 1.095 });
-      loco.id = `loco-${id}`;
-      loco.nftId = id;
-      entries.push({ id, kind: 'loco', tier, data: loco });
-    } else {
-      const [str, agi, int, end] = spread(rng, T.crewBudget, 4, 3, 20);
-      const traits = shuffle(rng, CREW_TRAITS).slice(0, T.traits);
-      entries.push({
-        id,
-        kind: 'conductor',
-        tier,
-        data: { id: `crew-${id}`, nftId: id, name: `${pick(rng, FIRST_NAMES)} ${pick(rng, LAST_NAMES)}`, rarity: T.rarity, traits, str, agi, int, end },
-      });
-    }
+    const id = `NXR-S${season}-${tierCode[tier]}-${String(i + 1).padStart(3, '0')}`;
+    const trainHigh = i % 2 === 0;
+    const locoRarity = T.high ? (trainHigh ? T.high : T.low) : T.loco;
+    const crewRarity = T.high ? (trainHigh ? T.low : T.high) : T.crew;
+    const model = STARTER_MODELS[i % STARTER_MODELS.length];
+    entries.push({
+      id,
+      tier,
+      loco: { id: `${id}-T`, kind: 'loco', tier, data: makeLoco(rng, locoRarity, model, `${id}-T`) },
+      conductor: { id: `${id}-C`, kind: 'conductor', tier, data: makeCrew(rng, crewRarity, `${id}-C`) },
+    });
   }
   return shuffle(rng, entries);
 }
+
+// Every NFT in a tier's pool (both halves of every crate).
+export const poolNfts = (tier, season = SEASON) => poolOf(tier, season).flatMap((crate) => [crate.loco, crate.conductor]);
 
 const poolCache = {};
 export function poolOf(tier, season = SEASON) {
@@ -91,7 +125,7 @@ export function poolOf(tier, season = SEASON) {
 }
 
 // Every player's Vault starts with enough Nexus for one Uncommon crate, so a new Captain can open
-// their first crate (and get their first locomotive or conductor) without waiting on an admin.
+// their first crate (a locomotive and a conductor) without waiting on an admin.
 export const WELCOME_NEXUS = 10;
 
 export function emptyVault() {
@@ -123,9 +157,8 @@ function spend(vault, amount, what) {
 
 export const cratePrice = (tier, picked = false) => Math.round(CRATE_TIERS[tier].price * (picked ? 1 + PICK_PREMIUM : 1) * 100) / 100;
 
-// Open a crate: a random entry from the pool, or the entry you picked for +10%.
-// `needLoco`: a Captain with an empty garage always draws a locomotive, so their first crate gets them racing.
-export function openCrate(vault, { tier, pickId = null, rng = Math.random, now = Date.now(), needLoco = false }) {
+// Open a crate: a random one from the pool, or the one you picked for +10%. You get both NFTs inside.
+export function openCrate(vault, { tier, pickId = null, rng = Math.random, now = Date.now() }) {
   const T = CRATE_TIERS[tier];
   if (!T) fail('Unknown crate.');
   const left = remaining(vault, tier);
@@ -134,17 +167,13 @@ export function openCrate(vault, { tier, pickId = null, rng = Math.random, now =
   if (pickId) {
     entry = left.find((item) => item.id === pickId);
     if (!entry) fail('That one has already been taken.');
-  } else {
-    const locos = left.filter((item) => item.kind === 'loco');
-    const from = needLoco && locos.length ? locos : left;
-    entry = from[Math.floor(rng() * from.length)];
-  }
+  } else entry = left[Math.floor(rng() * left.length)];
   spend(vault, cratePrice(tier, !!pickId), T.name);
   vault.opened[entry.id] = true;
-  const nft = { id: entry.id, kind: entry.kind, tier, data: structuredClone(entry.data), at: now, deployedTo: null };
-  vault.owned.push(nft);
+  const nfts = [entry.loco, entry.conductor].map((item) => ({ id: item.id, kind: item.kind, tier, crate: entry.id, data: structuredClone(item.data), at: now, deployedTo: null }));
+  vault.owned.push(...nfts);
   vault.ledger.push({ at: now, type: 'crate', tier, picked: !!pickId, nexus: -cratePrice(tier, !!pickId), id: entry.id });
-  return nft;
+  return { crate: entry.id, tier, nfts };
 }
 
 // Admin only (test build): award Nexus to this vault.
@@ -211,6 +240,20 @@ export function deployNft(vault, save, { nftId, saveId }) {
   return nft;
 }
 
+// After a crate's pair goes to a Captain: the crate's conductor drives the crate's locomotive. If
+// that locomotive is the one already on the main line, whichever conductor has the higher power
+// rating drives it and the other waits in the crew.
+export function seatPair(save, { locoId, crewId }) {
+  const loco = save.locos.find((item) => item.id === locoId);
+  const crew = (save.crew ?? []).find((item) => item.id === crewId);
+  if (!loco || !crew) return save;
+  const seated = (save.crew ?? []).find((item) => item.id === loco.crewId);
+  if (seated && save.locos.some((other) => other.id !== loco.id && other.crewId === crewId)) return save;
+  if (seated && crewRating(seated) >= crewRating(crew)) return save;
+  assignCrew(save, { locoId, crewId });
+  return save;
+}
+
 // Seat a conductor in a locomotive. A conductor drives one locomotive at a time.
 export function assignCrew(save, { locoId, crewId }) {
   const loco = save.locos.find((item) => item.id === locoId);
@@ -227,7 +270,6 @@ export function nftLabel(nft) {
   return nft.kind === 'loco' ? nft.data.name : nft.data.name;
 }
 
-export const statBudgetOf = (tier) => CRATE_TIERS[tier];
 export { randInt };
 
 // Turn a freshly built save into a Captain's: the rolled conductor becomes the Captain's first

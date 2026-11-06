@@ -12,16 +12,16 @@ import Portrait from './Portrait.jsx';
 
 const SPELL_NAMES = { fire: 'Fire', bolt: 'Bolt', barrier: 'Barrier', frost: 'Frost Breath' };
 const LOCO_STATS = [
-  ['power', 'Power'],
-  ['efficiency', 'Efficiency'],
-  ['durability', 'Armor'],
-  ['endurance', 'Endurance'],
+  ['power', 'Power', 'PWR'],
+  ['efficiency', 'Efficiency', 'EFF'],
+  ['durability', 'Armor', 'ARM'],
+  ['endurance', 'Endurance', 'END'],
 ];
 const CREW_STATS = [
-  ['str', 'Strength'],
-  ['agi', 'Agility'],
-  ['int', 'Intelligence'],
-  ['end', 'Endurance'],
+  ['str', 'Strength', 'STR'],
+  ['agi', 'Agility', 'AGI'],
+  ['int', 'Intelligence', 'INT'],
+  ['end', 'Endurance', 'END'],
 ];
 const ART = new Set(['tank', 'bullet', 'stable', 'longrun', 'scrappy', 'wizard', 'titan', 'dragon', 'phoenix', 'benchmark']);
 const base = (import.meta.env?.BASE_URL ?? '/').replace(/\/?$/, '/');
@@ -76,9 +76,12 @@ export default function GameCard({ kind, data, rarity, serial, size = 'md', foot
             </div>
           </div>
           <div className="gcard-stats">
-            {stats.map(([k, label]) => (
+            {stats.map(([k, label, short]) => (
               <div className="gcard-stat" key={k}>
-                <span className="gcard-stat-lbl">{label}</span>
+                <span className="gcard-stat-lbl">
+                  <span className="l-long">{label}</span>
+                  <span className="l-short" aria-hidden="true">{short}</span>
+                </span>
                 <span className="gcard-bar">
                   <i style={{ width: `${Math.min(100, ((d[k] ?? 0) / top) * 100)}%` }} />
                 </span>
@@ -111,5 +114,5 @@ export default function GameCard({ kind, data, rarity, serial, size = 'md', foot
 
 // An NFT from a crate pool or the Vault, as a card.
 export function NftGameCard({ nft, children, size }) {
-  return <GameCard kind={nft.kind} data={nft.data} rarity={CRATE_TIERS[nft.tier]?.rarity ?? nft.data.rarity} serial={nft.id} size={size}>{children}</GameCard>;
+  return <GameCard kind={nft.kind} data={nft.data} rarity={nft.data.rarity ?? CRATE_TIERS[nft.tier]?.loco} serial={nft.id} size={size}>{children}</GameCard>;
 }

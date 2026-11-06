@@ -3,7 +3,7 @@ import * as actions from '../game/actions.js';
 import { GameError } from '../game/actions.js';
 import { RESEARCH } from '../game/economy.js';
 import { loadSaves, loadVault, storeSaves } from '../game/storage.js';
-import { VaultError, emptyVault, placeNft } from '../game/crates.js';
+import { VaultError, emptyVault, placeNft, seatPair } from '../game/crates.js';
 import { IS_NFT } from '../edition.js';
 import { api } from '../net/api.js';
 
@@ -173,7 +173,10 @@ export function GameProvider({ children }) {
 
   // Open a crate; returns the NFT.
   const openCrateFor = useCallback(
-    async ({ tier, pickId = null, needLoco = false }) => (await bank('/api/crates/open', { tier, pickId, needLoco }))?.nft ?? null,
+    async ({ tier, pickId = null }) => {
+      const reply = await bank('/api/crates/open', { tier, pickId });
+      return reply?.nfts ? { crate: reply.crate, tier, nfts: reply.nfts } : null;
+    },
     [bank],
   );
 
@@ -208,9 +211,31 @@ export function GameProvider({ children }) {
   );
 
   const conductor = saves.active === null ? null : saves.slots[saves.active];
+  // Send both NFTs from a crate to the active Captain; the crate's conductor drives its locomotive.
+  const deployCrate = useCallback(
+    async (nfts) => {
+      const done = [];
+      for (const nft of nfts) if (!nft.deployedTo && (await deploy(nft.id))) done.push(nft);
+      const loco = done.find((n) => n.kind === 'loco');
+      const crew = done.find((n) => n.kind !== 'loco');
+      if (loco && crew) {
+        const current = savesRef.current;
+        if (current.active !== null) {
+          const save = structuredClone(current.slots[current.active]);
+          seatPair(save, { locoId: loco.data.id, crewId: crew.data.id });
+          const slots = current.slots.slice();
+          slots[current.active] = save;
+          commit({ slots, active: current.active });
+        }
+      }
+      return done.length === nfts.filter((n) => !n.deployedTo).length;
+    },
+    [deploy, commit],
+  );
+
   const value = useMemo(
-    () => ({ saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor }),
-    [saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor],
+    () => ({ saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor, deployCrate }),
+    [saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor, deployCrate],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

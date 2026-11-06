@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { TIER_IDS, poolOf } from '../src/game/crates.js';
+import { TIER_IDS, poolNfts } from '../src/game/crates.js';
 import { crewRating, locoRating, ratingBand, ratingOf } from '../src/game/power.js';
 
 const median = (list) => {
   const s = [...list].sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)];
 };
-const ratings = (tier, kind) => poolOf(tier).filter((n) => n.kind === kind).map((n) => ratingOf(kind, n.data));
+const ALL = TIER_IDS.flatMap((tier) => poolNfts(tier));
+const ratings = (rarity, kind) => ALL.filter((n) => n.kind === kind && n.data.rarity === rarity).map((n) => ratingOf(kind, n.data));
 
 describe('power rating', () => {
-  it('puts Uncommon crate NFTs around 500 to 900', () => {
+  it('puts Uncommon NFTs around 500 to 900', () => {
     for (const kind of ['loco', 'conductor']) {
       const list = ratings('uncommon', kind);
       expect(list.length).toBeGreaterThan(0);
@@ -20,7 +21,7 @@ describe('power rating', () => {
     }
   });
 
-  it('puts Legendary crate NFTs around 6,000', () => {
+  it('puts Legendary NFTs around 6,000', () => {
     for (const kind of ['loco', 'conductor']) {
       const m = median(ratings('legendary', kind));
       expect(m).toBeGreaterThan(5000);
@@ -28,9 +29,9 @@ describe('power rating', () => {
     }
   });
 
-  it('climbs with every tier', () => {
+  it('climbs with every rarity', () => {
     for (const kind of ['loco', 'conductor']) {
-      const medians = TIER_IDS.map((tier) => median(ratings(tier, kind)));
+      const medians = ['uncommon', 'rare', 'epic', 'legendary'].map((r) => median(ratings(r, kind)));
       for (let i = 1; i < medians.length; i++) expect(medians[i]).toBeGreaterThan(medians[i - 1]);
     }
   });

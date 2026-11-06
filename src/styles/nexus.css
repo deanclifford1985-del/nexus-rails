@@ -872,7 +872,7 @@ h1 .hl-purple {
 .copen-rays { position: absolute; left: 50%; top: 50%; width: 900px; height: 900px; margin: -450px 0 0 -450px; border-radius: 50%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--c) 55%, transparent) 0deg 6deg, transparent 6deg 22deg); -webkit-mask: radial-gradient(circle, #000 10%, transparent 62%); mask: radial-gradient(circle, #000 10%, transparent 62%); opacity: 0; pointer-events: none; }
 .copen-glow { position: absolute; left: 50%; top: 50%; width: 520px; height: 520px; margin: -260px 0 0 -260px; border-radius: 50%; background: radial-gradient(circle, var(--c2), color-mix(in srgb, var(--c) 60%, transparent) 25%, transparent 62%); opacity: 0; pointer-events: none; }
 .copen-flash { position: fixed; inset: 0; background: var(--c2); opacity: 0; pointer-events: none; }
-.copen-crate { position: relative; width: 220px; height: 180px; transform-origin: 50% 100%; }
+.copen-crate { position: relative; width: 220px; height: 180px; transform-origin: 50% 100%; pointer-events: none; }
 .copen-box, .copen-lid { position: absolute; left: 0; right: 0; border-radius: 10px; background: linear-gradient(180deg, #232b3a, #0d121b); border: 2px solid color-mix(in srgb, var(--c) 75%, #000); box-shadow: 0 0 22px color-mix(in srgb, var(--c) 45%, transparent), inset 0 0 18px rgba(0, 0, 0, 0.6); }
 .copen-box { bottom: 0; height: 130px; }
 .copen-box::before, .copen-box::after { content: ''; position: absolute; top: 0; bottom: 0; width: 18px; background: linear-gradient(180deg, color-mix(in srgb, var(--c) 40%, #111), #0a0d12); }
@@ -940,3 +940,36 @@ h1 .hl-purple {
 }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Cards adapt to their width: narrow cards (two side by side on a phone) use short labels. */
+.gcard { container-type: inline-size; }
+.gcard-stat-lbl .l-short { display: none; }
+@container (max-width: 210px) {
+  .gcard-stat { grid-template-columns: 30px 1fr 20px; gap: 5px; font-size: 0.72rem; }
+  .gcard-stat-lbl .l-long { display: none; }
+  .gcard-stat-lbl .l-short { display: inline; }
+  .gcard-stat b { font-size: 0.72rem; }
+  .gcard-body { padding: 8px 8px 10px; gap: 6px; }
+  .gcard-title h3 { font-size: 0.8rem; }
+  .gcard-title svg { display: none; }
+  .gcard-sub { font-size: 0.7rem; }
+  .gcard-power { min-width: 0; padding: 3px 6px 2px; top: 5px; right: 5px; border-radius: 9px; }
+  .gcard-power-num { font-size: 1rem; }
+  .gcard-power-lbl { font-size: 0.5rem; letter-spacing: 0.14em; }
+  .gcard-chip { font-size: 0.64rem; padding: 1px 6px; }
+  .gcard-foot { font-size: 0.6rem; letter-spacing: 0.02em; }
+  .gcard-rarity { font-size: 0.6rem; left: 7px; bottom: 5px; }
+}
+
+/* A crate's pair: locomotive and conductor side by side. */
+.gpair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+.gpair .gcard { max-width: none; }
+.gpair-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 16px; }
+.gpair-box { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); }
+.gpair-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.78rem; color: #93a0b4; letter-spacing: 0.06em; }
+.gpair-head b { font-family: var(--font-display); color: #fff; font-size: 0.9rem; }
+.crate-mix { font-weight: 700; color: var(--cyan-hi, #8ee9ff); }
+.copen-card.pair { width: min(680px, 94vw); }
+.copen-card .gpair { perspective: 1200px; }
+.copen-stage.pair { width: min(700px, 100%); }
+.copen-mix { display: block; margin-top: 4px; font-size: 0.42em; letter-spacing: 0.2em; color: var(--c2); }

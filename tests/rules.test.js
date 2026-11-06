@@ -1163,67 +1163,81 @@ describe('Nexus Rail (NFT edition): Captain, talents, crates and crew', () => {
     const v = C.emptyVault();
     expect(() => C.openCrate(v, { tier: 'rare' })).toThrow(/Not enough Nexus/);
     C.adminGrant(v, { amount: 500 });
-    const before = C.remaining(v, 'rare').length;
-    expect(before).toBe(100);
-    const nft = C.openCrate(v, { tier: 'rare', rng: () => 0.3 });
-    expect(C.remaining(v, 'rare').length).toBe(99);
-    expect(v.nexus).toBe(475);
+    expect(C.remaining(v, 'rare').length).toBe(120);
+    const got = C.openCrate(v, { tier: 'rare', rng: () => 0.3 });
+    expect(C.remaining(v, 'rare').length).toBe(119);
+    expect(v.nexus).toBe(470);
+    expect(got.nfts.map((n) => n.kind)).toEqual(['loco', 'conductor']);
+    expect(v.owned).toHaveLength(2);
     const pickId = C.remaining(v, 'legendary')[0].id;
     const picked = C.openCrate(v, { tier: 'legendary', pickId });
-    expect(picked.id).toBe(pickId);
-    expect(v.nexus).toBe(475 - 275);
-    for (const entry of C.poolOf('epic')) {
-      if (entry.kind === 'loco') expect(entry.data.power + entry.data.efficiency + entry.data.durability + entry.data.endurance).toBe(32);
-      else expect(entry.data.str + entry.data.agi + entry.data.int + entry.data.end).toBe(56);
-    }
+    expect(picked.crate).toBe(pickId);
+    expect(v.nexus).toBe(470 - 220);
+    const budget = (n) => (n.kind === 'loco' ? n.data.power + n.data.efficiency + n.data.durability + n.data.endurance : n.data.str + n.data.agi + n.data.int + n.data.end);
+    for (const n of C.poolNfts('epic')) expect(budget(n)).toBe(n.kind === 'loco' ? 32 : 56);
     expect(C.poolOf('rare')[0].id).toBe(C.seasonPool('rare')[0].id); // same pool on every device
     // Deploy into a Captain's save and seat the conductor
     const save = C.makeCaptainSave(newConductor(), { focus: 'business', crewName: 'Rookie' });
-    const crewNft = C.poolOf('legendary').find((e) => e.kind === 'conductor');
-    v.owned.push({ id: crewNft.id, kind: 'conductor', tier: 'legendary', data: structuredClone(crewNft.data), deployedTo: null });
+    const crewNft = C.poolNfts('epic').find((e) => e.kind === 'conductor');
+    v.owned.push({ id: crewNft.id, kind: 'conductor', tier: 'epic', data: structuredClone(crewNft.data), deployedTo: null });
     C.deployNft(v, save, { nftId: crewNft.id, saveId: 1 });
     expect(() => C.deployNft(v, save, { nftId: crewNft.id, saveId: 1 })).toThrow(/already/);
     actions.seatCrew(save, { locoId: save.activeLocoId, crewId: crewNft.data.id });
     expect(save.str).toBe(crewNft.data.str);
-    expect(nft.data).toBeTruthy();
+  });
+
+  it('every crate is a locomotive and a conductor; the better one either way, never two Legendaries', async () => {
+    const C = await import('../src/game/crates.js');
+    const want = { basic: ['uncommon', 'uncommon'], rare: ['rare', 'rare'], elite: ['epic', 'rare'], epic: ['epic', 'epic'], legendary: ['legendary', 'rare'], mythic: ['legendary', 'epic'] };
+    for (const tier of C.TIER_IDS) {
+      let trainHigh = 0;
+      for (const crate of C.poolOf(tier)) {
+        expect(crate.loco.kind).toBe('loco');
+        expect(crate.conductor.kind).toBe('conductor');
+        const pair = [crate.loco.data.rarity, crate.conductor.data.rarity];
+        expect([...pair].sort()).toEqual([...want[tier]].sort());
+        expect(pair.filter((r) => r === 'legendary').length).toBeLessThan(2);
+        if (pair[0] === want[tier][0] && pair[0] !== pair[1]) trainHigh++;
+      }
+      if (want[tier][0] !== want[tier][1]) expect(trainHigh).toBe(C.CRATE_TIERS[tier].pool / 2);
+    }
   });
 });
 
 describe('Nexus Rail Captain with no starter', () => {
-  it('starts with an empty garage, survives world refresh, and takes its first train from a crate', async () => {
+  it('starts with an empty garage, survives world refresh, and takes its first train and driver from a crate', async () => {
     const C = await import('../src/game/crates.js');
-    const save = buildConductor({ name: 'Cap', chosen: [], attributes: { str: 8, agi: 7, int: 6, end: 5 }, rerollsLeft: 0, loco: null, seed: 7, now: NOW });
+    const save = buildConductor({ name: 'Cap', chosen: [], attributes: { str: 2, agi: 2, int: 2, end: 2 }, rerollsLeft: 0, loco: null, seed: 7, now: NOW });
     C.makeCaptainSave(save, { focus: 'engineering', crewName: 'Rookie' });
     expect(save.locos).toEqual([]);
     expect(save.activeLocoId).toBeNull();
     expect(save.str).toBe(0); // nobody driving yet
     expect(() => actions.refreshWorld(save, { now: NOW + 60000 })).not.toThrow();
-    const v = C.emptyVault();
-    C.adminGrant(v, { amount: 100 });
-    const locoEntry = C.poolOf('uncommon').find((e) => e.kind === 'loco');
-    const nft = C.openCrate(v, { tier: 'uncommon', pickId: locoEntry.id });
-    C.deployNft(v, save, { nftId: nft.id, saveId: save.createdAt });
+    const v = C.welcome(C.emptyVault());
+    const got = C.openCrate(v, { tier: 'basic', rng: () => 0.5 });
+    expect(v.nexus).toBe(0);
+    for (const n of got.nfts) C.deployNft(v, save, { nftId: n.id, saveId: save.createdAt });
     expect(save.locos).toHaveLength(1);
     expect(save.activeLocoId).toBe(save.locos[0].id);
     expect(save.locos[0].crewId).toBe('crew-rookie');
     expect(save.locos[0].fit).toEqual(B.ARMORY.startKit);
-    expect(save.str).toBe(8); // the rookie now drives it
+    // The crate's conductor out-rates a weak rookie, so takes the controls.
+    C.seatPair(save, { locoId: got.nfts[0].data.id, crewId: got.nfts[1].data.id });
+    expect(save.locos[0].crewId).toBe(got.nfts[1].data.id);
+    expect(save.str).toBe(got.nfts[1].data.str);
     expect(() => deriveStats(activeLoco(save), save)).not.toThrow();
   });
 });
 
 describe('Nexus Rail welcome', () => {
-  it('a Vault gets 10 welcome Nexus once, and an empty garage always draws a locomotive', async () => {
+  it('a Vault gets 10 welcome Nexus once: enough for a Basic crate', async () => {
     const C = await import('../src/game/crates.js');
     const v = C.welcome(C.emptyVault());
     expect(v.nexus).toBe(10);
     C.welcome(v);
     expect(v.nexus).toBe(10); // only once
-    for (let i = 0; i < 20; i++) {
-      const fresh = C.welcome(C.emptyVault());
-      const nft = C.openCrate(fresh, { tier: 'uncommon', rng: () => i / 20, needLoco: true });
-      expect(nft.kind).toBe('loco');
-      expect(fresh.nexus).toBe(0);
-    }
+    const got = C.openCrate(v, { tier: 'basic', rng: () => 0.1 });
+    expect(got.nfts).toHaveLength(2);
+    expect(v.nexus).toBe(0);
   });
 });

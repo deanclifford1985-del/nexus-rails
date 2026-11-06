@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Gem, KeyRound, LogOut, Search, Send, ShieldAlert, Sparkles, TrainFront, User } from 'lucide-react';
 import { useGame } from '../state/store.jsx';
-import { CRATE_TIERS, PICK_PREMIUM, TIER_IDS, WELCOME_NEXUS, cratePrice, crewOf, remaining } from '../game/crates.js';
+import { CRATE_TIERS, PICK_PREMIUM, TIER_IDS, WELCOME_NEXUS, cratePrice, crateMix, crateRarity, crewOf, remaining } from '../game/crates.js';
 import { TRAITS } from '../game/traits.js';
 import { api } from '../net/api.js';
 import { RarityTag } from '../ui/bits.jsx';
@@ -262,7 +262,7 @@ export function AdminPanel() {
 }
 
 export default function Crates() {
-  const { conductor, vault, deploy, act, notify, screen, account, openCrateFor, refreshVault } = useGame();
+  const { conductor, vault, deploy, deployCrate, act, notify, screen, account, openCrateFor, refreshVault } = useGame();
   const [busy, setBusy] = useState(false);
   // Pools are shared by every player: refresh when the screen opens.
   useEffect(() => {
@@ -276,21 +276,25 @@ export default function Crates() {
   const open = async (tier, pickId = null) => {
     if (busy) return;
     setBusy(true);
-    const nft = await openCrateFor({ tier, pickId, needLoco: !conductor.locos.length });
+    const opened = await openCrateFor({ tier, pickId });
     setBusy(false);
-    if (nft) {
+    if (opened) {
       setBrowse(null);
-      setReveal(nft);
+      setReveal(opened);
     }
   };
   const [poolSort, setPoolSort] = useState('power');
   const [poolShown, setPoolShown] = useState(24);
   const pool = useMemo(() => {
     if (!browse) return [];
-    const list = remaining(vault, browse).map((n) => ({ n, power: ratingOf(n.kind, n.data) }));
+    const list = remaining(vault, browse).map((n) => {
+      const lp = ratingOf('loco', n.loco.data);
+      const cp = ratingOf('conductor', n.conductor.data);
+      return { n, power: lp + cp, lp, cp };
+    });
     if (poolSort === 'power') list.sort((a, b) => b.power - a.power);
-    if (poolSort === 'loco') list.sort((a, b) => (a.n.kind === 'loco' ? 0 : 1) - (b.n.kind === 'loco' ? 0 : 1) || b.power - a.power);
-    if (poolSort === 'conductor') list.sort((a, b) => (a.n.kind === 'loco' ? 1 : 0) - (b.n.kind === 'loco' ? 1 : 0) || b.power - a.power);
+    if (poolSort === 'loco') list.sort((a, b) => b.lp - a.lp);
+    if (poolSort === 'conductor') list.sort((a, b) => b.cp - a.cp);
     return list.map((x) => x.n);
   }, [browse, vault, poolSort]);
   useEffect(() => setPoolShown(24), [browse, poolSort]);
@@ -320,14 +324,14 @@ export default function Crates() {
       </div>
 
       {reveal ? (
-        <CrateOpening nft={reveal} key={reveal.id}>
+        <CrateOpening opened={reveal} key={reveal.crate}>
           <button type="button" className="btn btn-arcane" onClick={async () => {
-              if (await deploy(reveal.id)) {
-                notify('Sent to your Captain.', 'good');
+              if (await deployCrate(reveal.nfts)) {
+                notify(`Both sent to ${conductor.captain?.name ?? 'your Captain'}. The new conductor drives the new locomotive.`, 'good');
                 setReveal(null);
               }
             }}>
-            <Sparkles aria-hidden="true" /> Send to {conductor.captain?.name ?? 'Captain'}
+            <Sparkles aria-hidden="true" /> Send both to {conductor.captain?.name ?? 'Captain'}
           </button>
           <button type="button" className="btn" onClick={() => setReveal(null)}>
             Keep in Vault
@@ -337,7 +341,7 @@ export default function Crates() {
 
       {tab === 'crates' && !conductor.locos.length ? (
         <p className="note">
-          <TrainFront aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Your garage is empty. Every Captain's first locomotive comes out of a crate, and while your garage is empty a crate always holds a locomotive. You start with {WELCOME_NEXUS} Nexus: enough for an Uncommon crate. Open it and send the locomotive to {conductor.captain?.name ?? 'your Captain'}. {vault.nexus < cratePrice('uncommon') ? 'More Nexus is awarded by the admin team.' : ''}
+          <TrainFront aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Your garage is empty. Every crate holds a locomotive and a conductor to drive it. You start with {WELCOME_NEXUS} Nexus: enough for a Basic crate. Open it and send both to {conductor.captain?.name ?? 'your Captain'}. {vault.nexus < cratePrice('basic') ? 'More Nexus is awarded by the admin team.' : ''}
         </p>
       ) : null}
 
@@ -354,15 +358,16 @@ export default function Crates() {
               const T = CRATE_TIERS[tier];
               const left = remaining(vault, tier).length;
               return (
-                <article className={`plate riveted stack-sm crate-card crate-${tier}`} key={tier}>
+                <article className={`plate riveted stack-sm crate-card crate-${crateRarity(tier)}`} key={tier}>
                   <div className="spread">
                     <h3>
                       <Box aria-hidden="true" style={{ width: 18, height: 18, verticalAlign: '-3px' }} /> {T.name}
                     </h3>
-                    <RarityTag rarity={T.rarity} />
+                    <RarityTag rarity={crateRarity(tier)} />
                   </div>
-                  <span className="small muted">
-                    Locomotives with {T.locoBudget} stat points, or conductors with {T.crewBudget} attribute points and {T.traits} trait{T.traits === 1 ? '' : 's'}.
+                  <span className="small">
+                    <span className="crate-mix">{crateMix(tier)}</span>
+                    <span className="muted"> · one locomotive and one conductor in every crate{T.high ? ', the better one either way round' : ''}.</span>
                   </span>
                   <div className="pool-meter" aria-label={`${left} of ${T.pool} left`}>
                     <i style={{ width: `${(left / T.pool) * 100}%` }} />
@@ -390,19 +395,27 @@ export default function Crates() {
                 <label className="row small" style={{ gap: 6 }}>
                   <span className="label">Sort</span>
                   <select className="field" value={poolSort} onChange={(e) => setPoolSort(e.target.value)}>
-                    <option value="power">Highest power</option>
-                    <option value="loco">Locomotives first</option>
-                    <option value="conductor">Conductors first</option>
+                    <option value="power">Highest total power</option>
+                    <option value="loco">Best locomotive</option>
+                    <option value="conductor">Best conductor</option>
                   </select>
                 </label>
               </div>
-              <div className="gcard-grid">
+              <div className="gpair-grid">
                 {pool.slice(0, poolShown).map((entry) => (
-                  <NftGameCard nft={entry} key={entry.id} size="sm">
+                  <div className="gpair-box" key={entry.id}>
+                    <div className="gpair-head">
+                      <b>{entry.id}</b>
+                      <span className="num">{(ratingOf('loco', entry.loco.data) + ratingOf('conductor', entry.conductor.data)).toLocaleString()} total power</span>
+                    </div>
+                    <div className="gpair">
+                      <NftGameCard nft={entry.loco} size="sm" />
+                      <NftGameCard nft={entry.conductor} size="sm" />
+                    </div>
                     <button type="button" className="btn btn-arcane btn-block" disabled={busy || vault.nexus < cratePrice(browse, true)} onClick={() => open(browse, entry.id)}>
-                      Take this one for {cratePrice(browse, true)} Nexus
+                      Take this pair for {cratePrice(browse, true)} Nexus
                     </button>
-                  </NftGameCard>
+                  </div>
                 ))}
               </div>
               {pool.length > poolShown ? (

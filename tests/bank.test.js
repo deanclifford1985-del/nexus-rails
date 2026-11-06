@@ -31,28 +31,29 @@ describe('the Nexus bank', () => {
     const repo = memoryRepo();
     await bank.signIn(repo, ann);
     await bank.signIn(repo, bob);
-    const id = poolOf('uncommon')[0].id;
+    const id = poolOf('basic')[0].id;
     await bank.adminAward(repo, 'admin', { playerId: 'u1', amount: 20 });
     await bank.adminAward(repo, 'admin', { playerId: 'u2', amount: 20 });
-    const got = await bank.open(repo, 'u1', { tier: 'uncommon', pickId: id });
-    expect(got.nft.id).toBe(id);
+    const got = await bank.open(repo, 'u1', { tier: 'basic', pickId: id });
+    expect(got.crate).toBe(id);
     expect(got.vault.nexus).toBe(19);
-    expect(got.vault.owned.map((o) => o.id)).toEqual([id]);
-    await expect(bank.open(repo, 'u2', { tier: 'uncommon', pickId: id })).rejects.toThrow('already been taken');
+    expect(got.vault.owned.map((o) => o.id)).toEqual([`${id}-T`, `${id}-C`]);
+    await expect(bank.open(repo, 'u2', { tier: 'basic', pickId: id })).rejects.toThrow('already been taken');
     const bobs = await bank.state(repo, 'u2');
     expect(bobs.vault.opened[id]).toBe(true);
     expect(bobs.vault.nexus).toBe(30);
   });
 
-  it('a first crate for an empty garage is a locomotive, and deploy marks it once', async () => {
+  it('a crate gives a locomotive and a conductor, and deploy marks each once', async () => {
     const repo = memoryRepo();
     await bank.signIn(repo, ann);
-    const got = await bank.open(repo, 'u1', { tier: 'uncommon', needLoco: true, rng: () => 0.5 });
-    expect(got.nft.kind).toBe('loco');
+    const got = await bank.open(repo, 'u1', { tier: 'basic', rng: () => 0.5 });
+    expect(got.nfts.map((n) => n.kind)).toEqual(['loco', 'conductor']);
     expect(got.vault.nexus).toBe(0);
-    expect(got.vault.owned).toHaveLength(1);
-    await bank.deploy(repo, 'u1', { nftId: got.nft.id, saveId: 123 });
-    await expect(bank.deploy(repo, 'u1', { nftId: got.nft.id, saveId: 123 })).rejects.toThrow('already with a Captain');
+    expect(got.vault.owned).toHaveLength(2);
+    await bank.deploy(repo, 'u1', { nftId: got.nfts[0].id, saveId: 123 });
+    await expect(bank.deploy(repo, 'u1', { nftId: got.nfts[0].id, saveId: 123 })).rejects.toThrow('already with a Captain');
+    await bank.deploy(repo, 'u1', { nftId: got.nfts[1].id, saveId: 123 });
   });
 
   it('sends Nexus between players by name, with no fee', async () => {

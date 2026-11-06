@@ -87,29 +87,29 @@ export async function rename(repo, id, raw) {
   });
 }
 
-// Open a crate from the shared season pool. Two players can't take the same NFT: the pool row is
+// Open a crate from the shared season pool (a locomotive and a conductor). Two players can't take the same crate: the pool row is
 // unique, so the second one gets "already been taken".
-export async function open(repo, id, { tier, pickId = null, needLoco = false, rng = Math.random }, now = Date.now()) {
+export async function open(repo, id, { tier, pickId = null, rng = Math.random }, now = Date.now()) {
   if (!CRATE_TIERS[tier]) fail('Unknown crate.');
   return repo.tx(async (tx) => {
     const player = await tx.getPlayer(id, true);
     if (!player) fail('Sign in first.', 401);
     const vault = await vaultOf(tx, player);
-    let nft;
+    let got;
     try {
-      nft = openCrate(vault, { tier, pickId, needLoco: !!needLoco, rng, now });
+      got = openCrate(vault, { tier, pickId, rng, now });
     } catch (error) {
       if (error instanceof VaultError) fail(error.message);
       throw error;
     }
-    if (!(await tx.insertOpened(nft.id, SEASON, id, now))) fail('Someone else just took that one. Try again.', 409);
+    if (!(await tx.insertOpened(got.crate, SEASON, id, now))) fail('Someone else just took that one. Try again.', 409);
     player.nexus = vault.nexus;
     player.burned = vault.burned;
     player.owned = vault.owned;
     await tx.updatePlayer(player);
     const row = vault.ledger[vault.ledger.length - 1];
-    await tx.addLedger({ at: now, kind: 'crate', from_id: id, to_id: null, amount: -row.nexus, note: '', tier, picked: !!pickId, nft_id: nft.id });
-    return { nft, player: publicPlayer(player), vault: await vaultOf(tx, player) };
+    await tx.addLedger({ at: now, kind: 'crate', from_id: id, to_id: null, amount: -row.nexus, note: '', tier, picked: !!pickId, nft_id: got.crate });
+    return { crate: got.crate, nfts: got.nfts, player: publicPlayer(player), vault: await vaultOf(tx, player) };
   });
 }
 
