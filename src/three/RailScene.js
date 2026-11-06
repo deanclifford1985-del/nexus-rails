@@ -281,7 +281,7 @@ export class RailScene {
     this.renderer.setClearColor(horizon);
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(horizon, 150, 560);
-    this.camera = new THREE.PerspectiveCamera(55, 1, 0.5, 5200);
+    this.camera = new THREE.PerspectiveCamera(55, 1, 0.5, 14000);
     this.fogNear = 150;
     this.fogFar = 560;
     this.snap = { on: { value: this.pixelMode ? 1 : 0 }, res: { value: new THREE.Vector2(160, 120) } };
@@ -357,6 +357,17 @@ export class RailScene {
       el.removeEventListener('pointercancel', up);
       el.removeEventListener('wheel', wheel);
     };
+  }
+
+  // Jump straight to a named camera (the camera lesson's "Try it" button).
+  setCamera(mode) {
+    const i = this.camModes.indexOf(mode);
+    if (i < 0) return null;
+    this.camMode = i;
+    this.resetView();
+    this.heliMid = undefined;
+    this.heliAlt = undefined;
+    return mode;
   }
 
   // Back to the default angle for this camera.
@@ -458,6 +469,11 @@ export class RailScene {
       m.rotation.y = r() * 3;
       this.mountains.add(m);
     }
+
+    // A wide plain under everything, so the high cameras never see past the edge of the land.
+    this.plain = new THREE.Mesh(new THREE.CircleGeometry(9000, 48), new THREE.MeshLambertMaterial({ color: 0x8f9a5c }));
+    this.plain.rotation.x = -Math.PI / 2;
+    scene.add(this.plain);
 
     this.clouds = [];
     for (let i = 0; i < 16; i++) {
@@ -1762,12 +1778,22 @@ export class RailScene {
     this.scene.fog.near = this.fogNear;
     this.scene.fog.far = this.fogFar;
     this.sky.position.copy(cam.position);
-    this.mountains.position.set(cam.position.x, this.path.elev(me.s) * 0.7, cam.position.z);
+    // The mountain ring grows with the camera's height, so from high up it stays out on the horizon
+    // instead of standing in the middle of the land.
+    const ground = this.path.elev(me.s);
+    const lift = Math.max(0, cam.position.y - ground);
+    const grow = clamp(1 + lift / 140, 1, 9);
+    this.mountainScale = this.mountainScale === undefined ? grow : this.mountainScale + (grow - this.mountainScale) * (1 - Math.exp(-dt * 3));
+    this.mountains.scale.setScalar(this.mountainScale);
+    this.mountains.position.set(cam.position.x, ground * 0.7 + 30 * (this.mountainScale - 1), cam.position.z);
+    this.plain.position.set(cam.position.x, ground - 14, cam.position.z);
+    // Clouds always float above the camera, so the high views never look down through them.
     for (const c of this.clouds) {
       const o = c.userData.off;
       let z = o.z - ((me.s * 0.15) % 1300);
       if (z < -200) z += 1300;
-      c.position.set(cam.position.x + o.x, o.y, cam.position.z + z);
+      const spread = Math.max(1, this.mountainScale * 0.7);
+      c.position.set(cam.position.x + o.x * spread, Math.max(o.y, cam.position.y + 90 + o.y * 0.3), cam.position.z + z * spread);
     }
   }
 

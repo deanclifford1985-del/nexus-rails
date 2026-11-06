@@ -2,7 +2,7 @@
 // On Replit this file is the only thing to replace when saves move to a database.
 
 import { IS_NFT } from '../edition.js';
-import { VAULT_VERSION, emptyVault } from './crates.js';
+import { VAULT_VERSION, emptyVault, welcome } from './crates.js';
 
 // Lite keeps the Iron Rails key so old saves still load; the NFT edition keeps its own.
 const KEY = IS_NFT ? 'nexus-rail-nft/saves/v1' : 'iron-rails/saves/v1';
@@ -12,9 +12,9 @@ export function loadVault() {
   try {
     const raw = window.localStorage.getItem(VAULT_KEY);
     const data = raw ? JSON.parse(raw) : null;
-    return data && data.version === VAULT_VERSION ? { ...emptyVault(), ...data } : emptyVault();
+    return welcome(data && data.version === VAULT_VERSION ? { ...emptyVault(), welcomed: false, ...data } : emptyVault());
   } catch {
-    return emptyVault();
+    return welcome(emptyVault());
   }
 }
 

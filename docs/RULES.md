@@ -286,3 +286,14 @@ All **new** (Dean, 3 Nov), numbers are first guesses.
 ## Not built yet
 
 Track pirates, loans and bank reputation, talent trees, missions, turrets, forming a business, temporary workshop boosts, the Station Upgrade research, fuel stations on long routes, the live-stat picker in the cab, player accounts.
+
+
+## Nexus Rail: welcome Nexus and the admin link (Dean, 5 Nov)
+
+| Rule | As built |
+|---|---|
+| Welcome Nexus | Every Vault (one per browser) gets 10 Nexus once, enough for an Uncommon crate. Vaults made before this get it on their next load. The ledger shows it as "Welcome gift". |
+| First crate | While a Captain's garage is empty, a random crate always holds a locomotive. Picking still lets you choose anything. |
+| Admin link | /#admin on the Nexus Rail site opens the admin panel on its own, Captain or not. Awards go into the Vault of the browser it is opened in. |
+| Camera lesson | First run, lesson 3 of 3: once you have pulled 0.25 mi clear of the crippled Benchmark (at least 6 s after the hit), the race pauses to show View, Helicopter, Bird's-eye, drag, tilt and zoom, with a "Try the helicopter" button. |
+| High-camera backdrop | The mountain ring grows with the camera's height, clouds stay above the camera, and a wide plain fills the ground beyond the land, so the high views never show mountains in the middle or the edge of the world. |

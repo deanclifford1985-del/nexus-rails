@@ -772,7 +772,7 @@ export default function Race() {
           <div className="r3-win r3-panel r3-lesson">
             {prompt === 'bend' ? (
               <>
-                <span className="r3-kicker">Lesson 1 of 2</span>
+                <span className="r3-kicker">Lesson 1 of 3</span>
                 <h2>Bends cost speed</h2>
                 <p>Every train has to slow for a bend, and the sharper the bend the more it costs. Two things fight back:</p>
                 <ul>
@@ -801,9 +801,26 @@ export default function Race() {
                     : 'Benchmark has the better locomotive, but your conductor is already making up for it. Watch it lose more speed here than you do.'}
                 </p>
               </>
+            ) : prompt === 'camera' ? (
+              <>
+                <span className="r3-kicker">Lesson 3 of 3</span>
+                <h2>Look around</h2>
+                <p>You are clear of Benchmark. Take a look at the line from above.</p>
+                <ul>
+                  <li>
+                    Tap <b>View</b> (or press C) to change camera: Chase, Helicopter, Bird's-eye, Side, Front.
+                  </li>
+                  <li>
+                    <b>Helicopter</b> hovers close above your engine; <b>Bird's-eye</b> is furthest out and shows the whole field.
+                  </li>
+                  <li>
+                    In those two, <b>drag</b> to swing round and look behind or ahead, drag up or down to tilt, and pinch (or scroll) to zoom.
+                  </li>
+                </ul>
+              </>
             ) : (
               <>
-                <span className="r3-kicker">Lesson 2 of 2</span>
+                <span className="r3-kicker">Lesson 2 of 3</span>
                 <h2>You are losing ground</h2>
                 <p>
                   Benchmark has opened its lever and is pulling away, {fmt(Math.max(0, bench.distance - player.distance), 2)} mi ahead. You will not out-run a better locomotive on the straight, so use your weapons to your advantage.
@@ -813,9 +830,29 @@ export default function Race() {
                 </p>
               </>
             )}
-            <button type="button" className="r3-cmd r3-go" onClick={readPrompt} autoFocus>
-              {prompt === 'bend' ? 'Got it' : 'Fight back'}
-            </button>
+            {prompt === 'camera' ? (
+              <div className="r3-lesson-actions">
+                <button
+                  type="button"
+                  className="r3-cmd r3-go"
+                  autoFocus
+                  onClick={() => {
+                    sceneRef.current?.setCamera('helicopter');
+                    say('Helicopter: drag to look around');
+                    readPrompt();
+                  }}
+                >
+                  Try the helicopter
+                </button>
+                <button type="button" className="r3-cmd r3-skip" onClick={readPrompt}>
+                  Keep this view
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="r3-cmd r3-go" onClick={readPrompt} autoFocus>
+                {prompt === 'bend' ? 'Got it' : 'Fight back'}
+              </button>
+            )}
           </div>
         </div>
       ) : null}

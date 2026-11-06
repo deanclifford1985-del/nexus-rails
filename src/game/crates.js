@@ -90,8 +90,21 @@ export function poolOf(tier, season = SEASON) {
   return poolCache[key];
 }
 
+// Every player's Vault starts with enough Nexus for one Uncommon crate, so a new Captain can open
+// their first crate (and get their first locomotive or conductor) without waiting on an admin.
+export const WELCOME_NEXUS = 10;
+
 export function emptyVault() {
-  return { version: VAULT_VERSION, season: SEASON, nexus: 0, burned: 0, opened: {}, owned: [], ledger: [] };
+  return { version: VAULT_VERSION, season: SEASON, nexus: 0, burned: 0, opened: {}, owned: [], ledger: [], welcomed: false };
+}
+
+// Give the welcome Nexus once per Vault, including Vaults made before the welcome existed.
+export function welcome(vault, now = Date.now()) {
+  if (vault.welcomed) return vault;
+  vault.welcomed = true;
+  vault.nexus = Math.round((vault.nexus + WELCOME_NEXUS) * 100) / 100;
+  vault.ledger.push({ at: now, type: 'grant', nexus: WELCOME_NEXUS, note: 'welcome' });
+  return vault;
 }
 
 // What is left in a tier's pool this season.
@@ -111,7 +124,8 @@ function spend(vault, amount, what) {
 export const cratePrice = (tier, picked = false) => Math.round(CRATE_TIERS[tier].price * (picked ? 1 + PICK_PREMIUM : 1) * 100) / 100;
 
 // Open a crate: a random entry from the pool, or the entry you picked for +10%.
-export function openCrate(vault, { tier, pickId = null, rng = Math.random, now = Date.now() }) {
+// `needLoco`: a Captain with an empty garage always draws a locomotive, so their first crate gets them racing.
+export function openCrate(vault, { tier, pickId = null, rng = Math.random, now = Date.now(), needLoco = false }) {
   const T = CRATE_TIERS[tier];
   if (!T) fail('Unknown crate.');
   const left = remaining(vault, tier);
@@ -120,7 +134,11 @@ export function openCrate(vault, { tier, pickId = null, rng = Math.random, now =
   if (pickId) {
     entry = left.find((item) => item.id === pickId);
     if (!entry) fail('That one has already been taken.');
-  } else entry = left[Math.floor(rng() * left.length)];
+  } else {
+    const locos = left.filter((item) => item.kind === 'loco');
+    const from = needLoco && locos.length ? locos : left;
+    entry = from[Math.floor(rng() * from.length)];
+  }
   spend(vault, cratePrice(tier, !!pickId), T.name);
   vault.opened[entry.id] = true;
   const nft = { id: entry.id, kind: entry.kind, tier, data: structuredClone(entry.data), at: now, deployedTo: null };

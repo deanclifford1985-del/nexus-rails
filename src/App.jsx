@@ -15,7 +15,7 @@ import Station from './screens/Station.jsx';
 import Armory from './screens/Armory.jsx';
 import Festival from './screens/Festival.jsx';
 import Talents from './screens/Talents.jsx';
-import Crates from './screens/Crates.jsx';
+import Crates, { AdminPanel } from './screens/Crates.jsx';
 import { IS_NFT } from './edition.js';
 
 // Screens that fill the window on their own, without the top bar and tabs.
@@ -41,11 +41,40 @@ function NoTrain() {
   );
 }
 
+// Nexus Rail: the admin panel on its own, at /#admin, with or without a Captain loaded.
+function AdminPage() {
+  const { vault } = useGame();
+  return (
+    <div className="page stack" style={{ maxWidth: 560, margin: '0 auto', padding: '32px 16px' }}>
+      <div className="page-head">
+        <span className="label">Nexus Rail</span>
+        <h1>
+          Admin <span className="hl-purple">panel</span>
+        </h1>
+        <p className="muted">Awards go into the Vault of the browser this page is open in: {vault.nexus.toLocaleString()} Nexus there now.</p>
+      </div>
+      <AdminPanel />
+      <a className="btn btn-ghost" href="#" onClick={() => window.location.assign(window.location.pathname)}>
+        Back to the game
+      </a>
+    </div>
+  );
+}
+
+const isAdminHash = () => IS_NFT && typeof window !== 'undefined' && window.location.hash === '#admin';
+
 export default function App() {
   const { screen, conductor, toasts } = useGame();
+  const [adminView, setAdminView] = React.useState(isAdminHash);
+  React.useEffect(() => {
+    const onHash = () => setAdminView(isAdminHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   const noTrain = IS_NFT && conductor && !(conductor.locos?.length > 0);
   let view;
-  if (screen.name === 'create') view = <Create />;
+  if (adminView) view = <AdminPage />;
+  else if (screen.name === 'create') view = <Create />;
   else if (!conductor || screen.name === 'title') view = <Title />;
   else if (noTrain && !NO_TRAIN_OK.includes(screen.name)) {
     view = (

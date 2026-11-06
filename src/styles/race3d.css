@@ -1113,3 +1113,18 @@
     font-size: 14px;
   }
 }
+.r3-lesson-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.r3-lesson-actions .r3-cmd {
+  flex: 1 1 160px;
+}
+.r3-cmd.r3-skip {
+  justify-content: center;
+  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

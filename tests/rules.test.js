@@ -258,7 +258,7 @@ describe('race engine', () => {
       expect(T.ratio).toBeLessThan(0.96);
       const race = createRace(buildRaceConfig(c, run, Math.ceil(run.plan.gallons * 1.3)));
       const result = runToEnd(race);
-      expect(race.prompts).toEqual(['bend', 'weapons']);
+      expect(race.prompts).toEqual(['bend', 'weapons', 'camera']);
       expect(race.trains[1].crippled).toBe(true);
       if (result.place === 1) wins++;
     }
@@ -1209,5 +1209,21 @@ describe('Nexus Rail Captain with no starter', () => {
     expect(save.locos[0].fit).toEqual(B.ARMORY.startKit);
     expect(save.str).toBe(8); // the rookie now drives it
     expect(() => deriveStats(activeLoco(save), save)).not.toThrow();
+  });
+});
+
+describe('Nexus Rail welcome', () => {
+  it('a Vault gets 10 welcome Nexus once, and an empty garage always draws a locomotive', async () => {
+    const C = await import('../src/game/crates.js');
+    const v = C.welcome(C.emptyVault());
+    expect(v.nexus).toBe(10);
+    C.welcome(v);
+    expect(v.nexus).toBe(10); // only once
+    for (let i = 0; i < 20; i++) {
+      const fresh = C.welcome(C.emptyVault());
+      const nft = C.openCrate(fresh, { tier: 'uncommon', rng: () => i / 20, needLoco: true });
+      expect(nft.kind).toBe('loco');
+      expect(fresh.nexus).toBe(0);
+    }
   });
 });

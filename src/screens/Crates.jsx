@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Box, Gem, KeyRound, Search, ShieldAlert, Sparkles, TrainFront, User } from 'lucide-react';
 import { useGame } from '../state/store.jsx';
-import { CRATE_TIERS, PICK_PREMIUM, TIER_IDS, adminGrant, cratePrice, crewOf, openCrate, remaining } from '../game/crates.js';
+import { CRATE_TIERS, PICK_PREMIUM, TIER_IDS, WELCOME_NEXUS, adminGrant, cratePrice, crewOf, openCrate, remaining } from '../game/crates.js';
 import { MODELS } from '../game/locomotives.js';
 import { TRAITS } from '../game/traits.js';
 import { ADMIN_CODE } from '../edition.js';
@@ -62,18 +62,69 @@ function NftCard({ nft, children }) {
   );
 }
 
+// Admin: award Nexus (test build). Used on the Crates screen and on its own at /#admin.
+export function AdminPanel() {
+  const { vault, actVault, notify } = useGame();
+  const [code, setCode] = useState('');
+  const [unlocked, setUnlocked] = useState(false);
+  const [amount, setAmount] = useState('100');
+  return (
+<section className="plate stack-sm" style={{ maxWidth: 520 }}>
+      <h2>Admin: award Nexus</h2>
+      <p className="note warn small">Test only. Until the game has a server, this passcode lives in the game itself and anyone determined can find it.</p>
+      {!unlocked ? (
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (code === ADMIN_CODE) setUnlocked(true);
+            else notify('Wrong admin passcode.', 'error');
+          }}
+        >
+          <input className="field grow" type="password" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Admin passcode" autoComplete="off" />
+          <button type="submit" className="btn">
+            Unlock
+          </button>
+        </form>
+      ) : (
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const n = actVault(adminGrant, { amount, note: 'admin award' });
+            if (n) notify(`Awarded ${amount} Nexus.`, 'good');
+          }}
+        >
+          <input className="field grow" type="number" min="1" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Nexus to award" />
+          <button type="submit" className="btn btn-arcane">
+            Award Nexus
+          </button>
+        </form>
+      )}
+      <h3>Ledger</h3>
+      <div className="small num ledger">
+        {vault.ledger.length
+          ? [...vault.ledger].reverse().slice(0, 12).map((row, i) => (
+              <div className="spread" key={i}>
+                <span>{row.type === 'grant' ? (row.note === 'welcome' ? 'Welcome gift' : 'Admin award') : `${CRATE_TIERS[row.tier]?.name ?? 'Crate'}${row.picked ? ' (picked)' : ''}`}</span>
+                <span className={row.nexus < 0 ? 'stop' : 'go'}>{row.nexus > 0 ? '+' : ''}{row.nexus}</span>
+              </div>
+            ))
+          : 'Nothing yet.'}
+      </div>
+    </section>
+  );
+}
+
 export default function Crates() {
   const { conductor, vault, actVault, deploy, act, notify, screen } = useGame();
   const [tab, setTab] = useState(screen.tab ?? 'crates');
   const [browse, setBrowse] = useState(null); // tier whose pool is open for picking
   const [reveal, setReveal] = useState(null);
-  const [code, setCode] = useState('');
-  const [unlocked, setUnlocked] = useState(false);
-  const [amount, setAmount] = useState('100');
   const saveId = conductor.createdAt;
 
   const open = (tier, pickId = null) => {
-    const nft = actVault(openCrate, { tier, pickId });
+    const nft = actVault(openCrate, { tier, pickId, needLoco: !conductor.locos.length });
     if (nft) {
       setBrowse(null);
       setReveal(nft);
@@ -126,7 +177,7 @@ export default function Crates() {
 
       {tab === 'crates' && !conductor.locos.length ? (
         <p className="note">
-          <TrainFront aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Your garage is empty. Every Captain's first locomotive comes out of a crate: open one (or pick a locomotive from a pool) and send it to {conductor.captain?.name ?? 'your Captain'}. {vault.nexus < cratePrice('uncommon') ? 'Nexus is awarded by the admin team.' : ''}
+          <TrainFront aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Your garage is empty. Every Captain's first locomotive comes out of a crate, and while your garage is empty a crate always holds a locomotive. You start with {WELCOME_NEXUS} Nexus: enough for an Uncommon crate. Open it and send the locomotive to {conductor.captain?.name ?? 'your Captain'}. {vault.nexus < cratePrice('uncommon') ? 'More Nexus is awarded by the admin team.' : ''}
         </p>
       ) : null}
 
@@ -240,52 +291,7 @@ export default function Crates() {
         </section>
       ) : null}
 
-      {tab === 'admin' ? (
-        <section className="plate stack-sm" style={{ maxWidth: 520 }}>
-          <h2>Admin: award Nexus</h2>
-          <p className="note warn small">Test only. Until the game has a server, this passcode lives in the game itself and anyone determined can find it.</p>
-          {!unlocked ? (
-            <form
-              className="row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (code === ADMIN_CODE) setUnlocked(true);
-                else notify('Wrong admin passcode.', 'error');
-              }}
-            >
-              <input className="field grow" type="password" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Admin passcode" autoComplete="off" />
-              <button type="submit" className="btn">
-                Unlock
-              </button>
-            </form>
-          ) : (
-            <form
-              className="row"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const n = actVault(adminGrant, { amount, note: 'admin award' });
-                if (n) notify(`Awarded ${amount} Nexus.`, 'good');
-              }}
-            >
-              <input className="field grow" type="number" min="1" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Nexus to award" />
-              <button type="submit" className="btn btn-arcane">
-                Award Nexus
-              </button>
-            </form>
-          )}
-          <h3>Ledger</h3>
-          <div className="small num ledger">
-            {vault.ledger.length
-              ? [...vault.ledger].reverse().slice(0, 12).map((row, i) => (
-                  <div className="spread" key={i}>
-                    <span>{row.type === 'grant' ? 'Admin award' : `${CRATE_TIERS[row.tier]?.name ?? 'Crate'}${row.picked ? ' (picked)' : ''}`}</span>
-                    <span className={row.nexus < 0 ? 'stop' : 'go'}>{row.nexus > 0 ? '+' : ''}{row.nexus}</span>
-                  </div>
-                ))
-              : 'Nothing yet.'}
-          </div>
-        </section>
-      ) : null}
+      {tab === 'admin' ? <AdminPanel /> : null}
     </div>
   );
 }

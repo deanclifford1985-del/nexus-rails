@@ -604,7 +604,7 @@ export function castBlocker(race, from, kind) {
   if (!race.combat && !cooler) return 'Nothing to fight';
   if (!live(from)) return 'Off the line';
   // The guided first run keeps your guns quiet until the weapons lesson.
-  if (race.guide && from.isPlayer && !cooler && !['weapons', 'done'].includes(race.guide.stage)) return 'Hold fire: weapons lesson coming';
+  if (race.guide && from.isPlayer && !cooler && !['weapons', 'done', 'free'].includes(race.guide.stage)) return 'Hold fire: weapons lesson coming';
   const booting = bootStatus(race, from, kind);
   if (booting) return booting;
   if ((from.cooldown[kind] ?? 0) > 0) return 'Reloading';
@@ -702,7 +702,7 @@ function hurt(race, from, targetId, damage, { kind, crit = false, pen = 0, dot =
   let blocked = false;
   // The guided first run: once you are told to fight back, your hits land hard and the first one
   // cripples Benchmark's engine.
-  const lesson = race.guide && from?.isPlayer && !target.isPlayer && (race.guide.stage === 'weapons' || race.guide.stage === 'done');
+  const lesson = race.guide && from?.isPlayer && !target.isPlayer && ['weapons', 'done', 'free'].includes(race.guide.stage);
   if (lesson) damage *= B.RACE.testRace.guide.hitDamage;
   if (lesson && !dot && race.guide.stage === 'weapons') {
     race.guide.stage = 'done';
@@ -816,7 +816,7 @@ function think(race, rival, h) {
   rival.think -= h;
   if (rival.think > 0 || !live(rival)) return;
   // On the guided first run Benchmark holds its fire until the lesson is over.
-  if (race.guide && race.guide.stage !== 'done') return;
+  if (race.guide && !['done', 'free'].includes(race.guide.stage)) return;
   const alive = race.trains.slice(1).filter(live).length || 1;
   rival.think = (C.ai.think[0] + race.rng() * (C.ai.think[1] - C.ai.think[0])) * Math.sqrt(alive);
   const incoming = race.shots.some((shot) => shot.to === rival.id);
@@ -861,7 +861,8 @@ function updateCombat(race, h) {
 //   bend    at the first bend, pause and explain bends, Agility and acceleration;
 //   chase   after the bend Benchmark opens up and pulls ahead;
 //   weapons once it leads by a little, pause and tell the player to fight back;
-//   done    the first hit crippled it (see hurt).
+//   done    the first hit crippled it (see hurt);
+//   free    once you have pulled clear, a last pause shows off the cameras.
 function updateGuide(race) {
   const G = B.RACE.testRace.guide;
   const guide = race.guide;
@@ -896,6 +897,13 @@ function updateGuide(race) {
   } else if (guide.stage === 'weapons') {
     // Hold the lead, never run out of reach of the guns.
     bench.guidePower = lead > G.surgeLead * 2 ? 1 : G.holdPower;
+  } else if (guide.stage === 'done') {
+    // Once you have pulled clear of the crippled Benchmark, a last lesson: the cameras.
+    guide.doneAt = guide.doneAt ?? race.real;
+    if (race.real - guide.doneAt >= G.cameraAfter && lead <= -G.cameraLead) {
+      guide.stage = 'free';
+      ask('camera');
+    }
   }
 }
 
