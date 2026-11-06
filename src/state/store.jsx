@@ -2,8 +2,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import * as actions from '../game/actions.js';
 import { GameError } from '../game/actions.js';
 import { RESEARCH } from '../game/economy.js';
-import { loadSaves, loadVault, storeSaves, storeVault } from '../game/storage.js';
-import { VaultError, deployNft } from '../game/crates.js';
+import { loadSaves, loadVault, storeSaves } from '../game/storage.js';
+import { VaultError, emptyVault, placeNft } from '../game/crates.js';
+import { IS_NFT } from '../edition.js';
+import { api } from '../net/api.js';
 
 // One place holds the saves and the current screen. Screens never write a save
 // themselves: they call act('buyFuel', {...}) and the store applies the named action.
@@ -15,7 +17,9 @@ export function GameProvider({ children }) {
   const [saves, setSaves] = useState(loadSaves);
   const [screen, setScreen] = useState({ name: 'title' });
   const [toasts, setToasts] = useState([]);
-  const [vault, setVault] = useState(loadVault);
+  // Nexus Rail keeps the vault on the server (see startSession); this is a mirror of it.
+  const [vault, setVault] = useState(() => (IS_NFT ? emptyVault() : loadVault()));
+  const [account, setAccount] = useState(null); // { player: { id, name }, admin, signOut }
   const vaultRef = useRef(vault);
   vaultRef.current = vault;
   const savesRef = useRef(saves);
@@ -110,43 +114,83 @@ export function GameProvider({ children }) {
     return () => window.clearInterval(timer);
   }, [act, notify]);
 
-  // NFT edition: run a rule against the account Vault (crates, admin grants).
-  const actVault = useCallback(
-    (fn, args = {}) => {
-      const next = structuredClone(vaultRef.current);
+  // Nexus Rail: one call to the bank. Updates the mirrored vault and player from the reply.
+  // Returns the reply, or null if the server refused (the reason is shown as a toast).
+  const bank = useCallback(
+    async (path, body) => {
       try {
-        const report = fn(next, { ...args, now: Date.now() });
-        vaultRef.current = next;
-        setVault(next);
-        storeVault(next);
-        return report ?? {};
-      } catch (error) {
-        if (error instanceof VaultError) {
-          notify(error.message, 'error');
-          return null;
+        const reply = await api(path, body);
+        if (reply.vault) {
+          vaultRef.current = reply.vault;
+          setVault(reply.vault);
         }
-        throw error;
+        if (reply.player) setAccount((a) => (a ? { ...a, player: reply.player } : a));
+        return reply;
+      } catch (error) {
+        notify(error.message, 'error');
+        return null;
       }
     },
     [notify],
   );
 
+  // Signed in: create or load the player on the server.
+  const startSession = useCallback(async (signOut) => {
+    const reply = await api('/api/session', {});
+    vaultRef.current = reply.vault;
+    setVault(reply.vault);
+    setAccount({ player: reply.player, admin: !!reply.admin, signOut });
+  }, []);
+
+  const refreshVault = useCallback(() => bank('/api/state'), [bank]);
+
+  // Awards and sends from other players land on the server: check for them every 20 seconds, and
+  // when the player comes back to the tab. Quietly: a missed check isn't worth a toast.
+  const signedIn = !!account;
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    const check = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (screenRef.current.name === 'race') return;
+      api('/api/state')
+        .then((reply) => {
+          const before = vaultRef.current?.nexus ?? 0;
+          vaultRef.current = reply.vault;
+          setVault(reply.vault);
+          const gained = Math.round((reply.vault.nexus - before) * 100) / 100;
+          const last = reply.vault.ledger.at(-1);
+          if (gained > 0 && last && (last.type === 'grant' || last.type === 'trade')) notify(`+${gained} Nexus${last.type === 'trade' && last.other ? ` from ${last.other}` : ' from the admin team'}.`, 'good');
+        })
+        .catch(() => {});
+    };
+    const timer = window.setInterval(check, 20000);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [signedIn, notify]);
+
+  // Open a crate; returns the NFT.
+  const openCrateFor = useCallback(
+    async ({ tier, pickId = null, needLoco = false }) => (await bank('/api/crates/open', { tier, pickId, needLoco }))?.nft ?? null,
+    [bank],
+  );
+
   // Move an NFT from the Vault into the active Captain's save.
   const deploy = useCallback(
-    (nftId) => {
+    async (nftId) => {
       const current = savesRef.current;
       if (current.active === null) return null;
       const save = structuredClone(current.slots[current.active]);
-      const nextVault = structuredClone(vaultRef.current);
+      if (!save.captain) {
+        notify('Only a Captain can take NFTs.', 'error');
+        return null;
+      }
+      const reply = await bank('/api/nft/deploy', { nftId, saveId: save.createdAt });
+      if (!reply) return null;
       try {
-        const nft = deployNft(nextVault, save, { nftId, saveId: save.createdAt });
-        const slots = current.slots.slice();
-        slots[current.active] = save;
-        commit({ slots, active: current.active });
-        vaultRef.current = nextVault;
-        setVault(nextVault);
-        storeVault(nextVault);
-        return nft;
+        placeNft(save, reply.nft);
       } catch (error) {
         if (error instanceof VaultError) {
           notify(error.message, 'error');
@@ -154,14 +198,19 @@ export function GameProvider({ children }) {
         }
         throw error;
       }
+      const latest = savesRef.current;
+      const slots = latest.slots.slice();
+      slots[latest.active] = save;
+      commit({ slots, active: latest.active });
+      return reply.nft;
     },
-    [commit, notify],
+    [bank, commit, notify],
   );
 
   const conductor = saves.active === null ? null : saves.slots[saves.active];
   const value = useMemo(
-    () => ({ saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, actVault, deploy }),
-    [saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, actVault, deploy],
+    () => ({ saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor }),
+    [saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

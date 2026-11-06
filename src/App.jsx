@@ -43,15 +43,15 @@ function NoTrain() {
 
 // Nexus Rail: the admin panel on its own, at /#admin, with or without a Captain loaded.
 function AdminPage() {
-  const { vault } = useGame();
+  const { account } = useGame();
   return (
-    <div className="page stack" style={{ maxWidth: 560, margin: '0 auto', padding: '32px 16px' }}>
+    <div className="page stack" style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }}>
       <div className="page-head">
         <span className="label">Nexus Rail</span>
         <h1>
           Admin <span className="hl-purple">panel</span>
         </h1>
-        <p className="muted">Awards go into the Vault of the browser this page is open in: {vault.nexus.toLocaleString()} Nexus there now.</p>
+        <p className="muted">Every player who has signed in, newest activity first. Signed in as {account?.player?.name ?? '…'}.</p>
       </div>
       <AdminPanel />
       <a className="btn btn-ghost" href="#" onClick={() => window.location.assign(window.location.pathname)}>

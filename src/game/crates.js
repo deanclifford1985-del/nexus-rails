@@ -173,11 +173,8 @@ export function applyCrew(save) {
 
 export const crewOf = (save, loco) => (save.crew ?? []).find((item) => item.id === loco?.crewId) ?? null;
 
-// Put an NFT from the vault into a save: a locomotive into the garage, a conductor into the crew.
-export function deployNft(vault, save, { nftId, saveId }) {
-  const nft = vault.owned.find((item) => item.id === nftId);
-  if (!nft) fail('You do not own that NFT.');
-  if (nft.deployedTo) fail('That NFT is already with a Captain.');
+// Put an NFT's contents into a save: a locomotive into the garage, a conductor into the crew.
+export function placeNft(save, nft) {
   if (!save?.captain) fail('Only a Captain can take NFTs.');
   if (nft.kind === 'loco') {
     const loco = { condition: 1, ...structuredClone(nft.data), crewId: null };
@@ -192,6 +189,24 @@ export function deployNft(vault, save, { nftId, saveId }) {
     }
   } else save.crew = [...(save.crew ?? []), structuredClone(nft.data)];
   applyCrew(save);
+  return save;
+}
+
+// Mark an NFT in the vault as sent to a save (on the server, the owner's record).
+export function markDeployed(vault, { nftId, saveId }) {
+  const nft = vault.owned.find((item) => item.id === nftId);
+  if (!nft) fail('You do not own that NFT.');
+  if (nft.deployedTo) fail('That NFT is already with a Captain.');
+  nft.deployedTo = saveId;
+  return nft;
+}
+
+// Both steps at once, for a vault kept in this browser (tests and the offline build).
+export function deployNft(vault, save, { nftId, saveId }) {
+  const nft = vault.owned.find((item) => item.id === nftId);
+  if (!nft) fail('You do not own that NFT.');
+  if (nft.deployedTo) fail('That NFT is already with a Captain.');
+  placeNft(save, nft);
   nft.deployedTo = saveId;
   return nft;
 }

@@ -297,3 +297,16 @@ Track pirates, loans and bank reputation, talent trees, missions, turrets, formi
 | Admin link | /#admin on the Nexus Rail site opens the admin panel on its own, Captain or not. Awards go into the Vault of the browser it is opened in. |
 | Camera lesson | First run, lesson 3 of 3: once you have pulled 0.25 mi clear of the crippled Benchmark (at least 6 s after the hit), the race pauses to show View, Helicopter, Bird's-eye, drag, tilt and zoom, with a "Try the helicopter" button. |
 | High-camera backdrop | The mountain ring grows with the camera's height, clouds stay above the camera, and a wide plain fills the ground beyond the land, so the high views never show mountains in the middle or the edge of the world. |
+
+## Nexus Rail: accounts, the bank, sends and admin (Dean, 6 Nov)
+
+| Rule | As built |
+|---|---|
+| Accounts | Nexus Rail (NFT edition) asks players to sign in before playing: Google, or email and password, through Clerk. No Replit account. Lite needs no account. |
+| Where things live | Nexus balances, owned NFTs, the shared season crate pools and the history ledger live on the Nexus Rail server (Postgres). Game progress (saves) still lives in the browser. |
+| Welcome | A new account gets 10 Nexus once (ledger: Welcome gift). |
+| Crate pools | Shared by every player: when anyone opens an NFT it is gone for everyone. Two players can't take the same one. |
+| Player name | Every account has a unique player name (3 to 20 letters, digits, spaces, _ or -; case doesn't matter), first made from the sign-in name plus 4 digits. Change it on Crates → Send. |
+| Sending Nexus | Crates → Send: type a player name (suggestions as you type, names only, never emails), an amount (up to 2 decimals, at most 100,000 at once) and an optional note, review, send. No fee. Can't be undone. |
+| Admin | Admins are accounts whose email is in the server's ADMIN_EMAILS setting. /#admin or Crates → Admin lists every player (name, email, Nexus, NFTs, last seen) with search, +25, any amount with a note, and each player's history. The server checks admin on every call; the old passcode is gone. |
+| Updates | The game checks for new Nexus every 20 seconds and when you come back to the tab, with a toast for awards and sends. |

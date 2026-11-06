@@ -5,4 +5,3 @@ export const EDITION = raw === 'nft' ? 'nft' : 'lite';
 export const IS_NFT = EDITION === 'nft';
 export const GAME_NAME = IS_NFT ? 'Nexus Rail' : 'Nexus Rail Lite';
 // Test-build admin passcode. Not a security measure until the game has a server.
-export const ADMIN_CODE = import.meta.env?.VITE_ADMIN_CODE || 'nexus-admin';
