@@ -310,3 +310,15 @@ Track pirates, loans and bank reputation, talent trees, missions, turrets, formi
 | Sending Nexus | Crates → Send: type a player name (suggestions as you type, names only, never emails), an amount (up to 2 decimals, at most 100,000 at once) and an optional note, review, send. No fee. Can't be undone. |
 | Admin | Admins are accounts whose email is in the server's ADMIN_EMAILS setting. /#admin or Crates → Admin lists every player (name, email, Nexus, NFTs, last seen) with search, +25, any amount with a note, and each player's history. The server checks admin on every call; the old passcode is gone. |
 | Updates | The game checks for new Nexus every 20 seconds and when you come back to the tab, with a toast for awards and sends. |
+
+## Cards, power rating and the crate opening (Dean, 6 Nov)
+
+- Every locomotive and conductor shows as a card: art, name, four stat bars, ability chips (super trait, the Journey, spells, traits) and one big power rating in the top-right corner. The badge colour follows the rating: grey under 480, silver to 1,000, blue to 2,000, purple to 4,500, gold above.
+- Power rating = A × e^(k × points). Points are weighted stats plus abilities.
+  - Locomotives: Power ×1.45, Efficiency ×1.0, Endurance ×0.85, Armor ×0.7; super trait +3.5, each spell +1.4, the Journey +2.5, mythic engine +6.
+  - Conductors: Agility ×1.25, Strength ×1.1, Endurance ×0.85, Intelligence ×0.8; each trait +3.2 (Profound ×1.2).
+  - A and k are fitted so the Uncommon crate tier sits around 700 and the Legendary tier around 6,000; above the Legendary mark the curve climbs at half rate.
+  - Season 1 pools: Uncommon 590 to 830, Rare about 1,000 to 1,500, Epic about 1,900 to 2,900, Legendary about 4,400 to 6,700.
+- Art: rendered studio shots for all ten locomotive models (public/art/locos). Conductors get a portrait drawn from their id, so each one always looks the same; trim and glow follow rarity.
+- Crate opening: the crate shakes and glows, the lid blows off in a flash, sparks and light rays, and the card spins up out of the crate. Rarer crates shake longer and burn brighter; Legendary gets wide gold beams. Tap anywhere or Skip to jump to the card.
+- Cards appear in the crate pools (sorted by power, 24 at a time), the Vault, the Crew tab and a Card collection on Fleet (both editions).
