@@ -36,7 +36,7 @@ function Inner({ children }) {
 
 export default function ClerkGate({ publishableKey, proxyUrl, children }) {
   return (
-    <ClerkProvider publishableKey={publishableKey} proxyUrl={proxyUrl} appearance={appearance}>
+    <ClerkProvider publishableKey={publishableKey} proxyUrl={proxyUrl || undefined} appearance={appearance}>
       <Inner>{children}</Inner>
     </ClerkProvider>
   );

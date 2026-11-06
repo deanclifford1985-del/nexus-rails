@@ -45,6 +45,8 @@ const adminsOf = () =>
 export async function createApp({ repo = null, authMode = null } = {}) {
   const app = express();
   app.disable('x-powered-by');
+  // Replit serves the app over https through its own proxy: trust it for the protocol and host.
+  app.set('trust proxy', true);
   const edition = editionOf();
   const admins = adminsOf();
   const mode = authMode ?? (env('CLERK_SECRET_KEY') ? 'clerk' : !production && env('NEXUS_DEV_AUTH') === '1' ? 'dev' : 'none');
@@ -104,8 +106,10 @@ export async function createApp({ repo = null, authMode = null } = {}) {
   };
 
   app.get('/api/config', (req, res) => {
-    const key = env('CLERK_PUBLISHABLE_KEY') ?? null;
-    res.json({ edition, auth: mode, clerkPublishableKey: mode === 'clerk' ? key : null, proxyUrl: mode === 'clerk' ? `${req.protocol}://${req.get('host')}/__clerk` : null });
+    const key = env('CLERK_PUBLISHABLE_KEY') ?? env('VITE_CLERK_PUBLISHABLE_KEY') ?? null;
+    // Live keys sign in through this server's /__clerk proxy; test keys talk to Clerk directly.
+    const live = String(key ?? '').startsWith('pk_live_');
+    res.json({ edition, auth: mode, clerkPublishableKey: mode === 'clerk' ? key : null, proxyUrl: mode === 'clerk' && live ? `${req.protocol}://${req.get('host')}/__clerk` : null });
   });
   app.post('/api/session', route(async (who) => ({ ...(await bank.signIn(repo, who)), admin: isAdmin(who) })));
   app.get('/api/state', route(async (who) => ({ ...(await bank.state(repo, who.id)), admin: isAdmin(who) })));
