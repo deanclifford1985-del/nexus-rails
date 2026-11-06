@@ -31,7 +31,7 @@ function newConductor(chosen = [offer('leader')], attrs = { str: 12, agi: 10, in
 export function fightBack(race) {
   const player = playerOf(race);
   if (race.shots.some((s) => s.to === 'player') && player.hull < player.hullMax * 0.65 && (playerCast(race, 'barrier') || playerCast(race, 'shield'))) return;
-  for (const kind of ['bolt', 'heavy', 'fire', 'cannon', 'plasma']) if (playerCast(race, kind)) return;
+  for (const kind of ['bolt', 'heavy', 'fire', 'cannon', 'plasma', 'launcher']) if (playerCast(race, kind)) return;
 }
 
 function runToEnd(race, onStep, { fight = true } = {}) {
@@ -39,6 +39,10 @@ function runToEnd(race, onStep, { fight = true } = {}) {
   let guard = 0;
   let next = 1;
   while (race.status === 'running' && guard++ < 400000) {
+    if (race.guide?.prompt) {
+      (race.prompts ??= []).push(race.guide.prompt);
+      race.guide.prompt = null;
+    }
     stepRace(race, 0.1);
     if (fight && race.combat && race.real >= next) {
       next = race.real + 1;
@@ -239,28 +243,26 @@ describe('race engine', () => {
     expect(useAbility(race)).toBe(false);
   });
 
-  it('the first run against Benchmark is winnable but not a walkover for every starter', () => {
+  it('the first run is a guided lesson: Benchmark is the better build, about 10% slower, and fighting back wins', () => {
     const rng = makeRng(99);
     let wins = 0;
-    let pushedWins = 0;
-    const times = [];
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 25; i++) {
       const loco = generateLoco(rng, STARTER_MODELS[i % 5], { rarity: 'uncommon' });
-      const c = buildConductor({ name: 'x', chosen: [], attributes: { str: 10, agi: 10, int: 10 }, rerollsLeft: 0, loco, seed: i + 1, now: NOW });
+      const c = buildConductor({ name: 'x', chosen: [], attributes: { str: 8 + (i % 7), agi: 8 + (i % 5), int: 10, end: 6 }, rerollsLeft: 0, loco, seed: i + 1, now: NOW });
       const run = describeRun(c, { kind: 'test' });
-      const race = createRace(buildRaceConfig(c, run, Math.ceil(run.plan.gallons * 1.2)));
+      const T = run.tutorial;
+      // A better-graded locomotive with a weaker conductor, slower on the line.
+      expect(T.loco.efficiency + T.loco.durability).toBeGreaterThan(loco.efficiency + loco.durability);
+      expect(T.crew.agi).toBeLessThan(c.agi);
+      expect(T.ratio).toBeGreaterThan(0.84);
+      expect(T.ratio).toBeLessThan(0.96);
+      const race = createRace(buildRaceConfig(c, run, Math.ceil(run.plan.gallons * 1.3)));
       const result = runToEnd(race);
+      expect(race.prompts).toEqual(['bend', 'weapons']);
+      expect(race.trains[1].crippled).toBe(true);
       if (result.place === 1) wins++;
-      times.push(result.realSeconds);
-      // The same starter with the lever pushed to 110%.
-      const pushed = createRace(buildRaceConfig(c, run, Math.ceil(run.plan.gallons * 1.5)));
-      setLever(pushed, 1.1);
-      if (runToEnd(pushed).place === 1) pushedWins++;
     }
-    console.log('first run: wins', wins, '/ 50 at 100% lever,', pushedWins, '/ 50 at 110%, time', Math.min(...times).toFixed(0), '-', Math.max(...times).toFixed(0), 's');
-    expect(wins).toBeGreaterThan(10);
-    expect(wins).toBeLessThan(45);
-    expect(pushedWins).toBeGreaterThan(wins);
+    expect(wins).toBe(25);
   });
 });
 

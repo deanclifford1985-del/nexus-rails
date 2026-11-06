@@ -662,3 +662,46 @@ h1 .hl-purple {
   .balances .chip small { display: none; }
   .balances .chip { padding-left: 8px; padding-right: 8px; }
 }
+
+/* First run: you against Benchmark */
+.tape-head,
+.tape-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.tape-head b {
+  font-family: var(--font-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tape-head b:last-child,
+.tape-row > span:last-child {
+  text-align: right;
+}
+.tape-row {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 1rem;
+}
+.tape-row .label {
+  text-align: center;
+  min-width: 110px;
+}
+.tape-row small {
+  color: var(--ash);
+  font-size: 0.8em;
+}
+.tape-win {
+  color: var(--go);
+  font-weight: 700;
+}
+.tape-sub {
+  margin: 10px 0 0;
+  font-family: var(--font-label);
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}

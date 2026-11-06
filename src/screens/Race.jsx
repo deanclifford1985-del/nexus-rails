@@ -22,6 +22,7 @@ import {
   armOf,
   setAim,
   stepRace,
+  clearPrompt,
   useAbility as fireAbility,
 } from '../game/race.js';
 import { RailScene, liveryFor } from '../three/RailScene.js';
@@ -96,6 +97,7 @@ export default function Race() {
   const raceRef = useRef(null);
   if (!raceRef.current) raceRef.current = createRace(screen.config);
   const race = raceRef.current;
+  if (import.meta.env?.DEV || window.__probe) window.__race = race;
   const player = playerOf(race);
 
   const hostRef = useRef(null);
@@ -115,7 +117,8 @@ export default function Race() {
   const [confirmQuit, setConfirmQuit] = useState(false);
   const [sound, setSound] = useState(sfx.on);
   const [cineOn, setCineOn] = useState(true);
-  const [pixels, setPixels] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [guideNote, setGuideNote] = useState(null);
   const warpRef = useRef(1);
   warpRef.current = warp;
   const pausedRef = useRef(false);
@@ -141,16 +144,13 @@ export default function Race() {
       scene = null;
     }
     sceneRef.current = scene;
-    if (scene) {
-      setPixels(scene.pixelMode);
-      setCineOn(scene.cineOn);
-    }
+    if (scene) setCineOn(scene.cineOn);
     let frame = 0;
     let last = null;
     const loop = (time) => {
       const dt = last === null ? 0 : Math.min(0.05, (time - last) / 1000);
       last = time;
-      const live = !pausedRef.current;
+      const live = !pausedRef.current && !race.guide?.prompt;
       if (live && race.status === 'running') stepRace(race, dt * warpRef.current * (scene?.timeFactor ?? 1));
       if (scene) {
         scene.frame(live ? dt : 0);
@@ -207,6 +207,21 @@ export default function Race() {
     );
   });
 
+  // The guided first run: the engine stops at a prompt; the screen shows it until the player reads it.
+  const guide = race.guide;
+  const prompt = guide?.prompt ?? null;
+  const bench = race.trains[1];
+  const crippledSeen = useRef(false);
+  if (guide && bench?.crippled && !crippledSeen.current) {
+    crippledSeen.current = true;
+    setTimeout(() => setGuideNote({ text: "Direct hit! Benchmark's engine is crippled. Bring it home.", until: Date.now() + 4500 }), 0);
+  }
+  const readPrompt = useCallback(() => {
+    clearPrompt(race);
+    sfx.init();
+    redraw();
+  }, [race, redraw]);
+
   const togglePause = useCallback(() => {
     if (race.status === 'finished') return;
     setPaused((p) => !p);
@@ -245,7 +260,7 @@ export default function Race() {
 
   const cycleCamera = useCallback(() => {
     const mode = sceneRef.current?.cycleCamera();
-    const names = { chase: 'Chase', aerial: 'Aerial', helicopter: 'Helicopter (whole field)', side: 'Side', front: 'Front' };
+    const names = { chase: 'Chase', helicopter: 'Helicopter: drag to look around', birdseye: "Bird's-eye: drag to look around", side: 'Side', front: 'Front' };
     if (mode) say(`Camera: ${names[mode] ?? mode}`);
   }, [say]);
 
@@ -347,7 +362,7 @@ export default function Race() {
 
   return (
     <div className="r3" ref={hostRef}>
-      <canvas ref={canvasRef} className={`r3-view ${pixels ? '' : 'smooth'}`} aria-label="The race, in 3D" />
+      <canvas ref={canvasRef} className="r3-view smooth" aria-label="The race, in 3D. In the helicopter and bird's-eye views, drag to look around." />
       <div className="r3-vignette" />
       <div className="r3-flash" ref={flashRef} />
       <div className="r3-nums" ref={numsRef} />
@@ -376,17 +391,6 @@ export default function Race() {
             <span>{fmt(player.speed)}</span>
             <span className="r3-dim">of {fmt(player.vmax)} mph</span>
           </div>
-          {hillNow ? (
-            <div className={`r3-bend ${hillNow.grade > 0 ? 'climb' : 'descent'}`}>
-              {hillNow.grade > 0 ? 'Climbing' : 'Descending'} {fmt(Math.abs(hillNow.grade) * 100, 1)}% · top speed {hillNow.grade > 0 ? '−' : '+'}
-              {fmt(Math.abs(1 - hillEffect(hillNow.grade, player.hillGrip).speed) * 100)}% · {(hillNow.end - player.distance).toFixed(1)} mi to go
-            </div>
-          ) : null}
-          {matters(bend) || bendAhead ? (
-            <div className={`r3-bend ${(bend ?? bendAhead).kind}`}>
-              {bend ? `In a ${bend.kind} bend` : `${bendAhead.kind[0].toUpperCase()}${bendAhead.kind.slice(1)} bend in ${(bendAhead.start - player.distance).toFixed(2)} mi`} · hold {fmt(bendLimit(bend ?? bendAhead, player.vmax, player.grip))} mph ({keepPct(bend ?? bendAhead)}% of top){bend ? `, ${(bend.end - player.distance).toFixed(1)} mi to go` : ''}
-            </div>
-          ) : null}
           {hasRivals ? (
             <>
               <div className={`r3-gap ${race.gap > 0.01 ? 'ahead' : race.gap < -0.01 ? 'behind' : ''}`}>{race.status === 'ready' ? 'Waiting for the flag' : nearest ? gapText(race.gap) : 'Everyone else is home'}</div>
@@ -439,6 +443,31 @@ export default function Race() {
         </div>
       </div>
 
+      {/* Top centre: what the line is doing right now */}
+      {hillNow || matters(bend) || bendAhead ? (
+        <div className="r3-banners" aria-live="polite">
+          {matters(bend) || bendAhead ? (
+            <div className={`r3-bend ${(bend ?? bendAhead).kind}`}>
+              <b>{bend ? `${bend.kind[0].toUpperCase()}${bend.kind.slice(1)} bend` : `${bendAhead.kind[0].toUpperCase()}${bendAhead.kind.slice(1)} bend in ${(bendAhead.start - player.distance).toFixed(1)} mi`}</b>
+              <span>
+                hold {fmt(bendLimit(bend ?? bendAhead, player.vmax, player.grip))} mph ({keepPct(bend ?? bendAhead)}%){bend ? ` · ${(bend.end - player.distance).toFixed(1)} mi left` : ''}
+              </span>
+            </div>
+          ) : null}
+          {hillNow ? (
+            <div className={`r3-bend ${hillNow.grade > 0 ? 'climb' : 'descent'}`}>
+              <b>
+                {hillNow.grade > 0 ? 'Climb' : 'Descent'} {fmt(Math.abs(hillNow.grade) * 100, 1)}%
+              </b>
+              <span>
+                top speed {hillNow.grade > 0 ? '−' : '+'}
+                {fmt(Math.abs(1 - hillEffect(hillNow.grade, player.hillGrip).speed) * 100)}% · {(hillNow.end - player.distance).toFixed(1)} mi left
+              </span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {cine ? (
         <button type="button" className={`r3-cine ${cine.holding ? 'hold' : ''} ${cine.size}`} onClick={() => sceneRef.current?.skipCine()}>
           <span className="r3-cine-bars" aria-hidden="true" />
@@ -469,81 +498,73 @@ export default function Race() {
           <button type="button" className="r3-win r3-ubtn" onClick={cycleCamera} title="Change camera (C)">
             View
           </button>
-          <button
-            type="button"
-            className="r3-win r3-ubtn"
-            aria-pressed={pixels}
-            onClick={() => {
-              const on = sceneRef.current?.togglePixels();
-              if (on === undefined) return;
-              setPixels(on);
-              say(on ? 'PS1 pixels on' : 'Smooth render');
-            }}
-          >
-            Pixels
-          </button>
-          <button
-            type="button"
-            className="r3-win r3-ubtn"
-            aria-pressed={cineOn}
-            title="Slow-motion fly-to when the lookout spots an obstacle"
-            onClick={() => {
-              const on = sceneRef.current?.toggleCine();
-              if (on === undefined) return;
-              setCineOn(on);
-              say(on ? 'Sighting cinematics on' : 'Sighting cinematics off');
-            }}
-          >
-            Cine
-          </button>
-          <button
-            type="button"
-            className="r3-win r3-ubtn"
-            aria-pressed={sound}
-            onClick={() => {
-              const on = sfx.toggle();
-              setSound(on);
-              say(on ? 'Sound on' : 'Sound off');
-            }}
-          >
-            Sound
-          </button>
-          <button
-            type="button"
-            className="r3-win r3-ubtn"
-            title="Time warp, for testing"
-            onClick={() => {
-              const next = warp === 1 ? 2 : warp === 2 ? 4 : 1;
-              setWarp(next);
-              say(`Time warp ${next}x`);
-            }}
-          >
-            {warp}x
-          </button>
           <button type="button" className="r3-win r3-ubtn" onClick={togglePause} title="Pause (P)" disabled={done}>
             {paused ? 'Resume' : 'Pause'}
           </button>
-          {confirmQuit ? (
+          <button type="button" className="r3-win r3-ubtn r3-morebtn" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+            {menuOpen ? 'Close' : 'More'}
+          </button>
+          <div className={`r3-menu ${menuOpen ? 'open' : ''}`}>
             <button
               type="button"
-              className="r3-win r3-ubtn r3-warn"
+              className="r3-win r3-ubtn"
+              aria-pressed={cineOn}
+              title="Slow-motion fly-to when the lookout spots an obstacle"
               onClick={() => {
-                setConfirmQuit(false);
-                // Before the start nothing has been spent, so simply step back to the setup screen.
-                if (race.status === 'ready') {
-                  settled.current = true;
-                  go('setup', { ctx: screen.ctx });
-                } else forfeitRace(race);
+                const on = sceneRef.current?.toggleCine();
+                if (on === undefined) return;
+                setCineOn(on);
+                say(on ? 'Sighting cinematics on' : 'Sighting cinematics off');
               }}
-              onBlur={() => setConfirmQuit(false)}
             >
-              Really give up?
+              Cine {cineOn ? 'on' : 'off'}
             </button>
-          ) : (
-            <button type="button" className="r3-win r3-ubtn" onClick={() => setConfirmQuit(true)} disabled={done}>
-              Forfeit
+            <button
+              type="button"
+              className="r3-win r3-ubtn"
+              aria-pressed={sound}
+              onClick={() => {
+                const on = sfx.toggle();
+                setSound(on);
+                say(on ? 'Sound on' : 'Sound off');
+              }}
+            >
+              Sound {sound ? 'on' : 'off'}
             </button>
-          )}
+            <button
+              type="button"
+              className="r3-win r3-ubtn"
+              title="Time warp"
+              onClick={() => {
+                const next = warp === 1 ? 2 : warp === 2 ? 4 : 1;
+                setWarp(next);
+                say(`Time warp ${next}x`);
+              }}
+            >
+              Speed {warp}x
+            </button>
+            {confirmQuit ? (
+              <button
+                type="button"
+                className="r3-win r3-ubtn r3-warn"
+                onClick={() => {
+                  setConfirmQuit(false);
+                  // Before the start nothing has been spent, so simply step back to the setup screen.
+                  if (race.status === 'ready') {
+                    settled.current = true;
+                    go('setup', { ctx: screen.ctx });
+                  } else forfeitRace(race);
+                }}
+                onBlur={() => setConfirmQuit(false)}
+              >
+                Really give up?
+              </button>
+            ) : (
+              <button type="button" className="r3-win r3-ubtn" onClick={() => setConfirmQuit(true)} disabled={done}>
+                Forfeit
+              </button>
+            )}
+          </div>
         </div>
         {race.obstacles.length ? (
           <div className="r3-win r3-foe r3-rock">
@@ -610,7 +631,7 @@ export default function Race() {
                     <button
                       type="button"
                       key={key}
-                      className={`r3-cmd ${blocked ? 'off' : ''} ${booting ? 'booting' : ''} ${arm.use === 'mp' ? 'spell' : ''}`}
+                      className={`r3-cmd ${blocked ? 'off' : ''} ${booting ? 'booting' : ''} ${arm.use === 'mp' ? 'spell' : ''} ${guide?.stage === 'weapons' && attacks.includes(key) ? 'pulse' : ''}`}
                       onClick={() => cast(key)}
                       aria-disabled={blocked ? 'true' : 'false'}
                       title={`${arm.name ?? labelOf(key)}${arm.range ? `, reaches ${fmt(arm.range, 1)} mi` : ''}${blocked ? `: ${blocked}` : ''}`}
@@ -745,6 +766,69 @@ export default function Race() {
           <div className="r3-sub">{player.lever > 1 ? 'Overdrive: fuel ×' : player.lever < 1 ? 'Easing: fuel ×' : 'Full: fuel ×'}{fmt(leverFuelMult(player.lever), 2)}</div>
         </div>
       </div>
+
+      {guide && prompt ? (
+        <div className="r3-overlay r3-guide" role="dialog" aria-modal="true" aria-label="First run lesson">
+          <div className="r3-win r3-panel r3-lesson">
+            {prompt === 'bend' ? (
+              <>
+                <span className="r3-kicker">Lesson 1 of 2</span>
+                <h2>Bends cost speed</h2>
+                <p>Every train has to slow for a bend, and the sharper the bend the more it costs. Two things fight back:</p>
+                <ul>
+                  <li>
+                    <b>Agility</b> (your conductor) keeps more of your speed through the bend.
+                  </li>
+                  <li>
+                    <b>Acceleration</b> (torque, helped by Agility) wins the speed back coming out.
+                  </li>
+                </ul>
+                {guide.bend ? (
+                  <div className="r3-compare">
+                    <div>
+                      <span className="r3-lbl">You hold</span>
+                      <b className="r3-ahead">{fmt(bendKeep(guide.bend, player.grip) * 100)}%</b>
+                    </div>
+                    <div>
+                      <span className="r3-lbl">Benchmark holds</span>
+                      <b className="r3-hot">{fmt(bendKeep(guide.bend, bench.grip) * 100)}%</b>
+                    </div>
+                  </div>
+                ) : null}
+                <p className="r3-dim">
+                  {bench.distance > player.distance
+                    ? 'Benchmark has the better locomotive, so it got away first. Its conductor is weaker, though: watch it lose more speed here than you do.'
+                    : 'Benchmark has the better locomotive, but your conductor is already making up for it. Watch it lose more speed here than you do.'}
+                </p>
+              </>
+            ) : (
+              <>
+                <span className="r3-kicker">Lesson 2 of 2</span>
+                <h2>You are losing ground</h2>
+                <p>
+                  Benchmark has opened its lever and is pulling away, {fmt(Math.max(0, bench.distance - player.distance), 2)} mi ahead. You will not out-run a better locomotive on the straight, so use your weapons to your advantage.
+                </p>
+                <p>
+                  Tap <b>{attacks.length ? labelOf(attacks[0]) : 'your weapon'}</b> (or press 1){longest > 0 ? `: it reaches ${fmt(longest, 1)} mi, and Benchmark is in range` : ''}.
+                </p>
+              </>
+            )}
+            <button type="button" className="r3-cmd r3-go" onClick={readPrompt} autoFocus>
+              {prompt === 'bend' ? 'Got it' : 'Fight back'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {guide && guide.stage === 'weapons' && !prompt ? (
+        <div className="r3-guide-hint" role="status">
+          Fire! Tap <b>{attacks.length ? labelOf(attacks[0]) : 'a weapon'}</b> to hit Benchmark
+        </div>
+      ) : null}
+      {guideNote && Date.now() < guideNote.until ? (
+        <div className="r3-guide-hint good" role="status">
+          {guideNote.text}
+        </div>
+      ) : null}
 
       {race.emergency ? (
         <div className="r3-win r3-msg r3-truck" role="status">

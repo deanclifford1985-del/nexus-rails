@@ -100,7 +100,7 @@ Armor makes a locomotive heavier (slower) and lets it tow more and take more hit
 | Bends | Real-railway bends with 1.5 to 5 miles of straight between. A long sweep round a mountain runs 5 to 10 miles; medium bends 2 to 4.5; sharp ones 0.6 to 1.6. Each swings the line 0.7 to 1.5 radians; its sharpness (radians per mile) labels it gentle (under 0.2), medium (under 0.6) or sharp. Every train brakes early (1 mph a game second), then pulls away again, measured against its own top speed, so high torque recovers fastest. The same job always has the same line. | Dean, 4 Nov |
 | Bend speed | In a bend a train can hold 1 / (1 + 0.55 x sharpness) of its top speed (at least 30%): about 95% in a long sweep, 60-75% in a sharp bend. | Dean, 4 Nov |
 | Agility grip | Agility wins back 2.75% per point of the speed a bend takes away (20 Agility = 55%, at most 75% with Influencer). So it matters most in the sharpest bends. Rivals use their own Agility. | Dean, 4 Nov |
-| Race cameras | Chase, Aerial (high above and behind your engine), Helicopter (high overhead, framing the whole field from leader to last train, climbing as the field spreads out), Side, Front. Key C or the View button. In the two high views every train carries a floating name tag; yours says YOU. | Dean, 4 Nov |
+| Race cameras | Chase, Helicopter (close above your engine), Bird's-eye (furthest out, framing the whole field from leader to last train, climbing as the field spreads out), Side, Front. Key C or the View button. In Helicopter and Bird's-eye, drag (mouse or finger) to swing round and look behind or ahead, drag up and down to tilt, pinch or scroll to zoom; changing camera resets the angle. Every train carries a floating name tag in those two views; yours says YOU. | Dean, 5 Nov |
 | Long-range sightings | The lookout sees 3.6 miles ahead without radar; Radar Mk I 7.5, Mk II 12, Deep Sonar 24. When an obstacle is spotted mid-run, time drops to 10% for about 3 seconds while the camera flies down the line to it (letterboxed, with a target reticle, its size, HP, distance and when your guns will reach it), then flies back. Tap, Enter or Esc skips; the Cine button turns these off. | Dean, 4 Nov |
 | Weapon reach | Tripled: Cannon 3 mi, Heavy Cannon 4.8, Plasma Lance 2.4, Fire spell 3, Bolt 4.5 (Long Barrel adds 35%). Weapons already owned were stretched to match (save version 4). | Dean, 4 Nov |
 | Competitive boost | See traits. The cab shows the nearest train and the gap in miles, green ahead, red behind. | #9, #24, #80 |
@@ -113,11 +113,11 @@ Armor makes a locomotive heavier (slower) and lets it tow more and take more hit
 | Out of fuel | Emergency fuel at 5 LT a gallon. The truck takes 4 seconds + 0.1 per mile travelled (20 max), then 0.05 seconds a gallon. The clock keeps running. | #81, timings shortened |
 | Unused fuel | Goes back to the reserve | #206 |
 | Forfeit | You lose the fuel burned. The job stays on the board. A fuel truck that has not arrived is not charged. | **new** |
-| First run | 25 miles against Benchmark (5/5/5, 20,000 lb). You pull an 8,000 lb test car. 150 LT and 375 XP for a win, 75 XP for a loss. | #4, #243; test car and purse are **new** |
+| First run | 25 miles against Benchmark, pulling a 5,000 lb test car each. Benchmark is your own model, graded Rare, with +2 Efficiency, Armor and Endurance (a better locomotive) and a conductor with 30% of your attributes (a worse one), its engine tuned so it is 10% slower than you on the line. The setup screen compares both trains before the conductors, both conductors, and the result. It is a guided lesson: weapons are locked until lesson 2; Benchmark's better locomotive gets away first; at the first bend the race pauses to explain bends, Agility and acceleration; after it Benchmark surges to a 0.3 mi lead and the race pauses again ("You are losing ground") to tell you to use your weapons. From then your hits do 5× damage and the first one cripples Benchmark (half top speed for the rest of the run); it holds its fire until then. 150 LT and 375 XP for a win, 75 XP for a loss. | Dean, 5 Nov |
 | Time warp | 1x, 2x, 4x button in the race, for testing | **new** |
 | ETA | In the race: the time to the line from where you are, at the current lever, bends and fuel included (re-worked twice a second), against the time left, as time to spare or time late. Warns if the fuel will run out first. | Dean, 3 Nov |
 | Course map | The whole line in the corner, finish at the top, a dot per train, the covered stretch in gold, close bends lit, boulders shown | **new** |
-| Race view | 3D, PS1-style (low resolution, wobbling vertices), with View, Pixels, Sound and Pause buttons. Pauses itself when the tab is hidden. | Duel |
+| Race view | 3D, smooth rendering only (the PS1 pixel option is gone). HUD in the NEXUSRAIL glass style with plain, readable type. View and Pause always show; Cine, Sound, Speed and Forfeit sit under More on phones. Bend and hill notices show as a banner at the top centre. Pauses itself when the tab is hidden. | Dean, 5 Nov |
 
 ## Weapons and spells (the 3D race)
 
@@ -156,7 +156,7 @@ Every rule here is **new**: the old game listed combat as not built. Spells belo
 | Knock-off reward | +60 XP per rival knocked off the rails | **new** |
 | Keys | 1-6 the commands in the order shown, F first weapon, B Bolt, R shield or Barrier, Q Siphon, Up/W and Down/S the lever, C camera, P pause | Duel |
 
-Simulated with a starter engine and a player who fires about once a second: the first run is won 40% of the time (52% at 110% lever), contract races 16% (36% at 110%). Starters with only their 3 rounds crash into about two thirds of obstacles and are knocked off the rails on about 1 delivery in 9; ammo crates, a plow and radar fix that. On rockfall deliveries, the starting 3 rounds clear about three boulders in four; the rest need ammo crates or a plasma lance.
+Simulated with a starter engine and a player who fires about once a second: contract races are won 16% (36% at 110%). Starters with only their 3 rounds crash into about two thirds of obstacles and are knocked off the rails on about 1 delivery in 9; ammo crates, a plow and radar fix that. On rockfall deliveries, the starting 3 rounds clear about three boulders in four; the rest need ammo crates or a plasma lance.
 
 ## The calendar, weeks and the festival
 

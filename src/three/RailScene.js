@@ -242,12 +242,12 @@ export class RailScene {
     this.flashEl = flash;
     this.race = race;
     this.reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    try {
-      this.pixelMode = window.localStorage.getItem('iron-rails-pixels') !== 'off';
-    } catch {
-      this.pixelMode = true;
-    }
-    this.camModes = ['chase', 'aerial', 'helicopter', 'side', 'front'];
+    // Smooth rendering only: the old PS1 pixel mode is gone.
+    this.pixelMode = false;
+    // Helicopter hovers close above your engine; bird's-eye is far out over the whole field. Both
+    // can be dragged round (and pinched or scrolled in and out) to look behind or ahead.
+    this.camModes = ['chase', 'helicopter', 'birdseye', 'side', 'front'];
+    this.view = { yaw: 0, pitch: 0, zoom: 1 };
     // Sighting cinematics: slow time, fly down the line to what the lookout just spotted.
     this.cine = null;
     this.timeFactor = 1;
@@ -302,6 +302,66 @@ export class RailScene {
     for (let i = 0; i < 8; i++) this.updateChunks(0);
     this.onResize = () => this.resize();
     window.addEventListener('resize', this.onResize);
+    this.bindDrag();
+  }
+
+  // Drag (mouse or one finger) to swing the overhead cameras round; pinch or scroll to zoom.
+  bindDrag() {
+    const el = this.canvas;
+    const pts = new Map();
+    let pinch = null;
+    const orbitable = () => ['helicopter', 'birdseye'].includes(this.camModes[this.camMode]);
+    const down = (e) => {
+      if (!orbitable()) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      el.setPointerCapture?.(e.pointerId);
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), zoom: this.view.zoom };
+      }
+    };
+    const move = (e) => {
+      const p = pts.get(e.pointerId);
+      if (!p || !orbitable()) return;
+      const dx = e.clientX - p.x;
+      const dy = e.clientY - p.y;
+      p.x = e.clientX;
+      p.y = e.clientY;
+      if (pts.size >= 2 && pinch) {
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        this.view.zoom = clamp((pinch.zoom * pinch.d) / Math.max(20, d), 0.45, 2.2);
+        return;
+      }
+      this.view.yaw -= dx * 0.008;
+      this.view.pitch = clamp(this.view.pitch + dy * 0.005, -0.6, 0.6);
+    };
+    const up = (e) => {
+      pts.delete(e.pointerId);
+      if (pts.size < 2) pinch = null;
+    };
+    const wheel = (e) => {
+      if (!orbitable()) return;
+      e.preventDefault();
+      this.view.zoom = clamp(this.view.zoom * Math.exp(e.deltaY * 0.001), 0.45, 2.2);
+    };
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('wheel', wheel, { passive: false });
+    this.unbindDrag = () => {
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      el.removeEventListener('wheel', wheel);
+    };
+  }
+
+  // Back to the default angle for this camera.
+  resetView() {
+    this.view = { yaw: 0, pitch: 0, zoom: 1 };
   }
 
   // ---------- materials ----------
@@ -330,14 +390,9 @@ export class RailScene {
     const h = this.host.clientHeight || window.innerHeight;
     let iw;
     let ih;
-    if (this.pixelMode) {
-      iw = Math.round(clamp(w / 2.4, 300, 520));
-      ih = Math.round((iw * h) / w);
-    } else {
-      const d = Math.min(window.devicePixelRatio || 1, 2);
-      iw = Math.round(w * d);
-      ih = Math.round(h * d);
-    }
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    iw = Math.round(w * d);
+    ih = Math.round(h * d);
     this.renderer.setPixelRatio(1);
     this.renderer.setSize(iw, ih, false);
     this.snap.res.value.set(iw / 3, ih / 3);
@@ -345,21 +400,11 @@ export class RailScene {
     this.camera.updateProjectionMatrix();
   }
 
-  togglePixels() {
-    this.pixelMode = !this.pixelMode;
-    this.snap.on.value = this.pixelMode ? 1 : 0;
-    this.canvas.classList.toggle('smooth', !this.pixelMode);
-    try {
-      window.localStorage.setItem('iron-rails-pixels', this.pixelMode ? 'on' : 'off');
-    } catch {
-      // Not saved; fine for this visit.
-    }
-    this.resize();
-    return this.pixelMode;
-  }
-
   cycleCamera() {
     this.camMode = (this.camMode + 1) % this.camModes.length;
+    this.resetView();
+    this.heliMid = undefined;
+    this.heliAlt = undefined;
     return this.camModes[this.camMode];
   }
 
@@ -1034,7 +1079,7 @@ export class RailScene {
 
   updateTags() {
     const mode = this.camModes[this.camMode];
-    const show = (mode === 'aerial' || mode === 'helicopter') && this.race.status !== 'ready';
+    const show = (mode === 'helicopter' || mode === 'birdseye') && this.race.status !== 'ready';
     const cam = this.camera.position;
     for (const tag of this.tags ?? []) {
       tag.sprite.visible = show;
@@ -1538,12 +1583,10 @@ export class RailScene {
       if (mode === 'chase') {
         off = new THREE.Vector3(-3 * lean, 15, -30);
         look = new THREE.Vector3(Math.min(this.halfTracks, 4.5) * lean * 0.6, 2, 18);
-      } else if (mode === 'aerial') {
-        // High above and behind your engine: you, and the trains close behind and ahead.
-        off = new THREE.Vector3(-8 * lean, 62, -68);
-        look = new THREE.Vector3(0, 0, 34);
       } else if (mode === 'helicopter') {
         return this.updateHelicopter(dt);
+      } else if (mode === 'birdseye') {
+        return this.updateBirdseye(dt);
       } else if (mode === 'side') {
         off = new THREE.Vector3(-30 * lean, 7, 2);
         look = new THREE.Vector3(2 * lean, 2.5, 2);
@@ -1667,8 +1710,32 @@ export class RailScene {
     return { lo, hi };
   }
 
-  // Helicopter: high overhead, framing the whole field from the leader back to the last train.
+  // Point an orbiting camera at `target` (world), `dist` away, swung by the player's drag. `yaw` 0 is
+  // straight behind along the line's heading; `elev` is the angle above the horizon.
+  orbitCamera(dt, target, heading, dist, elev, lookAhead = 0) {
+    this.camHeading += (heading - this.camHeading) * (1 - Math.exp(-dt * 1.5));
+    const yaw = this.camHeading + this.view.yaw;
+    const el = clamp(elev + this.view.pitch, 0.18, 1.45);
+    const r = dist * this.view.zoom;
+    const flat = Math.cos(el) * r;
+    const cam = this.camera;
+    cam.position.set(target.x - Math.sin(yaw) * flat, target.y + Math.sin(el) * r, target.z - Math.cos(yaw) * flat);
+    cam.position.x += Math.sin(this.time * 0.6) * 0.8;
+    cam.position.y += Math.sin(this.time * 0.9) * 0.6;
+    cam.lookAt(target.x + Math.sin(this.camHeading) * lookAhead, target.y, target.z + Math.cos(this.camHeading) * lookAhead);
+  }
+
+  // Helicopter: close above your engine; drag to circle it and look behind or ahead.
   updateHelicopter(dt) {
+    const me = this.player();
+    const base = this.path.toWorld(me.x, me.s, this.keep);
+    const heading = this.path.sample(me.s).h;
+    this.orbitCamera(dt, new THREE.Vector3(base.x, base.y + 2, base.z), heading, 82, 0.6, this.view.yaw === 0 ? 14 : 0);
+    this.followSky(dt, me, 'helicopter');
+  }
+
+  // Bird's-eye: furthest out, framing the whole field from the leader back to the last train.
+  updateBirdseye(dt) {
     const me = this.player();
     const span = this.fieldSpan();
     // Keep you in the shot even when the field is strung out: centre between you and the field.
@@ -1676,28 +1743,19 @@ export class RailScene {
     const hi = Math.min(span.hi, me.s + 1300);
     const mid = (lo + hi) / 2;
     const spread = hi - lo;
-    const alt = THREE.MathUtils.clamp(spread * 0.75 + 190, 220, 900);
+    const alt = THREE.MathUtils.clamp(spread * 0.75 + 260, 300, 950);
     const k = 1 - Math.exp(-dt * 1.5);
     this.heliMid = this.heliMid === undefined ? mid : this.heliMid + (mid - this.heliMid) * k;
     this.heliAlt = this.heliAlt === undefined ? alt : this.heliAlt + (alt - this.heliAlt) * k;
-    const heading = this.path.sample(Math.max(0, this.heliMid)).h;
-    this.camHeading += (heading - this.camHeading) * (1 - Math.exp(-dt * 1.2));
-    const base = this.path.toWorld(0, Math.max(0, this.heliMid), this.keep);
-    const c = Math.cos(this.camHeading);
-    const sn = Math.sin(this.camHeading);
-    const back = -this.heliAlt * 0.45;
-    const cam = this.camera;
-    cam.position.set(base.x + back * sn, this.heliAlt + base.y, base.z + back * c);
-    // a gentle hover sway
-    cam.position.x += Math.sin(this.time * 0.6) * 3;
-    cam.position.y += Math.sin(this.time * 0.9) * 2;
-    cam.lookAt(base.x + 20 * sn, base.y, base.z + 20 * c);
-    this.followSky(dt, me, 'helicopter');
+    const s = Math.max(0, this.heliMid);
+    const base = this.path.toWorld(0, s, this.keep);
+    this.orbitCamera(dt, new THREE.Vector3(base.x, base.y, base.z), this.path.sample(s).h, this.heliAlt * 1.08, 1.1);
+    this.followSky(dt, me, 'birdseye');
   }
 
   followSky(dt, me, mode) {
     const cam = this.camera;
-    const [near, far] = mode === 'helicopter' ? [700, 3400] : mode === 'aerial' ? [260, 1500] : [150, 560];
+    const [near, far] = mode === 'birdseye' ? [700, 3400] : mode === 'helicopter' ? [260, 1500] : [150, 560];
     const k = 1 - Math.exp(-dt * 2);
     this.fogNear += (near - this.fogNear) * k;
     this.fogFar += (far - this.fogFar) * k;
@@ -1762,12 +1820,12 @@ export class RailScene {
     const mode = this.camModes[this.camMode];
     const cineAway = this.cine && this.cineBlend() > 0.25;
     if (cineAway) this.updateChunks(this.cine.rock.s, 280, 220, 4);
-    else if (mode === 'helicopter') {
+    else if (mode === 'birdseye') {
       const span = this.fieldSpan();
       const mid = (span.lo + span.hi) / 2;
       const reach = Math.min(1500, (span.hi - span.lo) / 2 + 700);
       this.updateChunks(mid, reach, reach, 3);
-    } else if (mode === 'aerial') this.updateChunks(this.player().s, 420, 1000, 3);
+    } else if (mode === 'helicopter') this.updateChunks(this.player().s, 700, 900, 3);
     else this.updateChunks(this.player().s);
     this.updateCamera(realDt);
     if (this.cine) this.applyCine(realDt);
@@ -1884,6 +1942,7 @@ export class RailScene {
 
   dispose() {
     window.removeEventListener('resize', this.onResize);
+    this.unbindDrag?.();
     this.nums.forEach((n) => n.el.remove());
     const textures = new Set(Object.values(this.TEX));
     this.scene.traverse((o) => {

@@ -25,6 +25,83 @@ const KIND_LABEL = {
   demo: 'Test drive',
 };
 
+const ARM_NAMES = { launcher: 'a missile launcher', cannon: 'a cannon', heavy: 'a heavy cannon', plasma: 'a plasma gun', arc: 'a lightning cannon', fire: 'Fire', bolt: 'Bolt', barrier: 'Barrier', shield: 'Shield', frost: 'Frost Breath', vent: 'a coolant vent' };
+
+// The first run: your train against Benchmark's, before and after the conductors.
+function TaleOfTheTape({ conductor, run }) {
+  const T = run.tutorial;
+  const mine = run.loco;
+  const rows = (list) =>
+    list.map(([label, you, them, unit = '', show = fmt, lowerWins = false]) => {
+      const win = you === them ? '' : you > them !== lowerWins ? 'you' : 'them';
+      return (
+        <div className="tape-row" key={label}>
+          <span className={`num ${win === 'you' ? 'tape-win' : ''}`}>
+            {show(you)}
+            {unit ? <small> {unit}</small> : null}
+          </span>
+          <span className="label">{label}</span>
+          <span className={`num ${win === 'them' ? 'tape-win' : ''}`}>
+            {show(them)}
+            {unit ? <small> {unit}</small> : null}
+          </span>
+        </div>
+      );
+    });
+  const pts = (loco) => loco.power + loco.efficiency + loco.durability + (loco.endurance ?? 5);
+  const final = run.stats;
+  const theirs = T.stats;
+  return (
+    <div className="plate stack tape">
+      <div className="plate-head">
+        <h3>You against Benchmark</h3>
+      </div>
+      <div className="tape-head">
+        <b>You</b>
+        <span />
+        <b>Benchmark</b>
+      </div>
+      <h4 className="tape-sub">The locomotive, before your conductor</h4>
+      <div className="tape-row">
+        <span>
+          <RarityTag rarity={mine.rarity} />
+        </span>
+        <span className="label">Grade</span>
+        <span>
+          <RarityTag rarity={T.loco.rarity} />
+        </span>
+      </div>
+      {rows([
+        ['Stat points', pts(mine), pts(T.loco)],
+        ['Efficiency', mine.efficiency, T.loco.efficiency],
+        ['Armor', mine.durability, T.loco.durability],
+        ['Endurance', mine.endurance ?? 5, T.loco.endurance],
+        ['Horsepower', Math.round(T.yourRaw.hp), Math.round(T.raw.hp)],
+        ['Top speed', Math.round(T.yourRaw.topSpeed), Math.round(T.raw.topSpeed), 'mph'],
+      ])}
+      <p className="small muted">Benchmark's train is the better build.</p>
+      <h4 className="tape-sub">The conductor</h4>
+      {rows([
+        ['Strength', conductor.str ?? 0, T.crew.str],
+        ['Agility', conductor.agi ?? 0, T.crew.agi],
+        ['Intelligence', conductor.int ?? 0, T.crew.int],
+        ['Endurance', conductor.end ?? 0, T.crew.end],
+      ])}
+      <p className="small muted">Your conductor is far stronger.</p>
+      <h4 className="tape-sub">On the line, everything counted</h4>
+      {rows([
+        ['Top speed', Math.round(final.topSpeed), Math.round(theirs.topSpeed), 'mph'],
+        ['Full speed after', Math.round(final.accelMiles * 10) / 10, Math.round(theirs.accelMiles * 10) / 10, 'mi', (v) => fmt(v, 1), true],
+        ['Bend grip', Math.round(final.grip * 100), Math.round(theirs.grip * 100), '%'],
+        ['Hull', Math.round(final.hull), Math.round(theirs.hull), 'HP'],
+      ])}
+      <p className="small">
+        Your conductor makes you about {fmt((1 - T.ratio) * 100)}% quicker on the line. Benchmark is still stronger off the mark, and it carries a cannon: you carry {final.arms.length ? final.arms.map((a) => ARM_NAMES[a] ?? a).join(' and ') : 'nothing yet'}.
+      </p>
+    </div>
+  );
+}
+
 export default function Setup() {
   const { conductor, screen, go, act, notify } = useGame();
   const [haulPick, setHaulPick] = useState(screen.ctx.haul ?? null);
@@ -110,7 +187,7 @@ export default function Setup() {
 
       {isTest ? (
         <p className="note">
-          Every new conductor proves their engine against the company's test locomotive. Win or lose, the job board opens afterwards. On the line, the power lever goes past 100%: more speed, a lot more fuel. Slow down for bends: a strong engine pulls out of them faster. Benchmark carries a cannon, and so do you: 3 rounds, key 1. Make them count.
+          Every new conductor proves their engine against the company's test locomotive. Benchmark is a better-built train than yours, but its conductor is weak; yours is not. This run walks you through the two things that decide races: holding speed through bends, and fighting with your weapons. Win or lose, the job board opens afterwards.
         </p>
       ) : null}
 
@@ -255,7 +332,9 @@ export default function Setup() {
             </div>
           )}
 
-          {run.rivals.length ? (
+          {isTest && run.tutorial ? <TaleOfTheTape conductor={conductor} run={run} /> : null}
+
+          {run.rivals.length && !isTest ? (
             <div className="plate stack">
               <div className="plate-head">
                 <h3>{run.rivals.length === 1 ? 'Your rival' : `${run.rivals.length} rivals`}</h3>

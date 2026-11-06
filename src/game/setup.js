@@ -1,7 +1,7 @@
 import { talent } from './captain.js';
 import { B } from './balance.js';
 import { activeLoco } from './conductor.js';
-import { MODELS, cargoFits, deriveStats, makeBenchmark } from './locomotives.js';
+import { MODELS, cargoFits, deriveStats, makeBenchmark, topSpeedFor } from './locomotives.js';
 import { companyById, companyRecord, jobPay, jobXp } from './jobs.js';
 import { hashSeed, makeCourse } from './course.js';
 import { phoenixForSale } from './economy.js';
@@ -60,6 +60,52 @@ function rivalFromSpec(spec, playerLoco, cargoLb, distance, index, course) {
   };
 }
 
+// The first run's Benchmark: a better-graded locomotive than yours (same model, more stat points)
+// with a weak conductor at the controls. Its power is tuned so that on the line, loaded the same,
+// it comes out about 10% slower than you: your conductor makes the difference.
+const loadedTop = (stats, cargoLb) => topSpeedFor(stats.hp, stats.weight + cargoLb + 30 * B.LOCO.fuelLbPerGallon);
+export function firstRunRival(loco, conductor, cargoLb) {
+  const T = B.RACE.testRace.benchmark;
+  const crew = {
+    str: Math.max(1, Math.round((conductor.str ?? 0) * T.crewShare)),
+    agi: Math.max(1, Math.round((conductor.agi ?? 0) * T.crewShare)),
+    int: Math.max(1, Math.round((conductor.int ?? 0) * T.crewShare)),
+    end: Math.max(1, Math.round((conductor.end ?? 0) * T.crewShare)),
+    traits: [],
+  };
+  const yours = loadedTop(deriveStats(loco, conductor), cargoLb);
+  const make = (powerDelta) => ({
+    ...makeBenchmark(),
+    model: loco.model,
+    rarity: 'rare',
+    fixedWeight: undefined,
+    hpBase: loco.hpBase,
+    tqBase: loco.tqBase,
+    growth: loco.growth,
+    power: Math.max(1, loco.power + powerDelta),
+    efficiency: loco.efficiency + T.extraPoints,
+    durability: loco.durability + T.extraPoints,
+    endurance: (loco.endurance ?? 5) + T.extraPoints,
+  });
+  let best = null;
+  for (let delta = -3; delta <= 3; delta++) {
+    const bench = make(delta);
+    const ratio = loadedTop(deriveStats(bench, crew), cargoLb) / yours;
+    if (!best || Math.abs(ratio - T.ratio) < Math.abs(best.ratio - T.ratio)) best = { bench, ratio };
+  }
+  // Fine-tune the engine so it lands right on the target: about 10% slower than you on the line.
+  const bench = { ...best.bench, hpBase: best.bench.hpBase * (T.ratio / best.ratio), tqBase: best.bench.tqBase * (T.ratio / best.ratio) };
+  best.ratio = loadedTop(deriveStats(bench, crew), cargoLb) / yours;
+  return {
+    loco: bench,
+    crew,
+    stats: deriveStats(bench, crew),
+    raw: deriveStats(bench),
+    yourRaw: deriveStats(loco),
+    ratio: best.ratio,
+  };
+}
+
 // Everything the setup screen shows and the race needs, worked out once.
 export function describeRun(conductor, ctx) {
   const loco = activeLoco(conductor);
@@ -78,6 +124,7 @@ export function describeRun(conductor, ctx) {
   let haul = 0;
   let pay = null;
   let xp = null;
+  let tutorial = null;
   const owned = conductor.containers ?? 0;
 
   if (ctx.kind === 'test') {
@@ -86,9 +133,10 @@ export function describeRun(conductor, ctx) {
     distance = B.RACE.testRace.miles;
     weight = B.RACE.testRace.cargoLb;
     courseSeed = 'first-run';
-    const stats = deriveStats(makeBenchmark());
-    const plan = planTrip(stats, 0, distance, makeCourse(courseSeed, distance));
-    rivals = [{ id: 'benchmark', name: 'Benchmark', locoName: 'Company test engine', model: 'benchmark', stats, cargoLb: 0, lever: 1, fuel: Math.ceil(plan.gallons * 1.2) }];
+    tutorial = firstRunRival(loco, conductor, weight);
+    const { stats } = tutorial;
+    const plan = planTrip(stats, weight, distance, makeCourse(courseSeed, distance));
+    rivals = [{ id: 'benchmark', name: 'Benchmark', locoName: 'Company test engine', model: 'benchmark', stats, cargoLb: weight, lever: 1, fuel: Math.ceil(plan.gallons * 1.3) }];
   } else if (ctx.kind === 'demo') {
     playerLoco = phoenixForSale();
     title = 'Phoenix test drive';
@@ -156,6 +204,7 @@ export function describeRun(conductor, ctx) {
     plan,
     rivals,
     blocked,
+    tutorial,
     freeFuel: ctx.kind === 'demo',
     maxLoad: ctx.kind === 'demo' ? stats.tank : Math.min(stats.tank, Math.floor(conductor.fuel.gallons)),
   };
@@ -167,6 +216,9 @@ export function buildRaceConfig(conductor, run, fuelGallons) {
     title: run.title,
     // Spells are in play wherever there are rivals to race, except the test drive.
     combat: (run.rivals.length > 0 && run.ctx.kind !== 'demo') || run.boulders.length > 0,
+    // The first run is a guided lesson: weapons are ready from the flag.
+    guide: run.ctx.kind === 'test',
+    bootInstant: run.ctx.kind === 'test',
     course: run.course,
     obstacles: run.boulders,
     distance: run.distance,

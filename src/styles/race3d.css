@@ -625,3 +625,491 @@
 .r3-journey { color: #9be7ff; }
 .r3-cmd.booting .r3-cost { color: #ffcf6b; font-variant-numeric: tabular-nums; }
 .r3-cmd.booting { opacity: 0.75; }
+
+/* ================================================================
+   Readable HUD (Nov 2026): the NEXUSRAIL glass look on the race screen.
+   Clean, legible type (Barlow text, Rajdhani labels, Orbitron headings), dark glass panels with a
+   thin cyan edge, and a much leaner phone layout. Layered over the rules above.
+   ================================================================ */
+.r3 {
+  --f-ui: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  --f-label: 'Rajdhani', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --f-title: 'Orbitron', 'Rajdhani', 'Arial Narrow', sans-serif;
+  --glass: rgba(7, 11, 17, 0.74);
+  --edge: rgba(25, 195, 230, 0.38);
+  --r3-text: #eef6ff;
+  --r3-dim: #9fb0c4;
+  --r3-accent: #19c3e6;
+  font-family: var(--f-ui);
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.3;
+}
+.r3-view {
+  touch-action: none;
+}
+.r3-win {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  padding: 10px 12px;
+}
+.r3-lbl {
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+.r3-title,
+.r3-name {
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+}
+.r3-big {
+  font-weight: 600;
+  font-size: 26px;
+}
+.r3-big small,
+.r3-dim,
+.r3-sub,
+.r3-small {
+  font-size: 13px;
+}
+.r3-row span:not(.r3-lbl) {
+  font-weight: 600;
+}
+.r3-gap {
+  font-weight: 600;
+  font-size: 15px;
+}
+.r3-ubtn {
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  border-radius: 9px;
+  color: var(--r3-text);
+  min-height: 36px;
+}
+.r3-ubtn[aria-pressed='false'] {
+  color: var(--r3-dim);
+}
+.r3-ubtn:focus-visible,
+.r3-cmd:focus-visible,
+.r3-tbtn:focus-visible,
+.r3 input:focus-visible {
+  outline: 2px solid var(--r3-accent);
+}
+.r3-utils {
+  position: relative;
+  align-items: flex-start;
+}
+/* The More menu: on wide screens everything shows in the row; on phones it drops down. */
+.r3-morebtn {
+  display: none;
+}
+.r3-menu {
+  display: contents;
+}
+.r3-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+.r3-cmd {
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  border-radius: 8px;
+}
+.r3-cmd .r3-cur {
+  display: none;
+}
+.r3-cmd:hover {
+  background: rgba(25, 195, 230, 0.12);
+}
+.r3-cost {
+  font-family: var(--f-ui);
+  font-weight: 600;
+  font-size: 12px;
+  color: #7fdcff;
+}
+.r3-key {
+  font-family: var(--f-ui);
+  font-size: 11px;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.r3-cmd.off,
+.r3-cmd:disabled {
+  color: #7d8a9c;
+}
+.r3-meters {
+  font-size: 13px;
+  gap: 5px 10px;
+}
+.r3-meters .r3-lbl {
+  font-size: 11px;
+}
+.r3-map {
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: rgba(4, 10, 24, 0.85);
+}
+.r3-tbtn {
+  font-size: 15px;
+  color: var(--r3-text);
+}
+.r3-eta {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+.r3-fireall {
+  color: #ffd29a;
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+.r3-msg {
+  font-weight: 600;
+  font-size: 15px;
+  padding: 8px 16px;
+}
+.r3-toast {
+  font-family: var(--f-title);
+  font-weight: 800;
+  text-shadow: 0 0 24px rgba(25, 195, 230, 0.75), 0 3px 0 rgba(0, 0, 0, 0.6);
+}
+.r3-num {
+  font-family: var(--f-label);
+  font-weight: 700;
+}
+.r3-panel h2 {
+  font-family: var(--f-title);
+  font-size: clamp(22px, 5.5vw, 30px);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 18px rgba(25, 195, 230, 0.45);
+}
+.r3-panel p,
+.r3-panel li {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #dbe6f3;
+}
+
+/* Bend and hill notices: one tidy banner, top centre. */
+.r3-banners {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  pointer-events: none;
+  max-width: min(440px, 40vw);
+}
+.r3-banners .r3-bend {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 8px;
+  background: var(--glass);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+.r3-banners .r3-bend b {
+  font-family: var(--f-label);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.r3-banners .r3-bend span {
+  color: var(--r3-text);
+  font-weight: 500;
+}
+.r3-bend.medium {
+  color: #ffc36b;
+}
+
+/* The guided first run. */
+.r3-guide {
+  z-index: 50;
+  background: rgba(2, 6, 14, 0.55);
+}
+.r3-lesson {
+  max-width: 470px;
+  background: rgba(7, 11, 17, 0.94);
+  border-color: rgba(25, 195, 230, 0.6);
+}
+.r3-lesson ul {
+  margin: 4px 0 10px;
+  padding-left: 20px;
+}
+.r3-kicker {
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--r3-accent);
+}
+.r3-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+.r3-compare > div {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+}
+.r3-compare b {
+  font-size: 24px;
+  font-weight: 700;
+}
+.r3-cmd.r3-go {
+  justify-content: center;
+  background: var(--r3-accent);
+  color: #03141a;
+  text-shadow: none;
+  padding: 10px 14px;
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.r3-cmd.r3-go:hover {
+  background: #6be4f7;
+}
+.r3-guide-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 42%;
+  transform: translateX(-50%);
+  background: rgba(40, 8, 8, 0.82);
+  border: 1px solid #ff7a5a;
+  color: #fff;
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: r3-hint 1.2s ease-in-out infinite alternate;
+  z-index: 35;
+}
+.r3-guide-hint.good {
+  background: rgba(6, 40, 22, 0.85);
+  border-color: #2fd27a;
+  animation: none;
+}
+@keyframes r3-hint {
+  from {
+    box-shadow: 0 0 0 rgba(255, 122, 90, 0);
+  }
+  to {
+    box-shadow: 0 0 22px rgba(255, 122, 90, 0.6);
+  }
+}
+.r3-cmd.pulse {
+  background: rgba(255, 122, 90, 0.22);
+  box-shadow: inset 0 0 0 1px #ff7a5a;
+  animation: r3-hint 0.8s ease-in-out infinite alternate;
+}
+
+/* ---------- phones ---------- */
+@media (max-width: 640px) {
+  .r3 {
+    font-size: 14px;
+  }
+  .r3-win {
+    padding: 7px 9px;
+    border-radius: 10px;
+  }
+  .r3-tl {
+    top: max(8px, env(safe-area-inset-top, 0px));
+    left: max(8px, env(safe-area-inset-left, 0px));
+  }
+  .r3-tr {
+    top: max(8px, env(safe-area-inset-top, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+    gap: 6px;
+  }
+  .r3-bl {
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    left: max(8px, env(safe-area-inset-left, 0px));
+    right: 96px;
+    gap: 6px;
+  }
+  .r3-br {
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+    gap: 6px;
+  }
+  /* The run: distance, speed and the race, nothing else. */
+  .r3-race {
+    width: 46vw;
+    max-width: 190px;
+  }
+  .r3-title,
+  .r3-clock,
+  .r3-eta,
+  .r3-comp {
+    display: none;
+  }
+  .r3-big {
+    font-size: 22px;
+  }
+  .r3-gap {
+    font-size: 14px;
+    margin: 2px 0 0;
+  }
+  /* Buttons: View, Pause and More; the rest drop down from More. */
+  .r3-utils {
+    max-width: none;
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+  .r3-ubtn {
+    font-size: 12px;
+    padding: 6px 9px;
+    min-height: 34px;
+  }
+  .r3-morebtn {
+    display: inline-block;
+  }
+  .r3-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 45;
+  }
+  .r3-menu.open {
+    display: flex;
+  }
+  .r3-menu .r3-ubtn {
+    min-width: 132px;
+    text-align: left;
+  }
+  /* Rival and obstacles: a slim card under the buttons. */
+  .r3-foe {
+    width: 46vw;
+    max-width: 190px;
+    min-width: 0;
+  }
+  .r3-foe .r3-row .r3-dim {
+    display: none;
+  }
+  .r3-name {
+    font-size: 14px;
+  }
+  .r3-sub {
+    font-size: 12px;
+  }
+  /* The bend or hill banner sits below the top cards. */
+  .r3-banners {
+    top: calc(max(8px, env(safe-area-inset-top, 0px)) + 132px);
+    max-width: calc(100vw - 24px);
+    width: max-content;
+  }
+  .r3-banners .r3-bend {
+    font-size: 13px;
+    padding: 5px 12px;
+  }
+  /* Your train: HP, fuel and heat as a compact two-column block. */
+  .r3-me {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  .r3-me > .r3-row .r3-name {
+    display: none;
+  }
+  .r3-meters {
+    grid-template-columns: auto 1fr auto auto 1fr auto;
+    gap: 5px 7px;
+    margin-top: 0;
+    font-size: 12px;
+  }
+  .r3-me .r3-sub:not(.r3-danger):not(.r3-warm) {
+    display: none;
+  }
+  .r3-cmds {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 5px;
+  }
+  .r3-cmd {
+    width: auto;
+    flex: 1 1 auto;
+    justify-content: center;
+    font-size: 14px;
+    padding: 9px 8px;
+    min-height: 40px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .r3-cmd .r3-key {
+    display: none;
+  }
+  .r3-cmd .r3-cost {
+    margin-left: 4px;
+  }
+  .r3-aim {
+    font-size: 12px;
+  }
+  .r3-map {
+    width: 84px;
+    height: 76px;
+  }
+  .r3-lever {
+    width: 84px;
+    min-width: 0;
+    padding: 6px;
+  }
+  .r3-lever .r3-row {
+    justify-content: center;
+    gap: 6px;
+  }
+  .r3-tbtn {
+    height: 42px;
+  }
+  .r3-guide-hint {
+    bottom: auto;
+    top: calc(max(8px, env(safe-area-inset-top, 0px)) + 176px);
+    font-size: 14px;
+    white-space: normal;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    text-align: center;
+  }
+  .r3-lesson {
+    padding: 16px;
+  }
+  .r3-lesson h2 {
+    font-size: 22px;
+  }
+  .r3-panel p,
+  .r3-panel li {
+    font-size: 14px;
+  }
+}

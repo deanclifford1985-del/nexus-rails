@@ -229,6 +229,8 @@ export function createRace(config) {
     fx: [], // things for the screen to show: { type: 'cast' | 'hit' | 'derail' | 'smash' | 'crash', ... }
     shotSeq: 0,
     bootInstant: !!config.bootInstant, // the Damage Wall: everything is online from the start
+    // The guided first run (see updateGuide). `prompt` pauses the race until the screen clears it.
+    guide: config.guide ? { stage: 'launch', prompt: null, seen: [], bend: (course?.bends ?? [])[0] ?? null } : null,
     rng,
     result: null,
   };
@@ -250,8 +252,9 @@ function advanceTrain(race, train, h) {
   }
   const boost = train.isPlayer ? race.competitive.boost : 0;
   const weight = train.baseWeight + train.cargo + train.fuel * LB_PER_GAL;
-  const power = train.lever * (1 + boost);
+  const power = train.lever * (1 + boost) * (train.guidePower ?? 1);
   let vmax = topSpeedFor(train.hp * power, weight);
+  if (train.crippled) vmax *= B.RACE.testRace.guide.crippledSpeed;
   if (train.slowFor > 0) {
     vmax *= 1 - R.siphon.steal;
     train.slowFor -= h;
@@ -422,6 +425,7 @@ function substep(race, h) {
   updateEmergency(race, h);
   for (const train of race.trains) if (!train.finished) advanceTrain(race, train, h);
   updateField(race, h);
+  if (race.guide) updateGuide(race);
   for (const train of race.trains) train.stagger = Math.max(0, train.stagger - h);
   // The player's lookout (and radar) spots obstacles ahead.
   const lookout = playerOf(race);
@@ -452,7 +456,7 @@ function substep(race, h) {
 export function stepRace(race, dt, slice = R.substep) {
   if (race.status !== 'running') return race;
   let left = Math.min(dt, 5);
-  while (left > 1e-9 && race.status === 'running') {
+  while (left > 1e-9 && race.status === 'running' && !race.guide?.prompt) {
     const h = Math.min(slice, left);
     substep(race, h);
     left -= h;
@@ -599,6 +603,8 @@ export function castBlocker(race, from, kind) {
   if (race.status !== 'running') return 'Nothing to fight';
   if (!race.combat && !cooler) return 'Nothing to fight';
   if (!live(from)) return 'Off the line';
+  // The guided first run keeps your guns quiet until the weapons lesson.
+  if (race.guide && from.isPlayer && !cooler && !['weapons', 'done'].includes(race.guide.stage)) return 'Hold fire: weapons lesson coming';
   const booting = bootStatus(race, from, kind);
   if (booting) return booting;
   if ((from.cooldown[kind] ?? 0) > 0) return 'Reloading';
@@ -694,6 +700,16 @@ function hurt(race, from, targetId, damage, { kind, crit = false, pen = 0, dot =
   // A train that has crossed the line or left the rails is out of reach.
   if (!target || !live(target)) return false;
   let blocked = false;
+  // The guided first run: once you are told to fight back, your hits land hard and the first one
+  // cripples Benchmark's engine.
+  const lesson = race.guide && from?.isPlayer && !target.isPlayer && (race.guide.stage === 'weapons' || race.guide.stage === 'done');
+  if (lesson) damage *= B.RACE.testRace.guide.hitDamage;
+  if (lesson && !dot && race.guide.stage === 'weapons') {
+    race.guide.stage = 'done';
+    target.crippled = true;
+    target.guidePower = 1;
+    race.fx.push({ type: 'guide', id: 'crippled' });
+  }
   if (!dot) {
     damage = afterArmor(damage, target.armor ?? 0, pen);
     blocked = target.barrier > 0;
@@ -799,6 +815,8 @@ function updateAfflictions(race, h) {
 function think(race, rival, h) {
   rival.think -= h;
   if (rival.think > 0 || !live(rival)) return;
+  // On the guided first run Benchmark holds its fire until the lesson is over.
+  if (race.guide && race.guide.stage !== 'done') return;
   const alive = race.trains.slice(1).filter(live).length || 1;
   rival.think = (C.ai.think[0] + race.rng() * (C.ai.think[1] - C.ai.think[0])) * Math.sqrt(alive);
   const incoming = race.shots.some((shot) => shot.to === rival.id);
@@ -836,6 +854,54 @@ function updateCombat(race, h) {
     }
   }
   for (const rival of race.trains.slice(1)) think(race, rival, h);
+}
+
+// The guided first run, in stages:
+//   launch  Benchmark's better locomotive pulls away off the line;
+//   bend    at the first bend, pause and explain bends, Agility and acceleration;
+//   chase   after the bend Benchmark opens up and pulls ahead;
+//   weapons once it leads by a little, pause and tell the player to fight back;
+//   done    the first hit crippled it (see hurt).
+function updateGuide(race) {
+  const G = B.RACE.testRace.guide;
+  const guide = race.guide;
+  const player = playerOf(race);
+  const bench = race.trains[1];
+  if (!bench) return;
+  const ask = (id) => {
+    if (guide.seen.includes(id)) return;
+    guide.seen.push(id);
+    guide.prompt = id;
+  };
+  const bendStart = guide.bend && guide.bend.start < 12 ? guide.bend.start : G.fallbackBendMile;
+  const bendEnd = guide.bend && guide.bend.start < 12 ? guide.bend.end : G.fallbackBendMile + 0.5;
+  const lead = bench.distance - player.distance;
+  if (guide.stage === 'launch') {
+    // A stronger locomotive gets away first, but only by a little.
+    // The further behind it is, the harder it pushes, so it leads at the first bend whoever drives.
+    bench.guidePower = lead < G.launchLead ? Math.min(G.maxPower, G.launchPower + (G.launchLead - lead) * 3) : 1;
+    if (player.distance >= bendStart - 0.03) {
+      guide.stage = 'bend';
+      ask('bend');
+    }
+  } else if (guide.stage === 'bend') {
+    bench.guidePower = 1;
+    if (player.distance >= Math.min(bendEnd, bendStart + G.bendMiles)) guide.stage = 'chase';
+  } else if (guide.stage === 'chase') {
+    bench.guidePower = Math.min(G.maxPower, G.surgePower + Math.max(0, G.surgeLead - lead) * 2);
+    if (lead >= G.surgeLead) {
+      guide.stage = 'weapons';
+      ask('weapons');
+    }
+  } else if (guide.stage === 'weapons') {
+    // Hold the lead, never run out of reach of the guns.
+    bench.guidePower = lead > G.surgeLead * 2 ? 1 : G.holdPower;
+  }
+}
+
+// The screen calls this when the player has read a guided prompt.
+export function clearPrompt(race) {
+  if (race.guide) race.guide.prompt = null;
 }
 
 export function forfeitRace(race) {

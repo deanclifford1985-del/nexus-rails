@@ -303,7 +303,13 @@ export const B = {
     aiLever: [0.92, 1.0],
     aiAttr: [5, 14],
     // The first run: you pull the company's test car; Benchmark weighs 20,000 lb all in.
-    testRace: { miles: 25, cargoLb: 5000, winLt: 150, winXp: 375, lossLt: 0, lossXp: 75 },
+    testRace: {
+      miles: 25, cargoLb: 5000, winLt: 150, winXp: 375, lossLt: 0, lossXp: 75,
+      // Benchmark: a better-graded locomotive (+2 efficiency, armor and endurance) with a weak conductor (30% of your attributes), about 10% slower than you on the line.
+      benchmark: { extraPoints: 2, crewShare: 0.3, ratio: 0.9 },
+      // The guided first run: Benchmark's better locomotive pulls away off the line, surges after the first bend, and a hit from your weapons cripples it.
+      guide: { maxPower: 2.6, launchPower: 1.5, launchLead: 0.12, bendMiles: 1.5, surgePower: 1.9, holdPower: 1.15, surgeLead: 0.3, fallbackBendMile: 3, hitDamage: 5, crippledSpeed: 0.5 },
+    },
     demo: { miles: 25, cargoLb: 50000 },
   },
 
