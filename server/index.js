@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import * as bank from './bank.js';
 import { BankError } from './bank.js';
 import { memoryRepo } from './repo-memory.js';
+import { CLERK_PROXY_PATH, clerkProxyHost, clerkProxyMiddleware } from './clerkProxy.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const production = process.env.NODE_ENV === 'production';
@@ -51,11 +52,13 @@ export async function createApp({ repo = null, authMode = null } = {}) {
   const admins = adminsOf();
   const mode = authMode ?? (env('CLERK_SECRET_KEY') ? 'clerk' : !production && env('NEXUS_DEV_AUTH') === '1' ? 'dev' : 'none');
 
-  // Clerk first, before any body parser: it also proxies Clerk's own sign-in traffic at /__clerk.
+  // Clerk first, before any body parser. In production Clerk's own sign-in traffic is proxied
+  // through this server at /api/__clerk (Replit's managed Clerk setup).
   let clerk = null;
   if (mode === 'clerk') {
     clerk = await import('@clerk/express');
-    app.use(clerk.clerkMiddleware({ frontendApiProxy: { enabled: true } }));
+    app.use(CLERK_PROXY_PATH, clerkProxyMiddleware({ production, secretKey: env('CLERK_SECRET_KEY') }));
+    app.use(clerk.clerkMiddleware());
   }
   app.use('/api', express.json({ limit: '32kb' }));
 
@@ -107,9 +110,10 @@ export async function createApp({ repo = null, authMode = null } = {}) {
 
   app.get('/api/config', (req, res) => {
     const key = env('CLERK_PUBLISHABLE_KEY') ?? env('VITE_CLERK_PUBLISHABLE_KEY') ?? null;
-    // Live keys sign in through this server's /__clerk proxy; test keys talk to Clerk directly.
-    const live = String(key ?? '').startsWith('pk_live_');
-    res.json({ edition, auth: mode, clerkPublishableKey: mode === 'clerk' ? key : null, proxyUrl: mode === 'clerk' && live ? `${req.protocol}://${req.get('host')}/__clerk` : null });
+    // The published app signs in through this server's proxy; the editor preview talks to Clerk directly.
+    const proxied = mode === 'clerk' && production && String(key ?? '').startsWith('pk_live_');
+    const proto = String(req.headers['x-forwarded-proto'] ?? req.protocol).split(',')[0].trim() || 'https';
+    res.json({ edition, auth: mode, clerkPublishableKey: mode === 'clerk' ? key : null, proxyUrl: proxied ? `${proto}://${clerkProxyHost(req)}${CLERK_PROXY_PATH}` : null });
   });
   app.post('/api/session', route(async (who) => ({ ...(await bank.signIn(repo, who)), admin: isAdmin(who) })));
   app.get('/api/state', route(async (who) => ({ ...(await bank.state(repo, who.id)), admin: isAdmin(who) })));
