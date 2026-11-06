@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Gem, KeyRound, LogOut, Search, Send, ShieldAlert, Sparkles, TrainFront, User } from 'lucide-react';
 import { useGame } from '../state/store.jsx';
 import { CRATE_TIERS, PICK_PREMIUM, TIER_IDS, WELCOME_NEXUS, cratePrice, crewOf, remaining } from '../game/crates.js';
-import { MODELS } from '../game/locomotives.js';
 import { TRAITS } from '../game/traits.js';
 import { api } from '../net/api.js';
 import { RarityTag } from '../ui/bits.jsx';
 import { fmt } from '../ui/format.js';
+import GameCard, { NftGameCard } from '../ui/GameCard.jsx';
+import CrateOpening from '../ui/CrateOpening.jsx';
+import { ratingOf } from '../game/power.js';
 
 const TABS = [
   { id: 'crates', label: 'Crates', icon: Box },
@@ -162,53 +164,6 @@ function SendPanel() {
   );
 }
 
-function NftCard({ nft, children }) {
-  const d = nft.data;
-  return (
-    <article className={`plate nft-card nft-${nft.tier}`}>
-      <div className="spread">
-        <span className="label">{nft.id}</span>
-        <RarityTag rarity={CRATE_TIERS[nft.tier].rarity} />
-      </div>
-      {nft.kind === 'loco' ? (
-        <>
-          <h3>
-            <TrainFront aria-hidden="true" style={{ width: 16, height: 16, verticalAlign: '-2px' }} /> {d.name}
-          </h3>
-          <span className="small muted">{MODELS[d.model]?.name} locomotive{d.superTrait ? ' · super trait' : ''}{d.journey ? ' · the Journey' : ''}</span>
-          <div className="nft-stats num">
-            <span>PWR {d.power}</span>
-            <span>EFF {d.efficiency}</span>
-            <span>ARM {d.durability}</span>
-            <span>END {d.endurance}</span>
-          </div>
-        </>
-      ) : (
-        <>
-          <h3>
-            <User aria-hidden="true" style={{ width: 16, height: 16, verticalAlign: '-2px' }} /> {d.name}
-          </h3>
-          <span className="small muted">Conductor</span>
-          <div className="nft-stats num">
-            <span>STR {d.str}</span>
-            <span>AGI {d.agi}</span>
-            <span>INT {d.int}</span>
-            <span>END {d.end}</span>
-          </div>
-          <div className="row" style={{ gap: 4 }}>
-            {d.traits.map((t) => (
-              <span className="trait-chip" key={t} title={TRAITS[t]?.text}>
-                {TRAITS[t]?.name ?? t}
-              </span>
-            ))}
-          </div>
-        </>
-      )}
-      {children}
-    </article>
-  );
-}
-
 // Admin: every player, their balance, and awards. Server-checked: only admin accounts can use it.
 // Used on the Crates screen and on its own at /#admin.
 export function AdminPanel() {
@@ -328,7 +283,17 @@ export default function Crates() {
       setReveal(nft);
     }
   };
-  const pool = useMemo(() => (browse ? remaining(vault, browse) : []), [browse, vault]);
+  const [poolSort, setPoolSort] = useState('power');
+  const [poolShown, setPoolShown] = useState(24);
+  const pool = useMemo(() => {
+    if (!browse) return [];
+    const list = remaining(vault, browse).map((n) => ({ n, power: ratingOf(n.kind, n.data) }));
+    if (poolSort === 'power') list.sort((a, b) => b.power - a.power);
+    if (poolSort === 'loco') list.sort((a, b) => (a.n.kind === 'loco' ? 0 : 1) - (b.n.kind === 'loco' ? 0 : 1) || b.power - a.power);
+    if (poolSort === 'conductor') list.sort((a, b) => (a.n.kind === 'loco' ? 1 : 0) - (b.n.kind === 'loco' ? 1 : 0) || b.power - a.power);
+    return list.map((x) => x.n);
+  }, [browse, vault, poolSort]);
+  useEffect(() => setPoolShown(24), [browse, poolSort]);
 
   return (
     <div className="stack">
@@ -355,27 +320,19 @@ export default function Crates() {
       </div>
 
       {reveal ? (
-        <div className="crate-reveal" role="dialog" aria-label="Crate opened">
-          <div className="crate-burst" aria-hidden="true" />
-          <span className="label">
-            <Sparkles aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> You opened {reveal.tier === "epic" || reveal.tier === "uncommon" ? "an" : "a"} {CRATE_TIERS[reveal.tier].name}
-          </span>
-          <NftCard nft={reveal}>
-            <div className="row">
-              <button type="button" className="btn btn-arcane grow" onClick={async () => {
-                  if (await deploy(reveal.id)) {
-                    notify('Sent to your Captain.', 'good');
-                    setReveal(null);
-                  }
-                }}>
-                Send to {conductor.captain?.name ?? 'Captain'}
-              </button>
-              <button type="button" className="btn" onClick={() => setReveal(null)}>
-                Keep in Vault
-              </button>
-            </div>
-          </NftCard>
-        </div>
+        <CrateOpening nft={reveal} key={reveal.id}>
+          <button type="button" className="btn btn-arcane" onClick={async () => {
+              if (await deploy(reveal.id)) {
+                notify('Sent to your Captain.', 'good');
+                setReveal(null);
+              }
+            }}>
+            <Sparkles aria-hidden="true" /> Send to {conductor.captain?.name ?? 'Captain'}
+          </button>
+          <button type="button" className="btn" onClick={() => setReveal(null)}>
+            Keep in Vault
+          </button>
+        </CrateOpening>
       ) : null}
 
       {tab === 'crates' && !conductor.locos.length ? (
@@ -428,16 +385,31 @@ export default function Crates() {
           </div>
           {browse ? (
             <section className="stack">
-              <h2>Pick from the {CRATE_TIERS[browse].name} pool</h2>
-              <div className="grid">
-                {pool.map((entry) => (
-                  <NftCard nft={entry} key={entry.id}>
+              <div className="spread">
+                <h2>Pick from the {CRATE_TIERS[browse].name} pool</h2>
+                <label className="row small" style={{ gap: 6 }}>
+                  <span className="label">Sort</span>
+                  <select className="field" value={poolSort} onChange={(e) => setPoolSort(e.target.value)}>
+                    <option value="power">Highest power</option>
+                    <option value="loco">Locomotives first</option>
+                    <option value="conductor">Conductors first</option>
+                  </select>
+                </label>
+              </div>
+              <div className="gcard-grid">
+                {pool.slice(0, poolShown).map((entry) => (
+                  <NftGameCard nft={entry} key={entry.id} size="sm">
                     <button type="button" className="btn btn-arcane btn-block" disabled={busy || vault.nexus < cratePrice(browse, true)} onClick={() => open(browse, entry.id)}>
                       Take this one for {cratePrice(browse, true)} Nexus
                     </button>
-                  </NftCard>
+                  </NftGameCard>
                 ))}
               </div>
+              {pool.length > poolShown ? (
+                <button type="button" className="btn btn-block" onClick={() => setPoolShown((k) => k + 24)}>
+                  Show more ({pool.length - poolShown} left)
+                </button>
+              ) : null}
             </section>
           ) : null}
         </>
@@ -445,9 +417,9 @@ export default function Crates() {
 
       {tab === 'vault' ? (
         vault.owned.length ? (
-          <div className="grid">
+          <div className="gcard-grid">
             {vault.owned.map((nft) => (
-              <NftCard nft={nft} key={nft.id}>
+              <NftGameCard nft={nft} key={nft.id}>
                 {nft.deployedTo ? (
                   <span className="note small">{nft.deployedTo === saveId ? `With ${conductor.captain?.name ?? 'this Captain'}` : 'With another Captain'}</span>
                 ) : (
@@ -455,7 +427,7 @@ export default function Crates() {
                     Send to {conductor.captain?.name ?? 'Captain'}
                   </button>
                 )}
-              </NftCard>
+              </NftGameCard>
             ))}
           </div>
         ) : (
@@ -465,6 +437,14 @@ export default function Crates() {
 
       {tab === 'crew' ? (
         <section className="stack">
+          {(conductor.crew ?? []).length ? (
+            <div className="gcard-grid">
+              {conductor.crew.map((c) => {
+                const seat = conductor.locos.find((l) => l.crewId === c.id);
+                return <GameCard kind="crew" data={c} serial={c.nftId ?? 'Rookie'} key={c.id} size="sm" footer={<span>{seat ? `Driving ${seat.name}` : 'Idle'}</span>} />;
+              })}
+            </div>
+          ) : null}
           <p className="muted">Each locomotive needs a conductor at the controls. The conductor in your active locomotive sets the Strength, Agility, Intelligence, Endurance and traits for the run.</p>
           <div className="grid">
             {conductor.locos.map((loco) => {
@@ -482,11 +462,11 @@ export default function Crates() {
                     <option value="">Nobody (no attributes or traits)</option>
                     {(conductor.crew ?? []).map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.rarity}) · STR {c.str} AGI {c.agi} INT {c.int} END {c.end}
+                        {c.name} ({c.nftId ? c.rarity : 'rookie'}) · {ratingOf('conductor', c).toLocaleString()} power · STR {c.str} AGI {c.agi} INT {c.int} END {c.end}
                       </option>
                     ))}
                   </select>
-                  {crew ? <span className="small muted">Traits: {crew.traits.map((t) => TRAITS[t]?.name ?? t).join(', ') || 'none'}</span> : null}
+                  {crew ? <span className="small muted">Traits: {crew.traits.map((t) => TRAITS[t?.id ?? t]?.name ?? String(t?.id ?? t)).join(', ') || 'none'}</span> : null}
                 </article>
               );
             })}

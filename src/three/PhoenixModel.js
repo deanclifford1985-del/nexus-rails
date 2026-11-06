@@ -581,8 +581,8 @@ function buildPhoenix(tex) {
 
 // ---------- the viewer ----------
 
-export function createPhoenixViewer(host, { reducedMotion = false, startAngle = -0.6, spin = true } = {}) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+export function createPhoenixViewer(host, { reducedMotion = false, startAngle = -0.6, spin = true, preserve = false } = {}) {
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: preserve });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;

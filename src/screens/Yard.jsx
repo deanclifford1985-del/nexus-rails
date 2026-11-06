@@ -10,6 +10,8 @@ import { LocoArt } from '../ui/LocoArt.jsx';
 import { CoreStats, LocoStats } from '../ui/LocoStats.jsx';
 import { fmt, gal, lt, ltWhole } from '../ui/format.js';
 import { CalendarCard } from '../ui/Calendar.jsx';
+import GameCard from '../ui/GameCard.jsx';
+import { IS_NFT } from '../edition.js';
 
 const OUTCOME = {
   won: ['Won', 'go'],
@@ -178,6 +180,27 @@ export default function Yard() {
           })}
         </section>
       </div>
+
+      <section className="plate stack">
+        <div className="plate-head">
+          <h3>Card collection</h3>
+          <span className="muted small">Power ratings: Uncommon about 500 to 900, Legendary about 6,000</span>
+        </div>
+        <div className="gcard-grid">
+          {conductor.locos.map((item) => (
+            <GameCard kind="loco" data={item} key={item.id} size="sm" serial={item.nftId ?? MODELS[item.model]?.name} footer={item.id === loco.id ? <span className="tag tag-solid">In use</span> : null}>
+              {item.id !== loco.id ? (
+                <button type="button" className="btn btn-sm btn-block" onClick={() => act('setActiveLoco', { id: item.id })}>
+                  Use this locomotive
+                </button>
+              ) : null}
+            </GameCard>
+          ))}
+          {IS_NFT
+            ? (conductor.crew ?? []).map((c) => <GameCard kind="crew" data={c} key={c.id} size="sm" serial={c.nftId ?? 'Rookie'} />)
+            : <GameCard kind="crew" data={{ ...conductor, id: `captain-${conductor.createdAt}`, rarity: 'uncommon' }} size="sm" serial={`Level ${conductor.level}`} />}
+        </div>
+      </section>
 
       <section className="plate stack">
         <div className="plate-head">

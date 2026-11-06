@@ -7,8 +7,12 @@ import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 // through conduits and coils, arcing between its parts and lighting its wheels. It turns on a
 // mirror-gloss showroom plinth under spotlights. Faces +X; rail top is y = 0.
 
-const CYAN = new THREE.Color(0x19c3e6);
-const CYAN_HI = new THREE.Color(0x9ff3ff);
+// The paint scheme. The showroom uses the Phantom Neon's own; card art repaints it per model
+// (see createPhantomViewer's `theme`).
+const PHANTOM_THEME = { body: 0x1b2433, accent: 0x19c3e6, hot: 0x9ff3ff, floor: 0x0f6f8a, plate: 'Phantom Neon' };
+let THEME = PHANTOM_THEME;
+let CYAN = new THREE.Color(THEME.accent);
+let CYAN_HI = new THREE.Color(THEME.hot);
 
 function seeded(seed) {
   let s = seed >>> 0;
@@ -108,10 +112,13 @@ function drawPlate(ctx, w, h) {
   ctx.font = '800 64px Orbitron, Rajdhani, Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = '#19c3e6';
+  const hex = (n) => `#${n.toString(16).padStart(6, '0')}`;
+  ctx.shadowColor = hex(THEME.accent);
   ctx.shadowBlur = 18;
-  ctx.fillStyle = '#9ff3ff';
-  ctx.fillText('PHANTOM NEON', w / 2, h / 2 + 2);
+  ctx.fillStyle = hex(THEME.hot);
+  const label = (THEME.plate ?? 'PHANTOM NEON').toUpperCase();
+  ctx.font = `800 ${label.length > 13 ? 52 : 64}px Orbitron, Rajdhani, Arial, sans-serif`;
+  ctx.fillText(label, w / 2, h / 2 + 2);
 }
 
 // Plasma: bright pulses travelling along a tube's length (uv.x), over a steady core glow.
@@ -167,7 +174,7 @@ function buildPhantom(tex, plasmaMats) {
   const parts = { drivers: [], small: [], rods: [], glows: [], arcAnchors: [] };
 
   const gun = new THREE.MeshPhysicalMaterial({
-    color: 0x1b2433,
+    color: THEME.body,
     metalness: 0.78,
     roughness: 0.34,
     clearcoat: 0.5,
@@ -181,7 +188,7 @@ function buildPhantom(tex, plasmaMats) {
   const gunLight = new THREE.MeshPhysicalMaterial({ color: 0x2f3d52, metalness: 0.85, roughness: 0.26, clearcoat: 0.7, clearcoatRoughness: 0.1, envMapIntensity: 0.4 });
   const chrome = new THREE.MeshStandardMaterial({ color: 0x8592a3, metalness: 1, roughness: 0.18, envMapIntensity: 0.5 });
   const black = new THREE.MeshStandardMaterial({ color: 0x07090c, metalness: 0.6, roughness: 0.5 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0x06141c, metalness: 0, roughness: 0.05, clearcoat: 1, emissive: 0x19c3e6, emissiveIntensity: 0.32, envMapIntensity: 0.8 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0x06141c, metalness: 0, roughness: 0.05, clearcoat: 1, emissive: THEME.accent, emissiveIntensity: 0.32, envMapIntensity: 0.8 });
   const lens = new THREE.MeshBasicMaterial({ color: 0xe6fdff, toneMapped: false });
   const ember = new THREE.MeshBasicMaterial({ color: 0xff9d1c, toneMapped: false });
 
@@ -293,7 +300,7 @@ function buildPhantom(tex, plasmaMats) {
   beam.position.set(4.68, 3.72, 0);
   beam.rotation.z = Math.PI / 2;
   train.add(beam);
-  const headSpot = new THREE.SpotLight(0x9ff3ff, 3, 14, 0.38, 0.6, 1.5);
+  const headSpot = new THREE.SpotLight(THEME.hot, 3, 14, 0.38, 0.6, 1.5);
   headSpot.position.set(4.7, 3.72, 0);
   headSpot.target.position.set(10, 2.2, 0);
   train.add(headSpot, headSpot.target);
@@ -473,8 +480,11 @@ function buildPhantom(tex, plasmaMats) {
 
 // ---------- the showroom ----------
 
-export function createPhantomViewer(host, { reducedMotion = false, startAngle = -0.55, spin = true } = {}) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+export function createPhantomViewer(host, { reducedMotion = false, startAngle = -0.55, spin = true, theme = null, preserve = false } = {}) {
+  THEME = { ...PHANTOM_THEME, ...(theme ?? {}) };
+  CYAN = new THREE.Color(THEME.accent);
+  CYAN_HI = new THREE.Color(THEME.hot);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: preserve });
   const mobile = Math.min(window.innerWidth, window.innerHeight) < 600;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2));
   renderer.outputEncoding = THREE.sRGBEncoding;
@@ -565,19 +575,19 @@ export function createPhantomViewer(host, { reducedMotion = false, startAngle = 
   plinth.position.y = -0.34;
   plinth.receiveShadow = true;
   turn.add(plinth);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(7.7, 0.035, 10, 240), new THREE.MeshBasicMaterial({ color: 0x19c3e6, toneMapped: false }));
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(7.7, 0.035, 10, 240), new THREE.MeshBasicMaterial({ color: THEME.accent, toneMapped: false }));
   lip.rotation.x = Math.PI / 2;
   lip.position.y = -0.47;
   scene.add(lip);
   const under = new THREE.Mesh(
     new THREE.RingGeometry(7.4, 9.6, 160),
-    new THREE.MeshBasicMaterial({ map: tex.glow, color: 0x19c3e6, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ map: tex.glow, color: THEME.accent, transparent: true, opacity: 0.0, blending: THREE.AdditiveBlending, depthWrite: false }),
   );
   under.visible = false;
   scene.add(under);
   const halo = new THREE.Mesh(
     new THREE.PlaneGeometry(22, 22),
-    new THREE.MeshBasicMaterial({ map: tex.glow, color: 0x0f6f8a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ map: tex.glow, color: THEME.floor, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
   );
   halo.rotation.x = -Math.PI / 2;
   halo.position.y = -0.49;
@@ -609,7 +619,7 @@ export function createPhantomViewer(host, { reducedMotion = false, startAngle = 
 
   for (const g of parts.glows) {
     const s = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: tex.glow, color: g.color ?? 0x19c3e6, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: g.bright ? 1 : 0.8, toneMapped: false }),
+      new THREE.SpriteMaterial({ map: tex.glow, color: g.color ?? THEME.accent, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: g.bright ? 1 : 0.8, toneMapped: false }),
     );
     s.position.copy(g.at);
     s.scale.setScalar(g.size);
@@ -618,7 +628,7 @@ export function createPhantomViewer(host, { reducedMotion = false, startAngle = 
   }
   const plasmaLights = [];
   for (const [x, y, z] of [[1.0, 2.6, 1.9], [1.0, 2.6, -1.9], [1.5, 0.9, 1.7], [1.5, 0.9, -1.7]]) {
-    const l = new THREE.PointLight(0x19c3e6, 2.4, 6, 2);
+    const l = new THREE.PointLight(THEME.accent, 2.4, 6, 2);
     l.position.set(x, y, z);
     train.add(l);
     plasmaLights.push(l);
@@ -626,7 +636,7 @@ export function createPhantomViewer(host, { reducedMotion = false, startAngle = 
 
   // plasma arcs: jagged bolts that jump between anchor points and flicker
   const arcMat = new THREE.MeshBasicMaterial({ color: 0xbff8ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-  const arcGlowMat = new THREE.MeshBasicMaterial({ color: 0x19c3e6, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  const arcGlowMat = new THREE.MeshBasicMaterial({ color: THEME.accent, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
   const arcs = [];
   const arng = seeded(2024);
   const makeArc = (arc) => {
@@ -669,7 +679,7 @@ export function createPhantomViewer(host, { reducedMotion = false, startAngle = 
   const mr = seeded(88);
   for (let i = 0; i < moteCount; i++) moteSeed[i] = mr() * 100;
   moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
-  const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({ color: 0x7fe9ff, size: 0.07, map: tex.glow, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({ color: THEME.hot, size: 0.07, map: tex.glow, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
   train.add(motes);
 
   // steam
