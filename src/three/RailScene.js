@@ -62,6 +62,21 @@ class Path {
     this.y = new Float32Array(n);
     const lift = UNITS_PER_MILE * (B.TRACK.sceneLift ?? 3);
     for (let i = 0; i < n; i++) this.y[i] = elevationAt(course, i / UNITS_PER_MILE) * lift;
+    // Round off the crests and dips: three box-blur passes make a smooth, bell-shaped easing, so
+    // a climb starts and ends gradually instead of with a kink.
+    const R = 24;
+    let src = this.y;
+    for (let pass = 0; pass < 3; pass++) {
+      const out = new Float32Array(n);
+      let sum = 0;
+      for (let j = -R; j <= R; j++) sum += src[clamp(j, 0, n - 1)];
+      for (let i = 0; i < n; i++) {
+        out[i] = sum / (2 * R + 1);
+        sum += src[clamp(i + R + 1, 0, n - 1)] - src[clamp(i - R, 0, n - 1)];
+      }
+      src = out;
+    }
+    this.y = src;
     const bends = (course?.bends ?? []).map((b) => {
       const s0 = b.start * UNITS_PER_MILE;
       const s1 = b.end * UNITS_PER_MILE;
@@ -559,7 +574,12 @@ export class RailScene {
       for (let k = 0; k < pieces; k++) {
         const s = z0 + k * PIECE + PIECE / 2;
         const w = this.place(obj, tx, s, 0.15);
-        const squash = 1 - w.k * tx;
+        // Pitch each piece to the grade so the pieces meet end to end instead of stepping.
+        const grade = this.path.slope(s);
+        obj.rotation.order = 'YXZ';
+        obj.rotation.x = -Math.atan(grade);
+        const stretch = Math.sqrt(1 + grade * grade);
+        const squash = (1 - w.k * tx) * stretch;
         obj.scale.set(1, 1, squash);
         obj.updateMatrix();
         ballast.setMatrixAt(bi, obj.matrix);
@@ -569,7 +589,7 @@ export class RailScene {
         sleepers.setMatrixAt(bi++, obj.matrix);
         for (const rx of [-0.75, 0.75]) {
           this.place(obj, tx + rx, s, 0.59);
-          obj.scale.set(1, 1, 1 - w.k * (tx + rx));
+          obj.scale.set(1, 1, (1 - w.k * (tx + rx)) * stretch);
           obj.updateMatrix();
           rails.setMatrixAt(ri++, obj.matrix);
         }
