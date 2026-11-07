@@ -362,3 +362,10 @@ Real dollars back every LocoToken (LT). Every number lives in `src/game/treasury
 | Trust | The game reports LT from the browser, so a player who edits their save could report LT they didn't earn. Fine for the friends test; server-checked races are the fix before real stakes. |
 
 What an hour is worth at the start: a new Captain nets about 2,000 LT an hour on simple jobs after fuel (about $0.20 at 10,000 LT = $1); company jobs pay 2,000 to 13,000 LT each later on.
+
+## Treasury excitement (Dean, 7 Nov)
+
+- **Public preview:** the sign-in screen shows the live treasury before anyone signs up: dollars available to earn (counting up), what 1 LT is worth, the latest crate sale or deposit, and the top 3 earners this week. It reads `/api/public/treasury`, which needs no sign-in, is cached for 10 seconds, and shows player names only (never emails).
+- **Live feel:** treasury numbers count up when they appear and flash when they rise. Every 20 seconds the game looks for new money in, and every signed-in player gets a pop-up like "boss opened a Rare Crate: +$17.00 to the treasury!" or "$100.00 just landed in the treasury!" (7 seconds, at most two at a time; never during a race).
+- **Leaderboard:** top 10 earners this week, this month and all time, ranked by the dollar value (today's price) of the LT they earned from jobs, contracts and races. Medals for the top 3; your own row is highlighted.
+- **Treasury growth chart:** the treasury's dollars over time (deposits and crate shares add, swaps take away), with a tap-or-hover readout of the amount at any point.

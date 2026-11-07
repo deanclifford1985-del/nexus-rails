@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { ClerkProvider, SignIn, useAuth } from '@clerk/clerk-react';
 import { configureApi } from '../net/api.js';
+import { TreasuryPreview } from '../ui/TreasuryBits.jsx';
 import { Session } from './AccountGate.jsx';
 import { GAME_NAME } from '../edition.js';
 
@@ -32,6 +33,7 @@ function Inner({ children }) {
             </h1>
             <p className="muted">Use Google or your email. Your Nexus, crates and NFTs follow your account.</p>
           </div>
+          <TreasuryPreview />
           <SignIn routing="hash" />
         </div>
       </div>

@@ -172,6 +172,18 @@ export async function pgRepo(url) {
       );
       return r.rows.map((x) => ({ ...x, at: Number(x.at), lt: Number(x.lt), usd: Number(x.usd) }));
     },
+    async flowHistory(kinds, limit) {
+      const r = await client.query('select id, at, kind, usd from nr_flow where kind = any($1) order by id desc limit $2', [kinds, limit]);
+      return r.rows.reverse().map((x) => ({ ...x, id: Number(x.id), at: Number(x.at), usd: Number(x.usd) }));
+    },
+    async topEarners(since, limit) {
+      const r = await client.query(
+        `select f.player_id, p.name, sum(f.lt) as lt from nr_flow f join nr_players p on p.id = f.player_id
+         where f.kind = 'earn' and f.at >= $1 group by f.player_id, p.name order by sum(f.lt) desc limit $2`,
+        [since, limit],
+      );
+      return r.rows.map((x) => ({ player_id: x.player_id, name: x.name, lt: Number(x.lt) }));
+    },
     async addCashout(x) {
       const r = await client.query('insert into nr_cashouts (at, player_id, nexus, note) values ($1,$2,$3,$4) returning id', [x.at, x.player_id, x.nexus, x.note ?? '']);
       return Number(r.rows[0].id);

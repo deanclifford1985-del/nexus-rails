@@ -33,10 +33,10 @@ export function GameProvider({ children }) {
     storeSaves(next);
   }, []);
 
-  const notify = useCallback((text, tone = 'info') => {
+  const notify = useCallback((text, tone = 'info', ms = 3600) => {
     const id = Math.random().toString(36).slice(2);
     setToasts((list) => [...list.slice(-2), { id, text, tone }]);
-    window.setTimeout(() => setToasts((list) => list.filter((toast) => toast.id !== id)), 3600);
+    window.setTimeout(() => setToasts((list) => list.filter((toast) => toast.id !== id)), ms);
   }, []);
 
   const go = useCallback((name, params = {}) => {
@@ -223,6 +223,36 @@ export function GameProvider({ children }) {
     const timer = window.setInterval(syncLt, 20000);
     return () => window.clearInterval(timer);
   }, [signedIn, treasuryFunded, syncLt]);
+
+  // Live treasury: every 20 seconds, look for new money in (deposits and crate sales) and tell
+  // everyone, so the treasury feels alive. The first look only sets the starting point.
+  const lastEventId = useRef(null);
+  const myName = account?.player?.name ?? null;
+  useEffect(() => {
+    if (!IS_NFT || !signedIn) return undefined;
+    const money = (v) => `$${Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const look = () => {
+      if (document.visibilityState !== 'visible' || screenRef.current.name === 'race') return;
+      api('/api/public/treasury')
+        .then((d) => {
+          const events = d.events ?? [];
+          const newest = events.reduce((m, e) => Math.max(m, e.id ?? 0), 0);
+          if (lastEventId.current === null) {
+            lastEventId.current = newest;
+            return;
+          }
+          const fresh = events.filter((e) => e.id > lastEventId.current && (e.kind === 'crate' || e.kind === 'deposit')).reverse();
+          lastEventId.current = Math.max(lastEventId.current, newest);
+          for (const e of fresh.slice(-2)) {
+            notify(e.kind === 'crate' ? `${e.who === myName ? 'You' : e.who} opened a ${e.note}: +${money(e.usd)} to the treasury!` : `${money(e.usd)} just landed in the treasury!`, 'good', 7000);
+          }
+        })
+        .catch(() => {});
+    };
+    look();
+    const timer = window.setInterval(look, 20000);
+    return () => window.clearInterval(timer);
+  }, [signedIn, notify, myName]);
 
   // Swap the active Captain's LT for Nexus at today's price.
   const swapLt = useCallback(

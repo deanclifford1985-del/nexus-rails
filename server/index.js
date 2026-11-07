@@ -124,6 +124,18 @@ export async function createApp({ repo = null, authMode = null } = {}) {
   app.get('/api/players', route((who, req) => bank.findPlayers(repo, req.query.q)));
   app.get('/api/admin/players', route((who, req) => bank.adminPlayers(repo, { q: req.query.q ?? '' }), { admin: true }));
   app.post('/api/admin/award', route((who, req) => bank.adminAward(repo, who.id, { playerId: req.body?.playerId, amount: req.body?.amount, note: req.body?.note ?? '', paid: req.body?.paid !== false }), { admin: true }));
+  // The public treasury feed: no sign-in, cached for 10 seconds.
+  let publicCache = null;
+  app.get('/api/public/treasury', async (req, res) => {
+    if (edition !== 'nft' || !repo) return res.status(404).json({ error: 'No such API.' });
+    try {
+      if (!publicCache || publicCache.until < Date.now()) publicCache = { until: Date.now() + 10000, body: await bank.publicTreasury(repo) };
+      res.set('cache-control', 'public, max-age=10').json(publicCache.body);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Something went wrong on the server.' });
+    }
+  });
   app.get('/api/treasury', route((who) => bank.treasury(repo, who.id)));
   app.post('/api/lt/sync', route((who, req) => bank.syncLt(repo, who.id, { delta: req.body?.delta, reason: req.body?.reason ?? '' })));
   app.post('/api/treasury/swap', route((who, req) => bank.swapLt(repo, who.id, { lt: req.body?.lt })));

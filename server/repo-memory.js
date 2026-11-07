@@ -63,6 +63,17 @@ export function memoryRepo() {
         .reverse()
         .map((f) => ({ ...f, player_name: named(f.player_id) }));
     },
+    async flowHistory(kinds, limit) {
+      return flows.filter((f) => kinds.includes(f.kind)).slice(-limit);
+    },
+    async topEarners(since, limit) {
+      const by = new Map();
+      for (const f of flows) if (f.kind === 'earn' && f.at >= since && f.player_id) by.set(f.player_id, (by.get(f.player_id) ?? 0) + Number(f.lt));
+      return [...by.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit)
+        .map(([id, lt]) => ({ player_id: id, name: named(id), lt }));
+    },
     async addCashout(row) {
       const out = { status: 'pending', decided_at: null, ...row, id: cashouts.length + 1 };
       cashouts.push(out);

@@ -233,4 +233,32 @@ describe('the LocoToken treasury', () => {
     expect(me.cashouts.map((c) => c.status)).toEqual(['rejected', 'paid']);
     expect((await bank.treasury(repo, 'u1')).treasury.cashedOut).toBe(12);
   });
+
+  it('shows anyone the totals, the growth history and the top earners by name only', async () => {
+    const repo = await makeRepo();
+    await bank.signIn(repo, ann);
+    await bank.signIn(repo, bob);
+    await bank.rename(repo, 'u1', 'Ann');
+    await bank.rename(repo, 'u2', 'Bob');
+    await bank.adminDeposit(repo, 'admin', { usd: 100, note: 'seed' });
+    await bank.syncLt(repo, 'u1', { delta: 3000 });
+    await bank.syncLt(repo, 'u2', { delta: 5000 });
+    await bank.adminAward(repo, 'admin', { playerId: 'u2', amount: 10, paid: true });
+    await bank.open(repo, 'u2', { tier: 'basic', rng: () => 0.1 });
+    await bank.open(repo, 'u2', { tier: 'basic', rng: () => 0.2 });
+    await bank.swapLt(repo, 'u1', { lt: 1000 });
+    const pub = await bank.publicTreasury(repo);
+    expect(pub.treasury.usd).toBe(108.4);
+    expect(pub.history.map((h) => h.usd)).toEqual([100, 108.5, 108.4, 108.4]);
+    expect(pub.leaders.week.map((r) => [r.rank, r.name, r.lt])).toEqual([
+      [1, 'Bob', 5000],
+      [2, 'Ann', 3000],
+    ]);
+    expect(pub.leaders.week[0].usd).toBeCloseTo(0.5, 5);
+    expect(JSON.stringify(pub)).not.toContain('@example.com');
+    expect(pub.events[0]).toMatchObject({ kind: 'swap', who: 'Ann' });
+    expect(pub.events.find((e) => e.kind === 'crate')).toMatchObject({ who: 'Bob', usd: 8.5, note: 'Basic Crate' });
+    const mine = await bank.treasury(repo, 'u1');
+    expect(mine.leaders.week.find((r) => r.me).name).toBe('Ann');
+  });
 });

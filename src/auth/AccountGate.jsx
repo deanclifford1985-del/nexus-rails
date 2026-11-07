@@ -4,6 +4,7 @@ import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { api, configureApi } from '../net/api.js';
 import { useGame } from '../state/store.jsx';
 import { GAME_NAME } from '../edition.js';
+import { TreasuryPreview } from '../ui/TreasuryBits.jsx';
 
 const ClerkGate = lazy(() => import('./ClerkGate.jsx'));
 
@@ -67,6 +68,7 @@ function DevGate({ children }) {
   }
   return (
     <Splash>
+      <TreasuryPreview />
       <h1>Test sign-in</h1>
       <p className="muted">This server is in test mode. Type any name to sign in as that test player.</p>
       <form

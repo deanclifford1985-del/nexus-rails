@@ -1013,3 +1013,41 @@ h1 .hl-purple {
 .st-pending { color: var(--amber); }
 .st-paid { color: var(--go); }
 .st-rejected { color: var(--stop); }
+
+/* ---- Treasury: live bits ---- */
+.countup { display: inline-block; font-variant-numeric: tabular-nums; transition: transform 0.3s ease; }
+.countup.bump { animation: tr-bump 1.4s ease-out; }
+@keyframes tr-bump { 0% { transform: scale(1); } 15% { transform: scale(1.12); filter: brightness(1.6) drop-shadow(0 0 12px rgba(47, 210, 122, 0.9)); } 100% { transform: scale(1); filter: none; } }
+.tr-chart { position: relative; touch-action: pan-y; }
+.tr-chart svg { display: block; overflow: visible; }
+.tr-axis { fill: var(--dim); font-size: 11px; font-family: var(--font-body); }
+.tr-chart-empty { min-height: 120px; display: grid; place-items: center; text-align: center; border: 1px dashed var(--line); border-radius: 10px; padding: 16px; }
+.tr-tip { position: absolute; top: 0; transform: translateX(-50%); pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 9px; border-radius: 8px; background: rgba(6, 8, 11, 0.92); border: 1px solid var(--line); font-size: 0.75rem; color: var(--ash); white-space: nowrap; }
+.tr-tip b { font-family: var(--font-display); color: #fff; font-size: 0.9rem; }
+.lb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lb-row { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.025); }
+.lb-row.me { border-color: rgba(25, 195, 230, 0.6); background: rgba(25, 195, 230, 0.08); }
+.lb-rank { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-display); font-weight: 900; color: var(--ash); }
+.lb-rank svg { width: 15px; height: 15px; }
+.rank-1 .lb-rank { color: #ffcf5a; }
+.rank-2 .lb-rank { color: #d5dde8; }
+.rank-3 .lb-rank { color: #e0955a; }
+.rank-1 { border-color: rgba(255, 190, 80, 0.5); background: linear-gradient(90deg, rgba(255, 160, 40, 0.12), rgba(255, 160, 40, 0.02)); }
+.lb-name { font-weight: 700; color: #fff; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.lb-you { font-family: var(--font-label); font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; background: var(--cyan); color: #04121a; }
+.lb-val { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.lb-val b { font-family: var(--font-display); color: var(--go); }
+.lb-val span { font-size: 0.72rem; color: var(--dim); }
+.tr-preview { width: min(400px, 100%); display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; border-radius: 16px; border: 1px solid rgba(255, 180, 60, 0.45); background: linear-gradient(160deg, rgba(255, 157, 28, 0.14), rgba(13, 17, 23, 0.9) 60%); box-shadow: 0 0 30px rgba(255, 150, 30, 0.15); text-align: left; }
+.tr-preview-main { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.tr-preview-main > div { display: flex; flex-direction: column; gap: 2px; }
+.tr-preview-num { font-family: var(--font-display); font-size: clamp(2rem, 9vw, 2.6rem); line-height: 1.05; color: #ffd27a; text-shadow: 0 0 20px rgba(255, 160, 40, 0.5); }
+.tr-preview-side { align-items: flex-end; text-align: right; }
+.tr-preview-side b { font-family: var(--font-display); color: var(--cyan-hi); font-size: 1.15rem; }
+.tr-preview-line { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--ash); }
+.tr-preview-line svg { width: 15px; height: 15px; color: #ffd27a; flex: none; }
+.tr-preview .tr-label { display: inline-flex; align-items: center; gap: 5px; }
+.tr-preview .tr-label svg { width: 14px; height: 14px; color: #ffd27a; }
+.tr-preview .lb-row { padding: 6px 10px; grid-template-columns: 36px 1fr auto; }
+.auth-card .tr-preview { width: 100%; }
+@media (prefers-reduced-motion: reduce) { .countup.bump { animation: none; } }

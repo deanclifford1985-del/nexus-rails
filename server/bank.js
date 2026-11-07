@@ -237,6 +237,30 @@ async function treasuryOf(tx) {
 
 const DAY = 24 * 60 * 60 * 1000;
 const PUBLIC_KINDS = ['deposit', 'crate', 'swap'];
+const BOARDS = [['week', 7], ['month', 30], ['all', null]];
+
+// What anyone can see, signed in or not: the totals, the treasury's growth, recent money in and
+// the top earners (player names only). `meId` marks your own row on the leaderboard.
+async function publicView(tx, t, now, meId = null) {
+  const price = priceOf(t);
+  const events = (await tx.recentFlows(20, PUBLIC_KINDS)).map((f) => ({ id: Number(f.id), at: f.at, kind: f.kind, who: f.kind === 'deposit' ? 'Treasury' : f.player_name, lt: Number(f.lt), usd: Number(f.usd), note: f.note }));
+  // The treasury's dollars over time: every deposit and crate share adds, every swap takes away.
+  let usd = 0;
+  const history = (await tx.flowHistory(PUBLIC_KINDS, 2000)).map((f) => {
+    usd += f.kind === 'swap' ? -Number(f.usd) : Number(f.usd);
+    return { at: f.at, usd: Math.round(usd * 100) / 100 };
+  });
+  if (history.length) history.push({ at: now, usd: Math.round(t.usd * 100) / 100 });
+  const leaders = {};
+  for (const [key, days] of BOARDS) {
+    leaders[key] = (await tx.topEarners(days ? now - days * DAY : 0, 10)).map((r, i) => ({ rank: i + 1, name: r.name, lt: tenth(r.lt), usd: r.lt * price, me: r.player_id === meId }));
+  }
+  return { treasury: summary(t), events, history, leaders };
+}
+
+export async function publicTreasury(repo, now = Date.now()) {
+  return repo.tx(async (tx) => publicView(tx, await treasuryOf(tx), now));
+}
 
 // The Treasury screen: the dashboard everyone sees, plus your own LT, earnings and cash-outs.
 export async function treasury(repo, id, now = Date.now()) {
@@ -250,12 +274,11 @@ export async function treasury(repo, id, now = Date.now()) {
       const lt = tenth(await tx.sumFlow(id, 'earn', days ? now - days * DAY : 0));
       earned[key] = { lt, usd: lt * price };
     }
-    const events = (await tx.recentFlows(20, PUBLIC_KINDS)).map((f) => ({ at: f.at, kind: f.kind, who: f.kind === 'deposit' ? 'Treasury' : f.player_name, lt: Number(f.lt), usd: Number(f.usd), note: f.note }));
+    const pub = await publicView(tx, t, now, id);
     const cashouts = (await tx.listCashouts({ playerId: id, limit: 20 })).map((c) => ({ id: c.id, at: c.at, nexus: c.nexus, status: c.status, decidedAt: c.decided_at }));
     const lt = tenth(player.lt ?? 0);
     return {
-      treasury: summary(t),
-      events,
+      ...pub,
       me: { lt, ltUsd: lt * price, earned, paid: paidOf(player), bonus: money(Math.min(player.nexus, player.bonus ?? 0)), nexus: money(player.nexus), cashouts },
     };
   });

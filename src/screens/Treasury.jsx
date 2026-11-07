@@ -1,19 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowRightLeft, Banknote, Check, Coins, Gem, HandCoins, Landmark, PiggyBank, RefreshCw, X } from 'lucide-react';
+import { ArrowRightLeft, Banknote, Check, Coins, Gem, HandCoins, Landmark, PiggyBank, RefreshCw, TrendingUp, Trophy, X } from 'lucide-react';
 import { useGame } from '../state/store.jsx';
 import { api } from '../net/api.js';
 import { TREASURY } from '../game/treasury.js';
 import { fmt, lt as ltFmt } from '../ui/format.js';
+import CountUp from '../ui/CountUp.jsx';
+import TreasuryChart from '../ui/TreasuryChart.jsx';
+import { Leaderboard, usd } from '../ui/TreasuryBits.jsx';
 
 // The LocoToken treasury: what backs every LT, what one LT is worth, what you've earned, and where
 // you swap LT for Nexus and ask to cash Nexus out.
 
-export function usd(n) {
-  const v = Number(n || 0);
-  if (v === 0) return '$0.00';
-  if (Math.abs(v) >= 0.01) return `$${fmt(v, 2)}`;
-  return `$${v.toPrecision(2)}`;
-}
+export { usd };
 const when = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const EVENT = { deposit: 'Money in', crate: 'Crate sale (85%)', swap: 'Swapped to Nexus' };
 
@@ -45,7 +43,7 @@ export default function Treasury() {
   }, [notify, syncLt]);
   useEffect(() => {
     load();
-    const timer = setInterval(load, 30000);
+    const timer = setInterval(load, 15000);
     return () => clearInterval(timer);
   }, [load]);
 
@@ -120,7 +118,7 @@ export default function Treasury() {
           </button>
         </div>
         <div className="tr-hero">
-          <Stat big label="Available to earn" value={t ? usd(t.usd) : '…'} sub="Dollars in the treasury backing every LT" tone="gold" />
+          <Stat big label="Available to earn" value={t ? <CountUp value={t.usd} format={usd} duration={1600} /> : '…'} sub="Dollars in the treasury backing every LT" tone="gold" />
           <Stat big label="1 LT is worth" value={t ? usd(price) : '…'} sub={t ? `${fmt(t.ltPerDollar)} LT = $1` : ''} tone="cyan" />
         </div>
         <div className="tr-pool" aria-label={`LT pool ${Math.round(poolShare * 100)} percent of all LT`}>
@@ -142,17 +140,34 @@ export default function Treasury() {
         <div className="tr-grid">
           <Stat label="LT in existence" value={t ? fmt(t.supply) : '…'} />
           <Stat label="LT on hold" value={t ? fmt(t.waiting) : '…'} sub="Swapped for Nexus; back in the pool as money comes in" />
-          <Stat label="Money in, all time" value={t ? usd(t.inTotal) : '…'} sub={t ? `${usd(t.donated)} deposits · ${usd(t.crateIn)} from crates` : ''} />
+          <Stat label="Money in, all time" value={t ? <CountUp value={t.inTotal} format={usd} /> : '…'} sub={t ? `${usd(t.donated)} deposits · ${usd(t.crateIn)} from crates` : ''} />
           <Stat label="House share" value={t ? usd(t.house) : '…'} sub="15% of crate sales" />
           <Stat label="Swapped to Nexus" value={t ? usd(t.swappedUsd) : '…'} />
           <Stat label="Cashed out" value={t ? usd(t.cashedOut) : '…'} />
         </div>
       </section>
 
+      <div className="cols">
+        <section className="plate stack-sm" aria-labelledby="tr-growth">
+          <h2 id="tr-growth">
+            <TrendingUp aria-hidden="true" /> Treasury growth
+          </h2>
+          <p className="small muted">Dollars in the treasury over time. It grows with every deposit and crate sale, and dips when players swap LT for Nexus.</p>
+          <TreasuryChart history={data?.history} />
+        </section>
+        <section className="plate stack-sm" aria-labelledby="tr-top">
+          <h2 id="tr-top">
+            <Trophy aria-hidden="true" /> Top earners
+          </h2>
+          <p className="small muted">Ranked by the dollar value of the LT earned from jobs, contracts and races.</p>
+          <Leaderboard leaders={data?.leaders} />
+        </section>
+      </div>
+
       <section className="plate stack" aria-labelledby="tr-me">
         <h2 id="tr-me">Your LocoTokens</h2>
         <div className="tr-hero">
-          <Stat big label={`${conductor?.name ?? 'Captain'}'s LT`} value={`${ltFmt(captainLt)} LT`} sub={`Worth ${usd(captainLt * price)} today`} tone="cyan" />
+          <Stat big label={`${conductor?.name ?? 'Captain'}'s LT`} value={<CountUp value={captainLt} format={(v) => `${ltFmt(v)} LT`} />} sub={`Worth ${usd(captainLt * price)} today`} tone="cyan" />
           <Stat big label="Your Nexus" value={me ? fmt(me.nexus, 2) : '…'} sub={me ? `${fmt(me.paid, 2)} paid (cashable) · ${fmt(me.bonus, 2)} gift (crates only)` : ''} tone="arcane" />
         </div>
         {!treasuryFunded ? <p className="small muted">Some of your LT are waiting for the treasury to open.</p> : null}
@@ -161,7 +176,7 @@ export default function Treasury() {
           {periods.map(([key, label]) => (
             <div className="tr-earn-cell" key={key}>
               <span className="tr-label">{label}</span>
-              <b className="num">{me ? usd(me.earned[key].usd) : '…'}</b>
+              <b className="num">{me ? <CountUp value={me.earned[key].usd} format={usd} /> : '…'}</b>
               <span className="tr-sub num">{me ? `${ltFmt(me.earned[key].lt)} LT` : ''}</span>
             </div>
           ))}
