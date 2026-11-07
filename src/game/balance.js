@@ -93,6 +93,8 @@ export const B = {
     shield: { name: 'Aegis Shield', kind: 'shield', slots: 1, weight: 1000, price: 1800, arm: 'shield', text: 'Halves damage for 4 seconds, runs on charge' },
     radar1: { name: 'Radar Mk I', kind: 'sensor', slots: 1, weight: 300, price: 1200, sight: 7.5, text: 'Spots obstacles 7.5 miles ahead' },
     radar2: { name: 'Radar Mk II', kind: 'sensor', slots: 1, weight: 400, price: 5000, sight: 12, text: 'Spots obstacles 12 miles ahead' },
+    heat: { name: 'Heat Cannon', kind: 'weapon', slots: 1, weight: 2000, price: 3500, arm: 'heat', text: 'Takes 10% of your engine heat and fires it as a blast wave: the hotter the engine, the harder it hits, and the engine cools' },
+    tesla: { name: 'Tesla Coil', kind: 'weapon', slots: 2, weight: 2600, price: 7000, arm: 'tesla', text: 'Wheel capacitors charge its battery pack while switched on (they slow you down); fire to release every volt. Damage grows exponentially. Takes a weapon slot and a battery slot' },
     vent: { name: 'Coolant Vent', kind: 'cooler', slots: 1, weight: 700, price: 2200, arm: 'vent', text: 'Vents 25% engine heat on demand; runs on charge' },
     sonar: { name: 'Deep Sonar', kind: 'sensor', slots: 2, weight: 900, price: 18000, sight: 24, text: 'Spots obstacles 24 miles ahead' },
   },
@@ -146,6 +148,13 @@ export const B = {
       plasma: { name: 'Plasma Lance', damage: [6, 9], cooldown: 1.2, accuracy: 0.95, crit: 0.15, pen: 0.5, range: 2.4 },
       // Lightning: a channel. Every tick deals base + amp x ticks so far: 1, 2, 3, 4 ... for 3 seconds.
       arc: { name: 'Lightning Cannon', damage: [1, 1], cooldown: 7, accuracy: 1, crit: 0, pen: 0.3, range: 2.4, channel: 3, tick: 0.25, base: 1, amp: 1 },
+      // Heat Cannon: damage = a small base roll + perHeat for every point of heat it takes (share of
+      // the engine's heat a shot, 10% at Uncommon, more with rarity and the Furnace Core trait).
+      heat: { name: 'Heat Cannon', damage: [10, 14], cooldown: 6, accuracy: 0.9, crit: 0.08, pen: 0.2, range: 3.0, share: 0.1, perHeat: 4 },
+      // Tesla Coil: damage = damage[0] x (e^(volts / voltScale) - 1). 100 V about 11, 200 V about 38,
+      // 300 V about 100, a full 400 V about 250. Capacitors gain chargePerMile volts a mile and cost
+      // `drag` of top speed while they are on.
+      tesla: { name: 'Tesla Coil', damage: [8, 8], cooldown: 3, accuracy: 0.95, crit: 0.05, pen: 0.4, range: 3.2, voltsMax: 400, voltScale: 115, chargePerMile: 40, drag: 0.12, minVolts: 25 },
     },
     traits: {
       lethal: { name: 'Lethal', text: 'Critical hits deal 50% more damage', critMult: 0.5, skip: ['arc'] },
@@ -164,6 +173,8 @@ export const B = {
       amplifier: { name: 'Amplifier', text: 'Lightning ramps +1 more every tick', amp: 1, only: ['arc'] },
       highvolt: { name: 'High Voltage', text: '+1 base damage every tick', base: 1, only: ['arc'] },
       hairtrigger: { name: 'Hair Trigger', text: 'Boots up in half the time or distance', bootMult: 0.5 },
+      furnace: { name: 'Furnace Core', text: 'Takes 5% more of the engine heat a shot', share: 0.05, only: ['heat'] },
+      coilwound: { name: 'Coil Wound', text: 'Capacitors charge 30% faster', chargeRate: 0.3, only: ['tesla'] },
       vengeance: { name: 'Vengeance', text: 'Comes online the moment you take a hit, whatever its boot-up', bootOnHit: true },
     },
     critMult: 1.5,
@@ -206,6 +217,16 @@ export const B = {
     climbFuel: 10, // uphill burns grade x this more fuel (3% = 30% more)
     descentFuel: 8, // downhill burns grade x this less (at most 40% less)
     sceneLift: 3, // how much the 3D scene exaggerates the hills so you can see them
+    // Terrain: every course has one. Plains are plain; the others change the physics.
+    themes: {
+      plains: { name: 'Green Plains', chance: 0.4, text: 'Rolling farmland. No surprises.' },
+      flooded: { name: 'Flooded Plains', chance: 0.2, text: 'The middle third is under water: deep enough to cover the rails, not the train. Torque and Agility push through.' },
+      desert: { name: 'Scorched Desert', chance: 0.22, heat: 1.35, shed: 0.75, text: 'Engines run 35% hotter and cool slower. Endurance and coolers earn their keep.' },
+      snow: { name: 'Frozen Pass', chance: 0.18, ice: 0.12, accel: 0.85, shed: 1.3, text: 'Icy rails: bends hold 12% less speed unless Agility grips, and wheels slip pulling away. Engines cool faster in the cold.' },
+    },
+    // Flooded track: top speed falls by drag x (1 - resist). Resist = torque per ton x perTq +
+    // Agility grip x perGrip, at most resistMax. Water also slows acceleration and costs fuel.
+    water: { from: 1 / 3, to: 2 / 3, drag: 0.5, perTq: 0.0004, perGrip: 0.8, resistMax: 0.75, accel: 1.6, fuel: 1.35, heat: 0.5 },
   },
 
   // Engine heat. Every mile builds heat; the lever past 100% builds it far faster, a climb adds more,
@@ -440,6 +461,8 @@ export const B = {
       shield: { type: 'hurt', below: 0.5 },
       frost: { type: 'heat', above: 40 },
       vent: { type: 'heat', above: 30 },
+      heat: { type: 'heat', above: 15 },
+      tesla: { type: 'time', s: 0 },
     },
     // Weapons
     launcher: { use: 'ammo', cost: 2, cooldown: 4, range: 2.4, damage: [10, 10], travel: 0.65, burst: 3, burstGap: 0.22 },
@@ -448,6 +471,8 @@ export const B = {
     plasma: { use: 'charge', cost: 8, cooldown: 1.2, range: 2.4, damage: [6, 9], travel: 0.25 },
     arc: { use: 'charge', cost: 15, cooldown: 7, range: 2.4, channel: 3, tick: 0.25, base: 1, amp: 1 },
     shield: { use: 'charge', cost: 30, cooldown: 10, seconds: 4, cut: 0.5 },
+    heat: { use: 'heat', cost: 0, cooldown: 6, range: 3.0, damage: [10, 14], travel: 0.45, share: 0.1, perHeat: 4 },
+    tesla: { use: 'volts', cost: 0, cooldown: 3, range: 3.2, damage: [8, 8], strike: 0.3, voltsMax: 400, voltScale: 115, chargePerMile: 40, drag: 0.12, minVolts: 25 },
     dragonFire: 1.5, // the Dragon's fire hits this much harder
     crit: 0.12,
     critMult: 1.5,

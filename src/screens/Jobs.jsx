@@ -5,7 +5,7 @@ import { useGame } from '../state/store.jsx';
 import { activeLoco, avgFuelCost } from '../game/conductor.js';
 import { cargoFits, deriveStats } from '../game/locomotives.js';
 import { COMPANIES, companyById, companyRecord, jobPay, jobXp, nextStarAt, obstacleMix, sortByDistance, starsFor } from '../game/jobs.js';
-import { makeCourse } from '../game/course.js';
+import { makeCourse, themeFor } from '../game/course.js';
 import { depotPrice } from '../game/economy.js';
 import { planTrip } from '../game/race.js';
 import { hasTrait } from '../game/traits.js';
@@ -28,7 +28,7 @@ const loadFor = (job, owned) => (job.type === 'contract' ? job.weight : haulFor(
 function usePlans(jobs, stats, owned) {
   return useMemo(() => {
     const plans = {};
-    for (const job of jobs) plans[job.id] = planTrip(stats, loadFor(job, owned) * stats.cargoFactor, job.distance, makeCourse(job.id, job.distance));
+    for (const job of jobs) plans[job.id] = planTrip(stats, loadFor(job, owned) * stats.cargoFactor, job.distance, makeCourse(job.id, job.distance, job.theme));
     return plans;
     // The plan only changes when the jobs or the locomotive's numbers do.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -64,6 +64,18 @@ function Hazard({ job }) {
 }
 
 const MIX_NAME = { debris: 'debris', boulder: 'boulder', large: 'large', giant: 'GIANT' };
+// The terrain a job runs through: plains, flooded, desert or a frozen pass.
+const TERRAIN_TONE = { plains: '', flooded: 'water', desert: 'sand', snow: 'ice' };
+export function Terrain({ id, theme }) {
+  const t = theme ?? themeFor(id);
+  const info = B.TRACK.themes[t];
+  return (
+    <span className={`terrain-chip ${TERRAIN_TONE[t]}`} title={info.text}>
+      {info.name}
+    </span>
+  );
+}
+
 export function MixLine({ job }) {
   const mix = obstacleMix(job);
   const parts = ['giant', 'large', 'boulder', 'debris'].filter((s) => mix[s]).map((s) => `${mix[s]} ${MIX_NAME[s]}`);
@@ -193,7 +205,7 @@ export default function Jobs() {
                     </span>
                   </div>
                   <span className="muted">
-                    {job.from} to {job.to}, <b>{job.distance} miles</b>
+                    {job.from} to {job.to}, <b>{job.distance} miles</b> · <Terrain id={job.id} distance={job.distance} theme={job.theme} />
                   </span>
                   <Load job={job} stats={stats} owned={owned} />
                   <MixLine job={job} />
@@ -270,7 +282,7 @@ export default function Jobs() {
                                 </span>
                               </div>
                               <span className="muted">
-                                {job.from} to {job.to}, <b>{job.distance} miles</b>
+                                {job.from} to {job.to}, <b>{job.distance} miles</b> · <Terrain id={job.id} distance={job.distance} theme={job.theme} />
                               </span>
                               <Load job={job} stats={stats} owned={owned} />
                               <MixLine job={job} />

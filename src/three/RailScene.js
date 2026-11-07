@@ -226,6 +226,26 @@ const PAL = {
   dirt: [0.45, 0.37, 0.25],
 };
 
+// Each terrain's palette, sky and trees.
+const LOOKS = {
+  plains: { horizon: 0xa8cbec, top: 0x1a3aa4, plain: 0x8f9a5c, mount: [0x6f8fa3, 0x7f9bab, 0x5f8094, 0x8aa6b2], pine: [0x2f6a34, 0x3e7d3a], round: 0x4f8c3c, water: 0x3b78c2, river: true, trees: 52, pal: PAL, fog: [150, 560] },
+  flooded: {
+    horizon: 0xb4c4cc, top: 0x3a5a8a, plain: 0x6f7d58, mount: [0x7b8c96, 0x8a99a2, 0x6a7c88, 0x95a3ab], pine: [0x2f5a34, 0x3a6a3a], round: 0x4a7a3c, water: 0x5f8396, river: true, trees: 34,
+    pal: { grass: [0.3, 0.46, 0.24], grass2: [0.27, 0.42, 0.21], dark: [0.2, 0.33, 0.18], rock: [0.5, 0.46, 0.38], rock2: [0.42, 0.38, 0.31], sand: [0.42, 0.38, 0.28], dirt: [0.36, 0.3, 0.22] },
+    fog: [120, 480],
+  },
+  desert: {
+    horizon: 0xf2d9a8, top: 0x2f6fc4, plain: 0xc8a065, mount: [0xb8744a, 0xc98a58, 0xa8643e, 0xd49a68], pine: [0x5f7a3a, 0x6e8a44], round: 0x7a8a48, water: 0xc8a46a, river: false, trees: 12,
+    pal: { grass: [0.82, 0.66, 0.42], grass2: [0.78, 0.6, 0.38], dark: [0.7, 0.48, 0.3], rock: [0.72, 0.42, 0.26], rock2: [0.62, 0.36, 0.22], sand: [0.86, 0.72, 0.48], dirt: [0.7, 0.54, 0.34] },
+    fog: [180, 620],
+  },
+  snow: {
+    horizon: 0xdbe6f0, top: 0x5a7ab0, plain: 0xe6edf3, mount: [0xdfe7ef, 0xc9d4e0, 0xeef3f8, 0xb8c6d4], pine: [0x24503a, 0x2c5e44], round: 0x3a6a50, water: 0xbcd8ea, river: true, trees: 44,
+    pal: { grass: [0.92, 0.94, 0.97], grass2: [0.86, 0.89, 0.94], dark: [0.74, 0.79, 0.86], rock: [0.55, 0.57, 0.62], rock2: [0.46, 0.48, 0.54], sand: [0.8, 0.86, 0.92], dirt: [0.62, 0.62, 0.64] },
+    fog: [110, 460],
+  },
+};
+
 export class RailScene {
   /**
    * @param {object} opts
@@ -276,14 +296,19 @@ export class RailScene {
     this.keep = this.flat + 18;
     this.laneX = race.trains.map((_, i) => (i - (n - 1) / 2) * LANE);
 
+    // Terrain: plains, flooded plains, desert or a frozen pass.
+    this.theme = LOOKS[race.course?.theme] ? race.course.theme : 'plains';
+    this.look = LOOKS[this.theme];
+    this.pal = this.look.pal;
+    this.floods = (race.course?.water ?? []).map((w) => [w.start * UNITS_PER_MILE, w.end * UNITS_PER_MILE]);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-    const horizon = new THREE.Color(0xa8cbec);
+    const horizon = new THREE.Color(this.look.horizon);
     this.renderer.setClearColor(horizon);
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(horizon, 150, 560);
+    this.scene.fog = new THREE.Fog(horizon, this.look.fog[0], this.look.fog[1]);
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.5, 14000);
-    this.fogNear = 150;
-    this.fogFar = 560;
+    this.fogNear = this.look.fog[0];
+    this.fogFar = this.look.fog[1];
     this.snap = { on: { value: this.pixelMode ? 1 : 0 }, res: { value: new THREE.Vector2(160, 120) } };
     this.TEX = makeTextures();
 
@@ -443,7 +468,7 @@ export class RailScene {
     }
 
     const skyGeo = new THREE.SphereGeometry(1400, 24, 12);
-    const top = new THREE.Color(0x1a3aa4);
+    const top = new THREE.Color(this.look.top);
     const cols = [];
     const p = skyGeo.attributes.position;
     for (let i = 0; i < p.count; i++) {
@@ -457,7 +482,7 @@ export class RailScene {
 
     this.mountains = new THREE.Group();
     scene.add(this.mountains);
-    const mats = [0x6f8fa3, 0x7f9bab, 0x5f8094, 0x8aa6b2].map((c) => this.lam(c, { fog: false }));
+    const mats = this.look.mount.map((c) => this.lam(c, { fog: false }));
     const r = mulberry(7);
     for (let i = 0; i < 46; i++) {
       const a = (i / 46) * Math.PI * 2 + r() * 0.08;
@@ -471,7 +496,7 @@ export class RailScene {
     }
 
     // A wide plain under everything, so the high cameras never see past the edge of the land.
-    this.plain = new THREE.Mesh(new THREE.CircleGeometry(9000, 48), new THREE.MeshLambertMaterial({ color: 0x8f9a5c }));
+    this.plain = new THREE.Mesh(new THREE.CircleGeometry(9000, 48), new THREE.MeshLambertMaterial({ color: this.look.plain }));
     this.plain.rotation.x = -Math.PI / 2;
     scene.add(this.plain);
 
@@ -489,14 +514,29 @@ export class RailScene {
     return -(this.flat + 85) + Math.sin(s * 0.006) * 22;
   }
 
+  // 0 outside a flood, rising to 1 within 50 units of its edges.
+  floodAt(s) {
+    let f = 0;
+    for (const [a, b] of this.floods) f = Math.max(f, Math.min(sstep(a - 50, a, s), 1 - sstep(b, b + 50, s)));
+    return f;
+  }
+
   heightAt(u, s) {
+    const f = this.floods.length ? this.floodAt(s) : 0;
+    const dry = this.dryHeight(u, s);
+    // Floodwater: the land sinks just under the water line, so only the train shows above it.
+    if (f > 0) return dry * (1 - f) + Math.min(dry, -0.4 - vnoise(u * 0.05, s * 0.05) * 0.8) * f;
+    return dry;
+  }
+
+  dryHeight(u, s) {
     const F = this.flat;
     const ax = Math.abs(u);
     if (ax <= F) return 0;
     let h = (fbm(u * 0.011, s * 0.011) * 20 - 3) * sstep(F, F + 32, ax);
     const cliff = F + 40;
     if (u > cliff) h += sstep(cliff, cliff + 110, u) * 60 * (0.55 + 0.45 * vnoise(u * 0.018, s * 0.014));
-    const d = Math.abs(u - this.riverAt(s));
+    const d = this.look.river ? Math.abs(u - this.riverAt(s)) : 99;
     if (d < 42) {
       const k = sstep(12, 42, d);
       h = h * k - 7 * (1 - k);
@@ -506,12 +546,14 @@ export class RailScene {
   }
 
   groundColor(u, y, s, slope) {
+    const P = this.pal;
     let c;
-    if (y < -2.2) c = PAL.sand;
-    else if (Math.abs(u) < this.flat + 1) c = hash(u, s) > 0.5 ? PAL.dirt : PAL.grass2;
-    else if (slope > 9 || y > 30) c = hash(u * 0.3, s) > 0.5 ? PAL.rock : PAL.rock2;
-    else if (y > 13) c = PAL.dark;
-    else c = hash(u * 0.7, s * 1.3) > 0.45 ? PAL.grass : PAL.grass2;
+    if (y < -2.2) c = P.sand;
+    else if (this.floods.length && this.floodAt(s) > 0.5) c = hash(u, s) > 0.5 ? P.dirt : P.sand; // mud under the water
+    else if (Math.abs(u) < this.flat + 1) c = hash(u, s) > 0.5 ? P.dirt : P.grass2;
+    else if (slope > 9 || y > 30) c = hash(u * 0.3, s) > 0.5 ? P.rock : P.rock2;
+    else if (y > 13) c = this.theme === 'snow' ? P.grass : P.dark;
+    else c = hash(u * 0.7, s * 1.3) > 0.45 ? P.grass : P.grass2;
     const j = 0.93 + hash(s, u) * 0.12;
     return [c[0] * j, c[1] * j, c[2] * j];
   }
@@ -547,9 +589,9 @@ export class RailScene {
     };
     this.M = {
       trunk: this.lam(0x6b4a2c),
-      pine: this.lam(0x2f6a34),
-      pine2: this.lam(0x3e7d3a),
-      round: this.lam(0x4f8c3c),
+      pine: this.lam(this.look.pine[0]),
+      pine2: this.lam(this.look.pine[1]),
+      round: this.lam(this.look.round),
       rock: this.lam(0x8a8072),
       boulder: this.lam(0x7d7366),
       sleeper: this.lam(0x5a4632),
@@ -561,7 +603,8 @@ export class RailScene {
       roofs: [this.lam(0x3d5ea8), this.lam(0xa8413a), this.lam(0x4f7a8c)],
       wire: new THREE.LineBasicMaterial({ color: 0x2a2a2a }),
       ground: this.lam(0xffffff, { vertexColors: true }),
-      water: this.lam(0x3b78c2, { transparent: true, opacity: 0.9 }),
+      water: this.lam(this.look.water, { transparent: true, opacity: this.theme === 'snow' ? 1 : 0.9 }),
+      flood: this.lam(0x3f6b70, { transparent: true, opacity: 0.74 }),
       sign: this.lam(0xf2efe2),
     };
   }
@@ -617,11 +660,19 @@ export class RailScene {
     const ground = this.bentStrip(-280, 280, 28, z0, 10, (u, s) => this.heightAt(u, s), (u, y, s, slope) => this.groundColor(u, y, s, slope));
     grp.add(new THREE.Mesh(ground, M.ground));
     own.push(ground);
-    // the river, wherever it winds
-    const rc = this.riverAt(z0 + CH / 2);
-    const water = this.bentStrip(rc - 40, rc + 40, 4, z0, 6, () => -2.8, null);
-    grp.add(new THREE.Mesh(water, M.water));
-    own.push(water);
+    // the river, wherever it winds (a dry wash in the desert)
+    if (this.look.river) {
+      const rc = this.riverAt(z0 + CH / 2);
+      const water = this.bentStrip(rc - 40, rc + 40, 4, z0, 6, () => -2.8, null);
+      grp.add(new THREE.Mesh(water, M.water));
+      own.push(water);
+    }
+    // floodwater over the track: deep enough to cover the rails, not the train
+    if (this.floods.some(([a, b]) => z0 + CH > a - 40 && z0 < b + 40)) {
+      const flood = this.bentStrip(-280, 280, 10, z0, 6, () => 0.95, null);
+      grp.add(new THREE.Mesh(flood, M.flood));
+      own.push(flood);
+    }
     // one track per train, laid in short pieces so it follows the bends
     const pieces = CH / PIECE;
     const lanes = this.laneX.length;
@@ -693,7 +744,8 @@ export class RailScene {
       grp.add(sign);
     }
     // trees and rocks
-    for (let t = 0; t < 52; t++) {
+    const trees = this.floods.length && this.floodAt(z0 + CH / 2) > 0.5 ? 10 : this.look.trees;
+    for (let t = 0; t < trees; t++) {
       const u = (r() * 2 - 1) * 270;
       const s = z0 + r() * CH;
       if (Math.abs(u) < this.flat - 3) continue;
@@ -721,12 +773,12 @@ export class RailScene {
       grp.add(top);
     }
     // an occasional farmhouse
-    if (r() < 0.38 && i > 0) {
+    if (r() < (this.theme === 'plains' || this.theme === 'flooded' ? 0.38 : 0.12) && i > 0) {
       const side = r() > 0.5 ? 1 : -1;
       const u = side * (this.flat + 6 + r() * 14);
       const s = z0 + 20 + r() * 80;
       const y = this.heightAt(u, s);
-      if (y > -1) {
+      if (y > -1 && !(this.floods.length && this.floodAt(s) > 0.05)) {
         const h = new THREE.Group();
         this.place(h, u, s, y, r() * 0.6 - 0.3);
         const body = new THREE.Mesh(G.house, M.wall);
@@ -1012,6 +1064,19 @@ export class RailScene {
       P(new THREE.BoxGeometry(1.5, 0.9, 1.6), mDark, 0, 4.35, -3.0, 1);
       for (let i = 0; i < 6; i++) P(cylZ(0.16, 0.16, 0.2, 6), mTrim, -0.45 + (i % 3) * 0.45, 4.15 + Math.floor(i / 3) * 0.42, -2.15, 1);
     }
+    if (arms.includes('heat')) {
+      // the Heat Cannon: a squat flared barrel fed by glowing heat pipes from the boiler
+      P(cylZ(0.55, 0.85, 2.2, 10), mDark, 0, 4.15, -6.6, 1);
+      P(cylZ(0.62, 0.62, 0.25, 10), this.glow(0xff7a20), 0, 4.15, -5.5, 1);
+      for (const sx of [-0.55, 0.55]) P(new THREE.CylinderGeometry(0.1, 0.1, 1.6, 6).rotateX(Math.PI / 2), this.glow(0xff9a3a), sx, 3.7, -7.4, 1);
+    }
+    if (arms.includes('tesla')) {
+      // the Tesla Coil: a tall coil with a crown, and a battery pack of glowing cells behind it
+      P(new THREE.CylinderGeometry(0.22, 0.38, 1.8, 8), mMetal, 0, 4.6, -11.6, 2);
+      for (let i = 0; i < 4; i++) P(new THREE.TorusGeometry(0.5 - i * 0.07, 0.06, 6, 16).rotateX(Math.PI / 2), mTrim, 0, 3.95 + i * 0.42, -11.6, 2);
+      P(new THREE.TorusGeometry(0.55, 0.12, 8, 18).rotateX(Math.PI / 2), this.glow(0x7fc8ff), 0, 5.6, -11.6, 2);
+      for (let i = 0; i < 3; i++) P(new THREE.BoxGeometry(0.42, 0.7, 0.42), this.glow(0x5aa8ff), -0.5 + i * 0.5, 3.8, -13.4, 2);
+    }
     if (arms.includes('arc')) {
       // a Tesla coil: stacked rings and a glowing sphere
       P(new THREE.CylinderGeometry(0.25, 0.4, 1.4, 8), mMetal, 0, 4.4, -14.6, 2);
@@ -1198,6 +1263,8 @@ export class RailScene {
     if (kind === 'plasma') return this.worldPos(from, 0, 4.9, -16.4);
     if (kind === 'launcher') return this.worldPos(from, 0, 4.4, -2.0);
     if (kind === 'arc') return this.worldPos(from, 0, 5.35, -14.6);
+    if (kind === 'heat') return this.worldPos(from, 0, 4.15, -5.4);
+    if (kind === 'tesla') return this.worldPos(from, 0, 5.6, -11.6);
     return this.worldPos(from, 0, 3.6, 4);
   }
 
@@ -1218,13 +1285,26 @@ export class RailScene {
       heavy: { tex: this.TEX.ball, size: 2.2, add: false, color: 0xffffff },
       plasma: { tex: this.TEX.spark, size: 2.6, add: true, color: 0xc4a0ff },
       launcher: { tex: this.TEX.spark, size: 1.3, add: true, color: 0xffd08a },
+      heat: { tex: this.TEX.fire, size: 3 + Math.min(4, (shot.power ?? 0) / 3), add: true, color: 0xffa040 },
+      tesla: { tex: this.TEX.spark, size: 2.4 + Math.min(5, (shot.power ?? 0) / 70), add: true, color: 0xa8dcff },
     }[shot.kind] ?? { tex: this.TEX.spark, size: 1.4, add: true, color: 0xffffff };
     const core = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: look.tex, color: look.color, blending: look.add ? THREE.AdditiveBlending : THREE.NormalBlending, transparent: true, depthWrite: false, fog: false }),
     );
     core.scale.setScalar(look.size);
     this.scene.add(core);
-    const fx = { shot, core, look, arc: shot.kind === 'plasma' ? 0.5 : shot.kind === 'fire' ? rand(5, 8) : shot.kind === 'launcher' ? rand(2, 7) : rand(3, 5), trail: 0 };
+    const fx = { shot, core, look, arc: shot.kind === 'plasma' || shot.kind === 'tesla' ? 0.3 : shot.kind === 'heat' ? 1 : shot.kind === 'fire' ? rand(5, 8) : shot.kind === 'launcher' ? rand(2, 7) : rand(3, 5), trail: 0 };
+    if (from && shot.kind === 'heat') {
+      const m = this.muzzle(from, 'heat');
+      for (let i = 0; i < 8; i++) this.spawn(this.TEX.fire, m, { add: true, s0: rand(1.5, 3), s1: 0.4, life: rand(0.3, 0.5), vel: new THREE.Vector3(rand(-3, 3), rand(0, 3), rand(-3, 3)) });
+      this.useLight(m, 0xff7a20, 5, 0.18);
+    }
+    if (from && shot.kind === 'tesla') {
+      const m = this.muzzle(from, 'tesla');
+      for (let i = 0; i < 10; i++) this.spawn(this.TEX.spark, m, { add: true, s0: 1.8, s1: 0.2, life: 0.3, color: 0xbfe9ff, vel: new THREE.Vector3(rand(-6, 6), rand(0, 6), rand(-6, 6)) });
+      this.useLight(m, 0x9fdcff, 6, 0.2);
+      this.flash = Math.max(this.flash, Math.min(0.6, (shot.power ?? 0) / 600));
+    }
     core.visible = !(shot.delay > 0);
     this.shotFx.set(shot.id, fx);
     if (from && (shot.kind === 'cannon' || shot.kind === 'heavy')) {
@@ -1345,6 +1425,13 @@ export class RailScene {
         } else if (fx.shot.kind === 'plasma') {
           this.spawn(this.TEX.spark, pos, { add: true, s0: 1.8, s1: 0.2, life: 0.25, color: 0xb48cff });
           this.useLight(pos, 0xa070ff, 2.5, 0.08);
+        } else if (fx.shot.kind === 'heat') {
+          // a rolling wave of heat
+          for (let j = 0; j < 3; j++) this.spawn(this.TEX.fire, pos, { add: true, s0: rand(2, 3.5), s1: 0.5, life: rand(0.2, 0.35), color: 0xffb060, vel: new THREE.Vector3(rand(-2, 2), rand(-0.5, 1.5), rand(-2, 2)) });
+          this.useLight(pos, 0xff8a30, 3, 0.08);
+        } else if (fx.shot.kind === 'tesla') {
+          for (let j = 0; j < 3; j++) this.spawn(this.TEX.spark, pos, { add: true, s0: 1.6, s1: 0.2, life: 0.18, color: 0xbfe9ff, vel: new THREE.Vector3(rand(-5, 5), rand(-3, 3), rand(-5, 5)) });
+          this.useLight(pos, 0x9fdcff, 3.5, 0.08);
         } else if (Math.random() < 0.6) {
           this.spawn(this.TEX.smoke, pos, { s0: 0.8, s1: 2.4, life: 0.5, a: 0.5, color: 0xcfcac2 });
         }
@@ -1563,6 +1650,12 @@ export class RailScene {
         drag: 0.97,
       });
       if (dead) this.spawn(this.TEX.fire, this.worldPos(t, rand(-1, 1), 3, rand(-12, 3)), { add: true, s0: 2, s1: 0.5, life: 0.5, vel: new THREE.Vector3(0, 4, 0) });
+    }
+    // Wading through floodwater: spray off the front and both sides.
+    if (train.wading && t.v > 1 && Math.random() < dt * (6 + t.v * 0.3)) {
+      for (const side of [-1, 1])
+        this.spawn(this.TEX.smoke, this.worldPos(t, side * 1.7, 1.0, rand(-2, 6)), { s0: 0.8, s1: rand(2.5, 4), life: rand(0.4, 0.7), a: 0.8, color: 0xe8f4ff, vel: new THREE.Vector3(side * rand(3, 6), rand(2, 5), rand(-2, 1)), g: -9 });
+      this.spawn(this.TEX.smoke, this.worldPos(t, rand(-1, 1), 1.0, 7.5), { s0: 1, s1: 3, life: 0.5, a: 0.75, color: 0xffffff, vel: new THREE.Vector3(rand(-2, 2), rand(3, 5), 2), g: -9 });
     }
     if (train.model === 'dragon' && Math.random() < dt * 6) this.spawn(this.TEX.fire, this.worldPos(t, 0, 2.2, 7.2), { add: true, s0: 1.2, s1: 0.3, life: 0.3, vel: this.forward(t.s).multiplyScalar(t.v + 4) });
     if (boosting && Math.random() < dt * 8)

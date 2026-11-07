@@ -2080,3 +2080,9 @@ button.chip {
     font-size: 0.95rem;
   }
 }
+
+/* Terrain chips on job cards */
+.terrain-chip { display: inline-block; font-size: 0.82em; font-weight: 700; padding: 0 7px; border-radius: 999px; border: 1px solid rgba(120, 180, 90, 0.5); color: #9fd27a; white-space: nowrap; }
+.terrain-chip.water { border-color: rgba(90, 160, 220, 0.55); color: #8fc8f0; }
+.terrain-chip.sand { border-color: rgba(230, 170, 90, 0.55); color: #f0c080; }
+.terrain-chip.ice { border-color: rgba(200, 225, 245, 0.6); color: #dceeff; }

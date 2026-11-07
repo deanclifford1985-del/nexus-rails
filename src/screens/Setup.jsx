@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { themeOf } from '../game/course.js';
 import { ArrowLeft, Flag, Fuel, Minus, Mountain, Package, Plus } from 'lucide-react';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
@@ -203,6 +204,7 @@ export default function Setup() {
           <LocoArt model={run.loco.model} />
           <div className="stats">
             <Stat label="Distance" value={run.distance} unit="mi" />
+            <Stat label="Terrain" value={themeOf(run.course).name} unit={run.course.water?.length ? `${fmt(run.course.water[0].end - run.course.water[0].start)} mi under water` : ''} />
             <Stat label="Bends" value={run.course.bends.length} unit={sharp ? `${sharp} sharp` : ''} />
             <Stat label="Climbs" value={(run.course.hills ?? []).filter((h) => h.grade > 0).length} unit={(run.course.hills ?? []).length ? `steepest ${fmt(Math.max(0, ...(run.course.hills ?? []).map((h) => h.grade)) * 100, 1)}%` : ''} />
             <Stat label="Cargo" value={lb(run.cargoLb)} unit="lb" />

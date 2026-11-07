@@ -1128,3 +1128,10 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+
+/* Tesla Coil capacitors */
+.r3-caps.on { color: #bfe9ff; background: rgba(63, 155, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(120, 190, 255, 0.45); }
+.r3-caps.on .r3-cur { opacity: 1; color: #9fdcff; }
+.r3-volts { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: linear-gradient(90deg, #3f7bff, #bfe9ff); transform-origin: left; box-shadow: 0 0 6px #6fb8ff; pointer-events: none; }
+.r3-volt-dmg { font-size: 11px; color: #9fdcff; white-space: nowrap; }
+.r3-bend.flood { border-color: rgba(110, 180, 240, 0.7); background: rgba(20, 60, 100, 0.55); }

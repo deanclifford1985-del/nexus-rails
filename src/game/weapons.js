@@ -30,6 +30,7 @@ export function standardWeapon(base) {
     range: b.range,
     ...(b.burst ? { burst: b.burst } : {}),
     ...(b.channel ? { channel: b.channel, tick: b.tick, base1: b.base, amp: b.amp } : {}),
+    ...(base === 'heat' ? { share: b.share } : {}),
     traits: [],
   };
 }
@@ -71,6 +72,10 @@ export function rollWeapon(rng, base, rarity = rollRarity(rng)) {
     weapon.base1 = b.base + (R.stat >= 1.2 ? 1 : 0);
     weapon.amp = b.amp + (R.stat >= 1.35 ? 1 : 0);
   }
+  // The Heat Cannon takes a bigger share of the heat with rarity: 10%, 12.5%, 15%, 18.75%.
+  if (base === 'heat') weapon.share = round(b.share + (R.stat - 1) * 0.25, 4);
+  // The Tesla Coil's rarity scales its exponential curve (damage) and leaves the 400 V cap alone.
+  if (base === 'tesla') weapon.damage = [round(b.damage[0] * dmg, 2), round(b.damage[0] * dmg, 2)];
   const prefix = traits.length ? W.traits[traits[0]].name.replace(' Shot', '') : rarity === 'uncommon' ? 'Standard' : pick(rng, ['Fine', 'Forged', 'Tempered']);
   weapon.name = `${prefix} ${b.name}`;
   return weapon;
@@ -97,6 +102,13 @@ export function weaponStats(entry) {
     amp: w.amp ?? W.base[w.base].amp ?? 0,
     burn: 0,
     poison: 0,
+    share: w.share ?? W.base[w.base].share ?? 0,
+    perHeat: W.base[w.base].perHeat ?? 0,
+    voltsMax: W.base[w.base].voltsMax ?? 0,
+    voltScale: W.base[w.base].voltScale ?? 0,
+    chargePerMile: W.base[w.base].chargePerMile ?? 0,
+    drag: W.base[w.base].drag ?? 0,
+    minVolts: W.base[w.base].minVolts ?? 0,
     // Boot-up: rarer weapons come online a little sooner.
     boot: { ...B.COMBAT.boot[w.base], mult: 1 / (1 + ({ uncommon: 0, rare: 0.1, epic: 0.2, legendary: 0.35 }[w.rarity] ?? 0)) },
   };
@@ -121,6 +133,8 @@ export function weaponStats(entry) {
     if (t.poison) s.poison += t.poison;
     if (t.bootMult) s.boot.mult *= t.bootMult;
     if (t.bootOnHit) s.boot.onHit = true;
+    if (t.share) s.share = round(s.share + t.share, 4);
+    if (t.chargeRate) s.chargePerMile = round(s.chargePerMile * (1 + t.chargeRate), 2);
   }
   return s;
 }

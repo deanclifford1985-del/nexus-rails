@@ -14,7 +14,16 @@ export function hashSeed(text) {
   return h >>> 0;
 }
 
-export function makeCourse(seed, distance) {
+// The terrain a course gets from its seed. The first run and the test drive are always plains.
+const PLAIN_SEEDS = ['first-run', 'test-drive'];
+export function themeFor(seed) {
+  if (PLAIN_SEEDS.includes(seed)) return 'plains';
+  const rng = makeRng((typeof seed === 'number' ? seed : hashSeed(`${seed}-terrain`)) ^ 0x5bd1e995);
+  const themes = Object.keys(B.TRACK.themes);
+  return weightedPick(rng, themes, (t) => B.TRACK.themes[t].chance);
+}
+
+export function makeCourse(seed, distance, theme = null) {
   const T = B.TRACK;
   const rng = makeRng(typeof seed === 'number' ? seed : hashSeed(seed));
   const kinds = Object.keys(T.bends);
@@ -58,7 +67,22 @@ export function makeCourse(seed, distance) {
     }
     pos = end + randRange(rng, ...H.gap);
   }
-  return { distance, bends, hills };
+  const terrain = theme && T.themes[theme] ? theme : themeFor(seed);
+  // Flooded Plains: the middle third of the line runs under water.
+  const water = terrain === 'flooded' ? [{ start: distance * T.water.from, end: distance * T.water.to }] : [];
+  return { distance, bends, hills, theme: terrain, water };
+}
+
+export const themeOf = (course) => B.TRACK.themes[course?.theme ?? 'plains'] ?? B.TRACK.themes.plains;
+export const waterAt = (course, miles) => course?.water?.find((w) => miles >= w.start && miles < w.end) ?? null;
+export const nextWater = (course, miles) => course?.water?.find((w) => w.end > miles) ?? null;
+
+// How hard the water holds a train back: the share of top speed it loses while wading.
+// Torque per ton and Agility (grip) push through.
+export function waterDrag(tq, weightLb, grip = 0) {
+  const W = B.TRACK.water;
+  const resist = Math.min(W.resistMax, (tq / Math.max(1, weightLb / 2000)) * W.perTq + grip * W.perGrip);
+  return W.drag * (1 - resist);
 }
 
 // The grade (rise over run) at `miles`: positive is uphill.

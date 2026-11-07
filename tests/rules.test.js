@@ -1025,6 +1025,70 @@ describe('heavy trains: acceleration and hills', () => {
   });
 });
 
+describe('terrain: flooded plains, desert and frozen pass', () => {
+  it('gives every course a terrain from its seed; the first run is always plains', async () => {
+    const { makeCourse } = await import('../src/game/course.js');
+    expect(makeCourse('first-run', 25).theme).toBe('plains');
+    const seen = new Set();
+    for (let i = 0; i < 80; i++) seen.add(makeCourse(`job-${i}`, 100).theme);
+    expect([...seen].sort()).toEqual(['desert', 'flooded', 'plains', 'snow']);
+    const flooded = makeCourse('x', 90, 'flooded');
+    expect(flooded.water).toEqual([{ start: 30, end: 60 }]);
+    expect(makeCourse('x', 90, 'desert').water).toEqual([]);
+  });
+
+  it('floodwater drags a train down; torque per ton and Agility cut the penalty', async () => {
+    const { waterDrag } = await import('../src/game/course.js');
+    const weak = waterDrag(3500, 14000, 0.05);
+    const strong = waterDrag(6000, 10000, 0.4);
+    expect(weak).toBeGreaterThan(0.3);
+    expect(strong).toBeLessThan(0.2);
+    expect(waterDrag(5000, 12000, 0.4)).toBeLessThan(waterDrag(5000, 12000, 0.1));
+    // In a race: slower and thirstier through the middle third.
+    const loco = generateLoco(makeRng(1), 'stable', { rarity: 'uncommon', power: 4, efficiency: 4, durability: 4, hpBase: 1750, tqBase: 3875, growth: 1.095 });
+    const stats = deriveStats(loco, { str: 10, agi: 10, int: 10, traits: [] });
+    const run = (theme) => {
+      const course = { distance: 30, bends: [], hills: [], theme, water: theme === 'flooded' ? [{ start: 10, end: 20 }] : [] };
+      const race = createRace({ kind: 'plan', distance: 30, course, player: { name: 'x', stats, fuel: stats.tank, cargoLb: 5000 } });
+      startRace(race);
+      const p = playerOf(race);
+      let wadeTop = 0;
+      while (race.status === 'running') {
+        stepRace(race, 0.25);
+        if (p.wading) wadeTop = Math.max(wadeTop, p.vmax);
+      }
+      return { time: race.game, fuel: p.fuelUsed, heat: p.heatPeak, wadeTop, top: p.topSeen };
+    };
+    const dry = run('plains');
+    const wet = run('flooded');
+    expect(wet.time).toBeGreaterThan(dry.time * 1.08);
+    expect(wet.fuel).toBeGreaterThan(dry.fuel);
+    expect(wet.wadeTop).toBeLessThan(dry.top * 0.85);
+    const hot = run('desert');
+    expect(hot.heat).toBeGreaterThan(dry.heat * 1.2);
+  });
+
+  it('icy bends on the Frozen Pass hold less speed unless Agility grips', async () => {
+    const loco = generateLoco(makeRng(1), 'bullet', { rarity: 'uncommon', power: 5, efficiency: 4, durability: 4, hpBase: 1750, tqBase: 3875, growth: 1.095 });
+    const bend = { start: 3, end: 6, kind: 'sharp', dir: 1, turn: 2, curve: 0.66 };
+    const minInBend = (theme, agi) => {
+      const stats = deriveStats(loco, { str: 10, agi, int: 10, traits: [] });
+      const race = createRace({ kind: 'plan', distance: 8, course: { distance: 8, bends: [bend], hills: [], theme, water: [] }, player: { name: 'x', stats, fuel: stats.tank, cargoLb: 0 } });
+      startRace(race);
+      const p = playerOf(race);
+      let low = Infinity;
+      while (race.status === 'running') {
+        stepRace(race, 0.25);
+        if (p.distance > 3.5 && p.distance < 5.5) low = Math.min(low, p.speed);
+      }
+      return low;
+    };
+    expect(minInBend('snow', 8)).toBeLessThan(minInBend('plains', 8) * 0.93);
+    // Agility grips: a nimble conductor carries more speed round the icy bend.
+    expect(minInBend('snow', 20)).toBeGreaterThan(minInBend('snow', 8) * 1.05);
+  });
+});
+
 describe('missiles, lightning, burn and poison', () => {
   const stats = deriveStats(makeBenchmark());
   const field = (arms, ws = {}, extra = {}) => {
@@ -1043,6 +1107,51 @@ describe('missiles, lightning, burn and poison', () => {
     expect(race.trains[1].taken).toBe(30);
     expect(castBlocker(race, playerOf(race), 'launcher')).toBe('Reloading');
   });
+  it('the Heat Cannon fires 10% of the engine heat: more heat, more damage, and the engine cools', () => {
+    const exact = { ...weaponStats('heat'), accuracy: 1, crit: 0, damage: [12, 12] };
+    const race = field(['heat'], { heat: exact });
+    const p = playerOf(race);
+    p.heat = 2;
+    expect(castBlocker(race, p, 'heat')).toBe('Engine is cool');
+    p.heat = 80;
+    expect(playerCast(race, 'heat')).toBe(true);
+    expect(p.heat).toBeCloseTo(72, 5); // took 8 heat
+    race.trains[1].distance = p.distance;
+    stepRace(race, 1);
+    expect(race.trains[1].taken).toBe(12 + 8 * 4);
+    const rare = rollWeapon(makeRng(2), 'heat', 'legendary');
+    expect(rare.share).toBeCloseTo(0.1875, 4);
+    expect(weaponStats({ ...standardWeapon('heat'), traits: ['furnace'] }).share).toBeCloseTo(0.15, 4);
+  });
+
+  it('the Tesla Coil charges from wheel capacitors that slow the train, holds its charge, and hits exponentially', async () => {
+    const { setCapacitors, teslaDamage } = await import('../src/game/race.js');
+    const coil = { ...weaponStats('tesla'), accuracy: 1, crit: 0 };
+    const race = field(['tesla'], { tesla: coil });
+    const p = playerOf(race);
+    expect(p.voltsMax).toBe(400);
+    expect(castBlocker(race, p, 'tesla')).toBe('Charge the coil');
+    for (let i = 0; i < 40; i++) stepRace(race, 0.25);
+    const free = p.vmax;
+    expect(setCapacitors(race, true)).toBe(true);
+    stepRace(race, 0.25);
+    expect(p.vmax).toBeLessThan(free * 0.9);
+    for (let i = 0; i < 240; i++) stepRace(race, 0.25);
+    expect(p.volts).toBeGreaterThan(100);
+    setCapacitors(race, false);
+    const held = p.volts;
+    for (let i = 0; i < 8; i++) stepRace(race, 0.25);
+    expect(p.volts).toBe(held); // the pack holds its charge with the capacitors off
+    // Exponential: a full pack is far more than twice a half pack.
+    expect(teslaDamage(coil, 400)).toBeGreaterThan(6 * teslaDamage(coil, 200));
+    expect(Math.round(teslaDamage(coil, 100))).toBe(11);
+    race.trains[1].distance = p.distance;
+    expect(playerCast(race, 'tesla')).toBe(true);
+    expect(p.volts).toBe(0);
+    stepRace(race, 1);
+    expect(race.trains[1].taken).toBe(Math.round(teslaDamage(coil, held)));
+  });
+
   it('lightning ramps 1, 2, 3 ... every quarter second for 3 seconds', () => {
     const race = field(['arc'], { arc: weaponStats('arc') });
     expect(playerCast(race, 'arc')).toBe(true);

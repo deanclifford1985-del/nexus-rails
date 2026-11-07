@@ -1,7 +1,7 @@
 import { B } from './balance.js';
 import { accelSecondsFor, topSpeedFor } from './locomotives.js';
 import { makeRng, newSeed } from './rng.js';
-import { cornerCap, gradeAt, hillEffect, makeCourse } from './course.js';
+import { cornerCap, gradeAt, hillEffect, makeCourse, themeOf, waterAt, waterDrag } from './course.js';
 
 // The race engine. It knows nothing about React, saves or money.
 // createRace() builds a plain state object; stepRace() advances it; the screen draws it.
@@ -74,6 +74,10 @@ function makeTrain(spec, isPlayer) {
     chargeMax: spec.stats.charge ?? 0,
     roundsFired: 0,
     weaponStats: spec.stats.weaponStats ?? {},
+    // Tesla Coil: volts in the battery pack, and the wheel capacitors that charge it.
+    volts: 0,
+    voltsMax: Math.max(0, ...Object.entries(spec.stats.weaponStats ?? {}).filter(([k]) => k.split('#')[0] === 'tesla').map(([, w]) => w.voltsMax ?? 0)),
+    capacitors: false,
     armor: spec.stats.armor ?? 0,
     shotsFired: {}, // per weapon, for Echoing Shot
     parked: !!spec.parked, // the Damage Wall: the train stays put
@@ -271,13 +275,23 @@ function advanceTrain(race, train, h) {
   const hill = hillEffect(grade, train.hillGrip);
   vmax *= hill.speed;
   train.grade = grade;
+  // Terrain: wading through floodwater drags top speed down (torque and Agility push through).
+  const theme = themeOf(race.course);
+  const wading = !!waterAt(race.course, train.distance);
+  train.wading = wading;
+  train.waterLoss = wading ? waterDrag(train.tq, weight, train.grip) : 0;
+  if (wading) vmax *= 1 - train.waterLoss;
   // Heat drags top speed down; the Journey gathers speed with every 5 miles.
   const hot = heatPenalty(train.heat);
   vmax *= 1 - hot;
   if (train.journey) vmax *= 1 + train.journeyStacks * B.JOURNEY.speed;
+  // Tesla capacitors on the wheels: resistance that slows the train while they charge the coil.
+  const coil = train.capacitors && train.voltsMax > 0 ? teslaOf(train) : null;
+  if (coil) vmax *= 1 - coil.drag;
   train.vmax = vmax;
   // Bends: every train slows to the bend's limit, braking early enough to make it.
-  const cap = cornerCap(race.course, train.distance, vmax, train.grip);
+  // Ice: bends hold less speed unless Agility grips.
+  const cap = cornerCap(race.course, train.distance, vmax, train.grip) * (theme.ice ? 1 - theme.ice * (1 - train.grip) : 1);
   train.limit = cap;
 
   if (train.parked) {
@@ -303,7 +317,7 @@ function advanceTrain(race, train, h) {
   } else if (train.speed < Math.min(vmax, cap)) {
     // Pulling away is measured against the engine's own top speed, so a strong engine
     // climbs back out of a bend quickly.
-    const total = accelSecondsFor(train.tq * power, weight) / train.accel / Math.max(0.4, 1 - hot);
+    const total = (accelSecondsFor(train.tq * power, weight) / train.accel / Math.max(0.4, 1 - hot)) * (wading ? B.TRACK.water.accel : 1) / (theme.accel ?? 1);
     const rate = accelRate(vmax > 0 ? train.speed / vmax : 1, vmax, total);
     train.speed = Math.min(vmax, cap, train.speed + rate * gh);
   } else if (train.speed > vmax) {
@@ -321,7 +335,7 @@ function advanceTrain(race, train, h) {
   }
   if (train.fuel > 0 && !train.out) {
     const ratio = vmax > 0 ? train.speed / vmax : 1;
-    const burn = ((miles * (weight / 2000)) / train.tmpg) * leverFuelMult(train.lever) * accelFuelMult(ratio) * hill.fuel;
+    const burn = ((miles * (weight / 2000)) / train.tmpg) * leverFuelMult(train.lever) * accelFuelMult(ratio) * hill.fuel * (wading ? B.TRACK.water.fuel : 1);
     if (burn >= train.fuel) {
       miles *= train.fuel / burn;
       train.fuelUsed += train.fuel;
@@ -333,13 +347,14 @@ function advanceTrain(race, train, h) {
   }
   const before = train.distance;
   train.distance += miles;
+  if (coil) train.volts = Math.min(train.voltsMax, train.volts + miles * coil.chargePerMile);
   if (!train.parked) {
     const H = B.HEAT;
     const lever = train.lever * (1 + boost);
     const leverHeat = lever <= 1 ? 0.4 + 0.6 * lever * lever : 1 + 8 * (lever - 1) * train.overHeatMult;
     const journeyCool = train.journey ? 1 - train.journeyStacks * B.JOURNEY.heat : 1;
-    const gain = (H.perMile * leverHeat + Math.max(0, grade) * H.climb) * train.heatMult * journeyCool;
-    const shed = H.passive * train.coolMult * (1 + H.ease * Math.max(0, 0.9 - train.lever));
+    const gain = (H.perMile * leverHeat + Math.max(0, grade) * H.climb + (wading ? B.TRACK.water.heat : 0)) * train.heatMult * journeyCool * (theme.heat ?? 1);
+    const shed = H.passive * train.coolMult * (1 + H.ease * Math.max(0, 0.9 - train.lever)) * (theme.shed ?? 1);
     train.heat = Math.min(H.max, Math.max(0, train.heat + (gain - shed) * miles));
     train.heatPeak = Math.max(train.heatPeak ?? 0, train.heat);
     if (train.secondWind > 0 && !train.secondWindUsed && train.heat >= H.secondWind.at) {
@@ -547,6 +562,21 @@ function strikeBoulders(race, train, before) {
 export const SHIELDS = ['barrier', 'shield'];
 // A key is a kind, or a kind with a number for the second of its kind: 'cannon#2'.
 export const kindOf = (key) => String(key).split('#')[0];
+// The train's Tesla Coil numbers (its best coil, if it has two).
+export function teslaOf(train) {
+  const keys = (train.arms ?? []).filter((k) => kindOf(k) === 'tesla');
+  if (!keys.length) return null;
+  return keys.map((k) => armOf(train, k)).sort((a, b) => b.chargePerMile - a.chargePerMile)[0];
+}
+// Flip the wheel capacitors on or off. Charge stays in the battery pack either way.
+export function setCapacitors(race, on) {
+  const player = race.trains.find((t) => t.isPlayer);
+  if (!player || !(player.voltsMax > 0)) return false;
+  player.capacitors = !!on;
+  return true;
+}
+// The Tesla Coil's damage for this many volts: exponential, so a full pack hits far harder than two halves.
+export const teslaDamage = (arm, volts) => arm.damage[0] * (Math.exp(volts / arm.voltScale) - 1);
 export const isSpell = (key) => C[kindOf(key)]?.use === 'mp';
 const live = (train) => !train.out && !train.finished;
 
@@ -593,7 +623,7 @@ export function armOf(train, key) {
   return { ...base, ...own, cost: base.cost + (own.chargeExtra ?? 0) };
 }
 
-const resource = (train, use) => (use === 'mp' ? train.mp : use === 'ammo' ? train.ammo : train.charge);
+const resource = (train, use) => (use === 'mp' ? train.mp : use === 'ammo' ? train.ammo : use === 'heat' ? train.heat : use === 'volts' ? train.volts : train.charge);
 
 // Why `from` cannot use `kind` right now, or null if it can.
 export function castBlocker(race, from, kind) {
@@ -609,6 +639,8 @@ export function castBlocker(race, from, kind) {
   if (booting) return booting;
   if ((from.cooldown[kind] ?? 0) > 0) return 'Reloading';
   if (cooler && from.heat < 3) return 'Engine is cool';
+  if (arm.use === 'heat' && from.heat < 3) return 'Engine is cool';
+  if (arm.use === 'volts' && from.volts < (arm.minVolts ?? 1)) return from.capacitors ? 'Charging' : 'Charge the coil';
   if (resource(from, arm.use) < arm.cost * (arm.use === 'mp' ? from.mpCostMult ?? 1 : 1)) return arm.use === 'mp' ? 'Not enough MP' : arm.use === 'ammo' ? 'Out of ammo' : 'Battery low';
   if (arm.range && !targetFor(race, from, arm.range)) return 'Nothing in range';
   return null;
@@ -623,7 +655,17 @@ export function castSpell(race, from, kind) {
   else if (arm.use === 'ammo') {
     from.ammo -= arm.cost * burst;
     from.roundsFired += arm.cost * burst;
-  } else from.charge -= arm.cost;
+  } else if (arm.use === 'charge') from.charge -= arm.cost;
+  // The Heat Cannon draws off a share of the engine's heat and fires it; the Tesla Coil empties its pack.
+  let power = 0;
+  if (arm.use === 'heat') {
+    power = from.heat * arm.share;
+    from.heat = Math.max(0, from.heat - power);
+    race.fx.push({ type: 'vented', id: from.id, amount: Math.round(power), by: 'heat' });
+  } else if (arm.use === 'volts') {
+    power = from.volts;
+    from.volts = 0;
+  }
   from.cooldown[kind] = (arm.cooldown + (arm.channel ?? 0)) * (arm.use === 'mp' || arm.channel ? from.spellCdMult ?? 1 : 1);
   if (COOLERS.includes(kindOf(kind))) {
     const before = from.heat;
@@ -647,7 +689,7 @@ export function castSpell(race, from, kind) {
   }
   const total = arm.travel ?? arm.strike;
   const fire = (delay, echo) => {
-    const shot = { id: ++race.shotSeq, kind: kindOf(kind), key: kind, from: from.id, to: target.id, left: total + delay, total: total + delay, delay, dragon: kind === 'fire' && from.model === 'dragon', echo };
+    const shot = { id: ++race.shotSeq, kind: kindOf(kind), key: kind, from: from.id, to: target.id, left: total + delay, total: total + delay, delay, dragon: kind === 'fire' && from.model === 'dragon', echo, power: echo ? power * 0.5 : power };
     race.shots.push(shot);
     race.fx.push({ type: 'cast', shot });
   };
@@ -751,6 +793,8 @@ function land(race, shot) {
   }
   if (from) from.hits += 1;
   let damage = arm.damage[0] + race.rng() * (arm.damage[1] - arm.damage[0]);
+  if (shot.kind === 'heat') damage += (shot.power ?? 0) * arm.perHeat;
+  if (shot.kind === 'tesla') damage = teslaDamage(arm, shot.power ?? 0);
   // Spells grow with the conductor's Intelligence.
   if (arm.use === 'mp' && from) damage *= from.spellPower ?? 1;
   if (shot.dragon) damage *= C.dragonFire;

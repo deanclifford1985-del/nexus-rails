@@ -15,7 +15,7 @@ import { fmt, lb } from '../ui/format.js';
 const M = B.MODULES;
 const ICON = { fuel: Fuel, ammo: Package, battery: Battery, engine: Cog, cannon: Crosshair, heavy: Crosshair, plasma: Sparkles, shield: Shield, radar1: Radar, radar2: Radar, sonar: Radar };
 const GROUPS = [
-  { label: 'Weapons', ids: ['launcher', 'cannon', 'heavy', 'plasma', 'arc'] },
+  { label: 'Weapons', ids: ['launcher', 'cannon', 'heavy', 'heat', 'plasma', 'arc', 'tesla'] },
   { label: 'Shields and cooling', ids: ['shield', 'vent'] },
   { label: 'Sensors', ids: ['radar1', 'radar2', 'sonar'] },
   { label: 'Storage', ids: ['fuel', 'ammo', 'battery'] },

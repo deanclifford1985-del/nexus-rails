@@ -24,10 +24,13 @@ import {
   stepRace,
   clearPrompt,
   useAbility as fireAbility,
+  setCapacitors,
+  teslaOf,
+  teslaDamage,
 } from '../game/race.js';
 import { RailScene, liveryFor } from '../three/RailScene.js';
 import { sfx } from '../three/sfx.js';
-import { bendAt, bendKeep, bendLimit, hillAt, hillEffect, nextBend } from '../game/course.js';
+import { bendAt, bendKeep, bendLimit, hillAt, hillEffect, nextBend, nextWater, themeOf, waterDrag } from '../game/course.js';
 import { clock, fmt, lt, range } from '../ui/format.js';
 import { estimateRange } from '../game/estimate.js';
 import '../styles/race3d.css';
@@ -45,6 +48,8 @@ const ARM_INFO = {
   shield: { label: 'Shield' },
   launcher: { label: 'Missiles' },
   arc: { label: 'Lightning' },
+  heat: { label: 'Heat Cannon' },
+  tesla: { label: 'Tesla Coil' },
   frost: { label: 'Frost Breath' },
   vent: { label: 'Coolant' },
 };
@@ -67,9 +72,14 @@ function Afflictions({ train }) {
     </span>
   );
 }
-const ARM_ORDER = ['fire', 'bolt', 'launcher', 'cannon', 'heavy', 'plasma', 'arc', 'barrier', 'shield', 'frost', 'vent'];
-const costText = (key) => {
+const ARM_ORDER = ['fire', 'bolt', 'launcher', 'cannon', 'heavy', 'heat', 'plasma', 'arc', 'tesla', 'barrier', 'shield', 'frost', 'vent'];
+const costText = (key, train) => {
   const arm = C[kindOf(key)];
+  if (arm.use === 'heat') {
+    const own = armOf(train, key);
+    return `${Math.round(train.heat * own.share)}🔥`;
+  }
+  if (arm.use === 'volts') return `${Math.round(train.volts)}V`;
   return arm.use === 'ammo' ? (arm.burst ? `${arm.burst}×` : '1 ball') : arm.use === 'charge' ? `${arm.cost}⚡` : `${arm.cost}`;
 };
 const AIMS = { auto: 'Aim: auto', track: 'Aim: track', rivals: 'Aim: rivals' };
@@ -227,6 +237,12 @@ export default function Race() {
     setPaused((p) => !p);
   }, [race]);
 
+  const toggleCapacitors = useCallback(() => {
+    sfx.init();
+    if (!setCapacitors(race, !player.capacitors)) return;
+    say(player.capacitors ? 'Capacitors on: charging the Tesla Coil (slower while on)' : `Capacitors off: ${Math.round(player.volts)} V held in the pack`);
+    redraw();
+  }, [race, player, say, redraw]);
   const cast = useCallback(
     (kind) => {
       sfx.init();
@@ -287,7 +303,7 @@ export default function Race() {
     redraw();
   };
   const keys = useRef({});
-  keys.current = { cast, siphon, nudgeLever, cycleCamera, togglePause, arms, doFireAll, cycleAim };
+  keys.current = { cast, siphon, nudgeLever, cycleCamera, togglePause, arms, doFireAll, cycleAim, toggleCapacitors };
   useEffect(() => {
     const onKey = (event) => {
       if (event.target instanceof HTMLInputElement && event.target.type !== 'range') return;
@@ -306,6 +322,7 @@ export default function Race() {
       if (k === 'r') h.cast(h.arms.find((a) => kindOf(a) === 'barrier' || kindOf(a) === 'shield'));
       if (k === 'q' || (n === h.arms.length + 1 && n > 0)) h.siphon();
       if (k === 'c') h.cycleCamera();
+      if (k === 'v' && !event.repeat) h.toggleCapacitors();
       if ((k === 'enter' || k === 'escape') && sceneRef.current?.cine) sceneRef.current.skipCine();
       if (k === 'p') h.togglePause();
     };
@@ -333,6 +350,9 @@ export default function Race() {
   const cine = sceneRef.current?.cineState?.() ?? null;
   const bend = bendAt(race.course, player.distance);
   const hillNow = hillAt(race.course, player.distance);
+  const flood = nextWater(race.course, player.distance);
+  const floodNow = flood && player.distance >= flood.start ? flood : null;
+  const floodAhead = flood && !floodNow && flood.start - player.distance < 2 ? flood : null;
   const upcoming = nextBend(race.course, player.distance);
   // Only worth a warning when the bend is slower than this train can go.
   const matters = (b) => b && bendKeep(b, player.grip) < 0.97;
@@ -444,8 +464,16 @@ export default function Race() {
       </div>
 
       {/* Top centre: what the line is doing right now */}
-      {hillNow || matters(bend) || bendAhead ? (
+      {hillNow || matters(bend) || bendAhead || floodNow || floodAhead ? (
         <div className="r3-banners" aria-live="polite">
+          {floodNow || floodAhead ? (
+            <div className="r3-bend flood">
+              <b>{floodNow ? 'Floodwater' : `Floodwater in ${(floodAhead.start - player.distance).toFixed(1)} mi`}</b>
+              <span>
+                top speed −{fmt((floodNow ? player.waterLoss : waterDrag(player.tq, player.baseWeight + player.cargo + player.fuel * B.LOCO.fuelLbPerGallon, player.grip)) * 100)}% · torque and Agility push through{floodNow ? ` · ${(floodNow.end - player.distance).toFixed(1)} mi left` : ''}
+              </span>
+            </div>
+          ) : null}
           {matters(bend) || bendAhead ? (
             <div className={`r3-bend ${(bend ?? bendAhead).kind}`}>
               <b>{bend ? `${bend.kind[0].toUpperCase()}${bend.kind.slice(1)} bend` : `${bendAhead.kind[0].toUpperCase()}${bendAhead.kind.slice(1)} bend in ${(bendAhead.start - player.distance).toFixed(1)} mi`}</b>
@@ -639,7 +667,7 @@ export default function Race() {
                       <span className="r3-cur">▶</span>
                       {labelOf(key)}
                       <span className="r3-key">{index + 1}</span>
-                      <span className="r3-cost">{booting ? booting.replace('Booting ', '').replace('Boots in ', '').replace('Arms below ', '<').replace('Ready above ', '>') : costText(key)}</span>
+                      <span className="r3-cost">{booting ? booting.replace('Booting ', '').replace('Boots in ', '').replace('Arms below ', '<').replace('Ready above ', '>') : costText(key, player)}</span>
                       <i className="r3-cd" style={{ transform: `scaleX(${(player.cooldown[key] ?? 0) / arm.cooldown})` }} />
                     </button>
                   );
@@ -657,6 +685,16 @@ export default function Race() {
                 <span className="r3-cur">▶</span>
                 {AIMS[race.aim]}
                 <span className="r3-key">T</span>
+              </button>
+            ) : null}
+            {race.combat && player.voltsMax > 0 ? (
+              <button type="button" className={`r3-cmd r3-caps ${player.capacitors ? 'on' : ''}`} onClick={toggleCapacitors} aria-pressed={player.capacitors} title="Wheel capacitors: charge the Tesla Coil. They slow the train while on.">
+                <span className="r3-cur">▶</span>
+                Capacitors {player.capacitors ? 'on' : 'off'}
+                <span className="r3-key">V</span>
+                <span className="r3-cost">{Math.round(player.volts)}/{player.voltsMax}V</span>
+                <i className="r3-volts" style={{ transform: `scaleX(${player.volts / player.voltsMax})` }} />
+                <span className="r3-volt-dmg">≈{Math.round(teslaDamage(teslaOf(player), player.volts))} dmg</span>
               </button>
             ) : null}
             {race.ability && !race.ability.auto ? (

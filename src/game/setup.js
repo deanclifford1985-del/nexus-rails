@@ -120,6 +120,7 @@ export function describeRun(conductor, ctx) {
   let job = null;
   let blocked = null;
   let courseSeed = ctx.kind;
+  let theme = null;
   let boulders = [];
   let haul = 0;
   let pay = null;
@@ -156,6 +157,7 @@ export function describeRun(conductor, ctx) {
     containers = job.containers;
     timeLimit = job.timeLimit ? job.timeLimit * (1 + talent(conductor, 'timeLimit')) : null;
     courseSeed = job.id;
+    theme = job.theme ?? null;
     boulders = job.boulders ?? [];
     if (ctx.kind !== 'contract' && ctx.kind !== 'race') {
       // Pull up to as many of the job's containers as you own.
@@ -165,7 +167,7 @@ export function describeRun(conductor, ctx) {
       xp = jobXp(job, haul);
     }
     if (ctx.kind === 'contract' || ctx.kind === 'race') {
-      const course = makeCourse(courseSeed, distance);
+      const course = makeCourse(courseSeed, distance, theme);
       rivals = job.rivals.map((spec, index) => rivalFromSpec(spec, loco, weight, distance, index, course));
     }
     if (ctx.kind === 'company' && companyRecord(conductor, ctx.companyId).contracts < job.cost) {
@@ -179,7 +181,7 @@ export function describeRun(conductor, ctx) {
   if (!fits && !blocked) {
     blocked = `Too heavy. ${Math.round(cargoLb).toLocaleString()} lb of cargo against a towing capacity of ${Math.round(stats.tow).toLocaleString()} lb.`;
   }
-  const course = makeCourse(courseSeed, distance);
+  const course = makeCourse(courseSeed, distance, theme);
   const plan = planTrip(stats, cargoLb, distance, course);
   return {
     ctx,
