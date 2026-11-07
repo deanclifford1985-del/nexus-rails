@@ -1110,3 +1110,24 @@ h1 .hl-purple {
 .rmap-progress i { display: block; height: 100%; background: linear-gradient(90deg, #ff9d1c, #ffcf5a); }
 .express-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255, 190, 70, 0.6); background: rgba(255, 157, 28, 0.1); }
 .express-banner svg { width: 20px; height: 20px; color: #ffcf5a; }
+
+/* ---- Licences ---- */
+.licences { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1 1 320px; }
+.licence-now { display: flex; align-items: center; gap: 12px; }
+.licence-now .grow { display: flex; flex-direction: column; min-width: 0; }
+.licence-name { font-family: var(--font-display); font-size: 1.25rem; color: #fff; }
+.licence-badge { --b: #8a96a8; display: inline-grid; place-items: center; flex: none; width: 34px; height: 38px; font-family: var(--font-display); font-weight: 900; font-size: 0.8rem; color: #0b0f14; background: linear-gradient(160deg, #fff, var(--b)); clip-path: polygon(50% 0, 100% 22%, 100% 72%, 50% 100%, 0 72%, 0 22%); filter: drop-shadow(0 0 6px var(--b)); }
+.licence-badge.big { width: 52px; height: 58px; font-size: 1.1rem; }
+.licence-badge.dim { filter: grayscale(1) brightness(0.5); }
+.licence-badge.tier-1 { --b: #c98a4a; }
+.licence-badge.tier-2 { --b: #c9d3df; }
+.licence-badge.tier-3 { --b: #4fb0ff; }
+.licence-badge.tier-4 { --b: #c17bff; }
+.licence-badge.tier-5 { --b: #ffb23a; }
+.licence-bar { height: 8px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.licence-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan-lo), var(--cyan-hi)); box-shadow: 0 0 8px var(--cyan); }
+.licence-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 8px; }
+.licence-ladder li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line); opacity: 0.7; }
+.licence-ladder li.earned { opacity: 1; border-color: rgba(25, 195, 230, 0.4); background: rgba(25, 195, 230, 0.05); }
+.licence-up { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255, 190, 70, 0.6); background: rgba(255, 157, 28, 0.1); }
+.licence-up > div { display: flex; flex-direction: column; gap: 2px; }

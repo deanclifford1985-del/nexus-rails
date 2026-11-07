@@ -269,7 +269,7 @@ export default function Setup() {
 
           {run.boulders.length ? (
             <p className="note warn">
-              <Mountain aria-hidden="true" style={{ width: 16, height: 16, verticalAlign: '-3px' }} /> Rockfall: {run.boulders.length} obstacle{run.boulders.length === 1 ? '' : 's'} on the line. <MixLine job={run.job} />. Shoot them before you reach them or crash through with a strong front; a crash costs HP and speed. Your lookout sees {fmt(stats.sight, 1)} mi ahead; you carry {stats.ammo} ammo units ({Math.floor(stats.ammo / 3)} cannonballs or {Math.floor(stats.ammo / 2)} missiles)
+              <Mountain aria-hidden="true" style={{ width: 16, height: 16, verticalAlign: '-3px' }} /> Rockfall: {run.boulders.length} obstacle{run.boulders.length === 1 ? '' : 's'} on the line. <MixLine job={run.job} />. Shoot them before you reach them or crash through with a strong front; a crash costs HP and speed. Your lookout sees {fmt(stats.sight, 1)} mi ahead; you carry {Math.floor(stats.ammo / 3)} cannonballs{stats.arms?.some((a) => a.startsWith('launcher')) ? ', and every missile burns 2 gallons of your fuel' : ''}
               {stats.charge ? ` and ${stats.charge} charge` : ''} and a {B.FRONTS[stats.front].name}.
             </p>
           ) : null}

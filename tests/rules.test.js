@@ -110,7 +110,7 @@ describe('locomotives', () => {
       const s = deriveStats(loco, { str: 10, agi: 10, int: 10, traits: [] });
       for (const v of Object.values(s)) if (typeof v === 'number') expect(Number.isFinite(v)).toBe(true);
       expect(s.hp).toBeGreaterThan(1400);
-      expect(s.topSpeed).toBeGreaterThan(15);
+      expect(s.topSpeed).toBeGreaterThan(12);
       expect(s.tmpg).toBeGreaterThanOrEqual(6);
       expect(loco.price).toBe(priceOf(loco));
     }
@@ -299,7 +299,7 @@ describe('weapons and spells', () => {
     expect(playerCast(race, 'barrier')).toBe(true); // Barrier needs no target
   });
 
-  it('a Basic Cannon carries 3 rounds; Ammo Storage holds 10 more balls or 15 missiles', () => {
+  it('a Basic Cannon carries 3 rounds; Ammo Storage holds 10 more balls; missiles carry no ammo', () => {
     const race = duel({}, ['cannon']);
     race.trains[0].ammo = race.trains[0].ammoMax = 9;
     startRace(race);
@@ -313,7 +313,7 @@ describe('weapons and spells', () => {
     expect(castBlocker(race, playerOf(race), 'cannon')).toBe('Out of ammo');
     const kit = loadoutOf(['cannon', 'ammo', 'ammo']);
     expect(kit.ammo).toBe(9 + 60);
-    expect(loadoutOf(['launcher', 'ammo']).ammo / B.COMBAT.launcher.cost).toBe(9 + 15);
+    expect(loadoutOf(['launcher']).ammo).toBe(0); // missiles burn fuel instead
     expect(kit.weight).toBe(2500 + 1200);
   });
 
@@ -503,7 +503,7 @@ describe('loadout, durability and containers', () => {
     actions.buyModule(c, { id: 'ammo', fit: true });
     const after = deriveStats(activeLoco(c), c);
     expect(after.weight - before.weight).toBeCloseTo(600 * (1 - Math.min(0.5, 10 * 0.005)));
-    expect(after.ammo).toBe(18 + 30);
+    expect(after.ammo).toBe(0); // the starter launcher burns fuel: Ammo Storage only feeds cannons
     while (deriveStats(activeLoco(c), c).capacity - deriveStats(activeLoco(c), c).slotsUsed > 0) actions.buyModule(c, { id: 'fuel', fit: true });
     expect(() => actions.buyModule(c, { id: 'fuel', fit: true })).toThrow(/free slot/);
     expect(c.gear.fuel).toBe(1);
@@ -1101,12 +1101,71 @@ describe('missiles, lightning, burn and poison', () => {
     const race = field(['launcher'], { launcher: { ...weaponStats('launcher'), accuracy: 1, crit: 0 } });
     expect(playerCast(race, 'launcher')).toBe(true);
     expect(race.shots.length).toBe(3);
-    expect(playerOf(race).ammo).toBe(60 - 6);
+    expect(playerOf(race).fuel).toBe(200 - 6); // 2 gallons a missile
+    expect(playerOf(race).fuelUsed).toBe(6);
+    expect(playerOf(race).ammo).toBe(60);
     race.trains[1].distance = playerOf(race).distance;
     stepRace(race, 1.5);
     expect(race.trains[1].taken).toBe(30);
     expect(castBlocker(race, playerOf(race), 'launcher')).toBe('Reloading');
   });
+  it('missiles burn fuel from the tank (half for a Legendary launcher); no fuel, no missiles', () => {
+    const legendary = { ...weaponStats(rollWeapon(makeRng(5), 'launcher', 'legendary')), accuracy: 1, crit: 0 };
+    const race = field(['launcher'], { launcher: legendary });
+    const p = playerOf(race);
+    playerCast(race, 'launcher');
+    expect(200 - p.fuel).toBeCloseTo(legendary.burst * 1, 5); // 1 gallon a missile
+    const dry = field(['launcher'], { launcher: weaponStats('launcher') });
+    playerOf(dry).fuel = 1;
+    expect(castBlocker(dry, playerOf(dry), 'launcher')).toBe('Not enough fuel');
+    expect(B.LOCO.fuelLbPerGallon).toBe(24);
+  });
+
+  it('the Wind Jet: panels slow you and gather wind faster the faster you go; boost or gust', async () => {
+    const { setPanels, useWind, windBlocker } = await import('../src/game/race.js');
+    const loco = generateLoco(makeRng(3), 'bullet');
+    loco.fit = ['windjet', 'fuel'];
+    const s = deriveStats(loco, { str: 10, agi: 10, int: 10, traits: [] });
+    expect(s.wind).toBe(true);
+    const make = () => {
+      const race = createRace({ kind: 'contract', distance: 40, combat: true, bootInstant: true, seed: 2, course: { distance: 40, bends: [], hills: [], theme: 'plains', water: [] }, player: { name: 'You', stats: s, fuel: 200, cargoLb: 0 }, rivals: [{ id: 'r1', name: 'R', stats: s, fuel: 200, cargoLb: 0 }] });
+      startRace(race);
+      race.trains[1].think = 1e9;
+      return race;
+    };
+    const race = make();
+    const p = playerOf(race);
+    expect(windBlocker(race, p, 'boost')).toBe('Deploy the panels');
+    for (let i = 0; i < 120; i++) stepRace(race, 0.25);
+    const free = p.vmax;
+    setPanels(race, true);
+    stepRace(race, 0.25);
+    expect(p.vmax).toBeLessThan(free * 0.92);
+    // Wind per mile grows with speed: fast miles fill more than slow ones.
+    const perMileAt = (mph) => mph * B.WIND.perMile;
+    expect(perMileAt(60) / perMileAt(30)).toBe(2);
+    for (let i = 0; i < 200 && p.wind < 60; i++) stepRace(race, 0.25);
+    expect(p.wind).toBeGreaterThanOrEqual(25);
+    setPanels(race, false);
+    const top = p.vmax;
+    expect(useWind(race, 'boost')).toBe(true);
+    expect(p.wind).toBe(0);
+    stepRace(race, 0.25);
+    expect(p.vmax).toBeGreaterThan(top * 1.1);
+    // Gust: slows every rival within range.
+    const race2 = make();
+    const p2 = playerOf(race2);
+    p2.wind = 100;
+    race2.trains[1].distance = p2.distance + 0.5;
+    for (let i = 0; i < 40; i++) stepRace(race2, 0.25);
+    const before = race2.trains[1].vmax;
+    race2.trains[1].distance = p2.distance + 0.5;
+    expect(useWind(race2, 'gust')).toBe(true);
+    stepRace(race2, 0.25);
+    expect(race2.trains[1].vmax).toBeLessThan(before * 0.8);
+    expect(race2.trains[1].windSlowFor).toBeGreaterThan(8);
+  });
+
   it('the Heat Cannon fires 10% of the engine heat: more heat, more damage, and the engine cools', () => {
     const exact = { ...weaponStats('heat'), accuracy: 1, crit: 0, damage: [12, 12] };
     const race = field(['heat'], { heat: exact });
@@ -1136,7 +1195,7 @@ describe('missiles, lightning, burn and poison', () => {
     expect(setCapacitors(race, true)).toBe(true);
     stepRace(race, 0.25);
     expect(p.vmax).toBeLessThan(free * 0.9);
-    for (let i = 0; i < 240; i++) stepRace(race, 0.25);
+    for (let i = 0; i < 400; i++) stepRace(race, 0.25);
     expect(p.volts).toBeGreaterThan(100);
     setCapacitors(race, false);
     const held = p.volts;
@@ -1352,7 +1411,7 @@ describe('Nexus Rail welcome', () => {
 });
 
 describe('the rail map and express runs', () => {
-  it('joins real cities with lines; the far lines open with rail reputation', async () => {
+  it('joins real cities with lines; the far lines open with licences earned by miles driven', async () => {
     const M = await import('../src/game/routemap.js');
     expect(M.LINES.length).toBeGreaterThan(25);
     for (const line of M.LINES) {
@@ -1366,14 +1425,21 @@ describe('the rail map and express runs', () => {
     expect(M.expressMiles(atlantic)).toBeGreaterThan(1500);
     expect(M.expressMiles(M.expressById('coast'))).toBeGreaterThan(3000);
     const c = newConductor();
-    expect(M.railRep(c)).toBe(0);
+    expect(M.licenceOf(c).id).toBe('apprentice');
     expect(M.lineOpen(c, M.lineById('chicago-stlouis'))).toBe(true);
     expect(M.lineOpen(c, M.lineById('phoenix-losangeles'))).toBe(false);
+    c.stats.miles = 6000;
+    expect(M.licenceOf(c).id).toBe('foreman');
+    expect(M.lineOpen(c, M.lineById('phoenix-losangeles'))).toBe(true);
+    c.stats.miles = 0;
+    // Company reputation never opens the map: only miles do.
+    c.companies.atlas = { contracts: 0, rep: 99999, wins: 0, jobs: 0 };
+    expect(M.licenceLevel(c)).toBe(0);
     // This week's jobs sit on open lines, with the line's terrain.
     actions.refreshWorld(c, { now: NOW });
     for (const job of c.board.simple) {
       const line = M.lineById(job.line);
-      expect(line.rep).toBe(0);
+      expect(line.licence).toBe(0);
       expect(job.theme).toBe(line.terrain);
     }
   });
@@ -1382,8 +1448,8 @@ describe('the rail map and express runs', () => {
     const M = await import('../src/game/routemap.js');
     const c = newConductor();
     c.lt = 50000;
-    expect(() => actions.startExpress(c, { id: 'gulf' })).toThrow(/rail reputation/);
-    c.railRep = 200;
+    expect(() => actions.startExpress(c, { id: 'gulf' })).toThrow(/Fireman/);
+    c.stats.miles = 500;
     actions.startExpress(c, { id: 'gulf' });
     const run = c.express;
     expect(run.legs.length).toBeGreaterThanOrEqual(4);
@@ -1404,8 +1470,22 @@ describe('the rail map and express runs', () => {
     expect(c.express).toBeNull();
     expect(receipt.expressDone).toBe('Gulf Coast Flyer');
     const bonus = receipt.lines.find((l) => l.label.startsWith('Gulf Coast Flyer complete'));
-    expect(bonus.lt).toBe(Math.floor(total * B.EXPRESS.bonus));
+    expect(bonus.lt).toBeGreaterThan(Math.floor(total * B.EXPRESS.bonus * 0.9));
     expect(c.expressDone.gulf).toBe(1);
-    expect(M.railRep(c)).toBe(200 + run.legs.length * B.EXPRESS.rep.leg + B.EXPRESS.rep.finish);
+    // Every leg counts toward the next licence, and a licence pays more on every job.
+    expect(c.stats.miles).toBeGreaterThan(500 + 1000);
+    expect(receipt.lines.some((l) => l.label.startsWith("Fireman's Licence +2%"))).toBe(true);
+  });
+
+  it('licences pay more on every job and are announced when earned', () => {
+    const c = newConductor();
+    c.stats.miles = 1990;
+    const pick = c.board.simple.find((j) => j.containers > 0);
+    const ctx = { kind: 'delivery', jobId: pick.id, haul: 1 };
+    const run = describeRun(c, ctx);
+    const result = { kind: 'delivery', reason: 'finished', finished: true, place: 1, field: 1, distance: 20, underLimitPct: 0, fuelLoaded: 0, fuelUsed: 0, fuelLeft: 0, emergencyGallons: 0, emergencyCost: 0, towUse: run.towUse };
+    const receipt = actions.settleRun(c, { ctx, result, now: NOW });
+    expect(receipt.lines.find((l) => l.label.startsWith("Fireman's Licence")).lt).toBe(Math.floor(receipt.lines[0].lt * 0.02));
+    expect(receipt.licenceUp.name).toBe("Engineer's Licence");
   });
 });

@@ -25,6 +25,9 @@ import {
   clearPrompt,
   useAbility as fireAbility,
   setCapacitors,
+  setPanels,
+  useWind as spendWindRule,
+  windBlocker,
   teslaOf,
   teslaDamage,
 } from '../game/race.js';
@@ -57,7 +60,7 @@ const ARM_INFO = {
 function ammoWords(train) {
   const kinds = [...new Set(train.arms.map(kindOf))];
   const balls = kinds.includes('cannon') || kinds.includes('heavy');
-  const missiles = kinds.includes('launcher');
+  const missiles = false; // missiles burn fuel now, not ammo
   const n = (cost) => Math.floor(train.ammo / cost);
   if (balls && !missiles) return `${n(3)} balls`;
   if (missiles && !balls) return `${n(2)} missiles`;
@@ -80,6 +83,10 @@ const costText = (key, train) => {
     return `${Math.round(train.heat * own.share)}🔥`;
   }
   if (arm.use === 'volts') return `${Math.round(train.volts)}V`;
+  if (arm.use === 'fuel') {
+    const own = armOf(train, key);
+    return `${fmt(own.burst * own.cost * (own.drain ?? 1))} gal`;
+  }
   return arm.use === 'ammo' ? (arm.burst ? `${arm.burst}×` : '1 ball') : arm.use === 'charge' ? `${arm.cost}⚡` : `${arm.cost}`;
 };
 const AIMS = { auto: 'Aim: auto', track: 'Aim: track', rivals: 'Aim: rivals' };
@@ -237,6 +244,23 @@ export default function Race() {
     setPaused((p) => !p);
   }, [race]);
 
+  const togglePanels = useCallback(() => {
+    sfx.init();
+    if (!setPanels(race, !player.panels)) return;
+    say(player.panels ? 'Wind panels out: gathering wind (slower while out)' : `Panels in: ${Math.round(player.wind)}% wind stored`);
+    redraw();
+  }, [race, player, say, redraw]);
+  const spendWind = useCallback(
+    (use) => {
+      sfx.init();
+      const why = windBlocker(race, player, use);
+      if (why) return say(why);
+      spendWindRule(race, use);
+      say(use === 'boost' ? 'Wind boost!' : 'Wind gust: rivals in range slowed');
+      redraw();
+    },
+    [race, player, say, redraw],
+  );
   const toggleCapacitors = useCallback(() => {
     sfx.init();
     if (!setCapacitors(race, !player.capacitors)) return;
@@ -303,7 +327,7 @@ export default function Race() {
     redraw();
   };
   const keys = useRef({});
-  keys.current = { cast, siphon, nudgeLever, cycleCamera, togglePause, arms, doFireAll, cycleAim, toggleCapacitors };
+  keys.current = { cast, siphon, nudgeLever, cycleCamera, togglePause, arms, doFireAll, cycleAim, toggleCapacitors, togglePanels, spendWind };
   useEffect(() => {
     const onKey = (event) => {
       if (event.target instanceof HTMLInputElement && event.target.type !== 'range') return;
@@ -323,6 +347,9 @@ export default function Race() {
       if (k === 'q' || (n === h.arms.length + 1 && n > 0)) h.siphon();
       if (k === 'c') h.cycleCamera();
       if (k === 'v' && !event.repeat) h.toggleCapacitors();
+      if (k === 'j' && !event.repeat) h.togglePanels();
+      if (k === 'k' && !event.repeat) h.spendWind('boost');
+      if (k === 'l' && !event.repeat) h.spendWind('gust');
       if ((k === 'enter' || k === 'escape') && sceneRef.current?.cine) sceneRef.current.skipCine();
       if (k === 'p') h.togglePause();
     };
@@ -648,7 +675,7 @@ export default function Race() {
 
       {/* Bottom left: commands and your train */}
       <div className="r3-hud r3-bl">
-        {(race.combat && arms.length) || (race.ability && !race.ability.auto) ? (
+        {(race.combat && arms.length) || (race.ability && !race.ability.auto) || player.windMax > 0 ? (
           <div className="r3-win r3-cmds" role="group" aria-label="Commands">
             {race.combat
               ? arms.map((key, index) => {
@@ -686,6 +713,31 @@ export default function Race() {
                 {AIMS[race.aim]}
                 <span className="r3-key">T</span>
               </button>
+            ) : null}
+            {player.windMax > 0 ? (
+              <>
+                <button type="button" className={`r3-cmd r3-caps wind ${player.panels ? 'on' : ''}`} onClick={togglePanels} aria-pressed={player.panels} title="Wind Jet panels: catch the wind. They slow the train 10% while out; the faster you go, the faster they fill.">
+                  <span className="r3-cur">▶</span>
+                  Panels {player.panels ? 'out' : 'in'}
+                  <span className="r3-key">J</span>
+                  <span className="r3-cost">{Math.round(player.wind)}% wind</span>
+                  <i className="r3-volts wind" style={{ transform: `scaleX(${player.wind / player.windMax})` }} />
+                </button>
+                <button type="button" className={`r3-cmd ${windBlocker(race, player, 'boost') ? 'off' : ''}`} onClick={() => spendWind('boost')} title="Spend the wind on a burst of speed">
+                  <span className="r3-cur">▶</span>
+                  Wind boost
+                  <span className="r3-key">K</span>
+                  <span className="r3-cost">{player.surgeFor > 0 && player.windCd > 0 ? `${fmt(player.surgeFor)}s` : `+${Math.round(B.WIND.boostSpeed * 100)}%`}</span>
+                </button>
+                {race.trains.length > 1 ? (
+                  <button type="button" className={`r3-cmd ${windBlocker(race, player, 'gust') ? 'off' : ''}`} onClick={() => spendWind('gust')} title={`Slow every rival within ${B.WIND.gustRange} mi`}>
+                    <span className="r3-cur">▶</span>
+                    Wind gust
+                    <span className="r3-key">L</span>
+                    <span className="r3-cost">−{Math.round(B.WIND.gustSlow * 100)}% · {B.WIND.gustRange} mi</span>
+                  </button>
+                ) : null}
+              </>
             ) : null}
             {race.combat && player.voltsMax > 0 ? (
               <button type="button" className={`r3-cmd r3-caps ${player.capacitors ? 'on' : ''}`} onClick={toggleCapacitors} aria-pressed={player.capacitors} title="Wheel capacitors: charge the Tesla Coil. They slow the train while on.">

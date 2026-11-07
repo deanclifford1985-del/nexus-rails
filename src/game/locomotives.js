@@ -252,6 +252,7 @@ export function loadoutOf(fit) {
     ammo: ammoWeapons.length > 0 ? ammoWeapons.reduce((t, id) => t + C.magazine[id], 0) + extraUnits + count('ammo') * M.ammo.ammo : 0,
     charge: electric > 0 ? B.COMBAT.chargeBase + count('battery') * M.battery.charge : 0,
     sight: Math.max(B.RADAR.sight, ...ids.map((id) => M[id]?.sight ?? 0)),
+    wind: count('windjet') > 0,
   };
 }
 
@@ -337,6 +338,7 @@ export function deriveStats(loco, conductor = null) {
     charge: Math.round(kit.charge * (1 + talent(conductor, 'charge'))),
     chargeRegenMult: 1 + talent(conductor, 'charge'),
     weaponStats: kit.weaponStats,
+    wind: kit.wind,
     sight: kit.sight * (1 + talent(conductor, 'sight')),
     front: loco.front ?? 'cowcatcher',
     armor: Math.min(B.ARMOR.max, B.ARMOR.perPoint * loco.durability),

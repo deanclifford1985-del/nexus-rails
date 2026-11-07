@@ -2,8 +2,8 @@ import { B } from './balance.js';
 import { randInt, randRange } from './rng.js';
 
 // The rail map: real cities joined by rail lines across the United States. Each line has its
-// terrain (Gulf lines flood, the Southwest bakes, the Rockies and the Northeast freeze) and the rail
-// reputation it needs before jobs are posted on it. Express routes run city to city over several
+// terrain (Gulf lines flood, the Southwest bakes, the Rockies and the Northeast freeze) and the
+// licence (earned by miles driven) it needs before jobs are posted on it. Express routes run city to city over several
 // lines, a leg at a time, for a big bonus at the end.
 
 export const CITIES = {
@@ -34,7 +34,7 @@ export const CITIES = {
   boston: { name: 'Boston', lon: -71.06, lat: 42.36 },
 };
 
-// [from, to, terrain, rail reputation needed]
+// [from, to, terrain, licence needed (0 Apprentice ... 5 Iron Legend)]
 const LINE_LIST = [
   // The heartland: open from day one.
   ['chicago', 'stlouis', 'plains', 0],
@@ -48,28 +48,28 @@ const LINE_LIST = [
   ['memphis', 'atlanta', 'plains', 0],
   ['chicago', 'pittsburgh', 'plains', 0],
   // The coasts and the Gulf.
-  ['houston', 'neworleans', 'flooded', 150],
-  ['neworleans', 'memphis', 'flooded', 150],
-  ['atlanta', 'charlotte', 'plains', 150],
-  ['charlotte', 'washington', 'plains', 150],
-  ['pittsburgh', 'washington', 'snow', 150],
-  ['washington', 'newyork', 'plains', 150],
-  ['newyork', 'boston', 'snow', 150],
-  ['atlanta', 'jacksonville', 'flooded', 150],
-  ['dallas', 'elpaso', 'desert', 150],
-  ['omaha', 'denver', 'plains', 150],
+  ['houston', 'neworleans', 'flooded', 1],
+  ['neworleans', 'memphis', 'flooded', 1],
+  ['atlanta', 'charlotte', 'plains', 1],
+  ['charlotte', 'washington', 'plains', 1],
+  ['pittsburgh', 'washington', 'snow', 1],
+  ['washington', 'newyork', 'plains', 1],
+  ['newyork', 'boston', 'snow', 1],
+  ['atlanta', 'jacksonville', 'flooded', 1],
+  ['dallas', 'elpaso', 'desert', 1],
+  ['omaha', 'denver', 'plains', 1],
   // Into the mountains and the far south.
-  ['jacksonville', 'miami', 'flooded', 400],
-  ['elpaso', 'albuquerque', 'desert', 400],
-  ['albuquerque', 'denver', 'snow', 400],
-  ['elpaso', 'phoenix', 'desert', 400],
-  ['denver', 'saltlake', 'snow', 400],
+  ['jacksonville', 'miami', 'flooded', 2],
+  ['elpaso', 'albuquerque', 'desert', 2],
+  ['albuquerque', 'denver', 'snow', 2],
+  ['elpaso', 'phoenix', 'desert', 2],
+  ['denver', 'saltlake', 'snow', 2],
   // The West Coast.
-  ['phoenix', 'losangeles', 'desert', 800],
-  ['losangeles', 'sanfrancisco', 'plains', 800],
-  ['saltlake', 'sanfrancisco', 'snow', 800],
-  ['saltlake', 'seattle', 'snow', 800],
-  ['seattle', 'sanfrancisco', 'flooded', 800],
+  ['phoenix', 'losangeles', 'desert', 3],
+  ['losangeles', 'sanfrancisco', 'plains', 3],
+  ['saltlake', 'sanfrancisco', 'snow', 3],
+  ['saltlake', 'seattle', 'snow', 3],
+  ['seattle', 'sanfrancisco', 'flooded', 3],
 ];
 
 // Rail miles: the great-circle distance with 20% for the way rails really run, to the nearest 10.
@@ -82,12 +82,12 @@ function railMiles(a, b) {
   return Math.round((2 * R * Math.asin(Math.sqrt(h)) * 1.2) / 10) * 10;
 }
 
-export const LINES = LINE_LIST.map(([a, b, terrain, rep]) => ({
+export const LINES = LINE_LIST.map(([a, b, terrain, licence]) => ({
   id: `${a}-${b}`,
   a,
   b,
   terrain,
-  rep,
+  licence,
   miles: railMiles(CITIES[a], CITIES[b]),
   name: `${CITIES[a].name} – ${CITIES[b].name}`,
 }));
@@ -97,24 +97,31 @@ export function lineBetween(a, b) {
 }
 
 export const EXPRESSES = [
-  { id: 'gulf', name: 'Gulf Coast Flyer', path: ['dallas', 'houston', 'neworleans', 'memphis'], rep: 150, text: 'Through the flooded bayous of the Gulf.' },
-  { id: 'atlantic', name: 'Atlantic Express', path: ['boston', 'newyork', 'washington', 'charlotte', 'atlanta', 'jacksonville', 'miami'], rep: 400, text: 'The whole East Coast: from the snow of New England down to Miami.' },
-  { id: 'chief', name: 'Southwest Chief', path: ['chicago', 'stlouis', 'kansascity', 'dallas', 'elpaso', 'phoenix', 'losangeles'], rep: 800, text: 'Chicago to Los Angeles across the desert.' },
-  { id: 'transcon', name: 'Transcontinental', path: ['newyork', 'washington', 'pittsburgh', 'chicago', 'omaha', 'denver', 'saltlake', 'sanfrancisco'], rep: 1500, text: 'Sea to sea over the Rockies and the Sierra.' },
-  { id: 'coast', name: 'Coast to Coast', path: ['seattle', 'saltlake', 'denver', 'omaha', 'kansascity', 'stlouis', 'memphis', 'atlanta', 'jacksonville', 'miami'], rep: 2500, text: 'Seattle to Miami: the longest run on the map.' },
+  { id: 'gulf', name: 'Gulf Coast Flyer', path: ['dallas', 'houston', 'neworleans', 'memphis'], licence: 1, text: 'Through the flooded bayous of the Gulf.' },
+  { id: 'atlantic', name: 'Atlantic Express', path: ['boston', 'newyork', 'washington', 'charlotte', 'atlanta', 'jacksonville', 'miami'], licence: 2, text: 'The whole East Coast: from the snow of New England down to Miami.' },
+  { id: 'chief', name: 'Southwest Chief', path: ['chicago', 'stlouis', 'kansascity', 'dallas', 'elpaso', 'phoenix', 'losangeles'], licence: 3, text: 'Chicago to Los Angeles across the desert.' },
+  { id: 'transcon', name: 'Transcontinental', path: ['newyork', 'washington', 'pittsburgh', 'chicago', 'omaha', 'denver', 'saltlake', 'sanfrancisco'], licence: 4, text: 'Sea to sea over the Rockies and the Sierra.' },
+  { id: 'coast', name: 'Coast to Coast', path: ['seattle', 'saltlake', 'denver', 'omaha', 'kansascity', 'stlouis', 'memphis', 'atlanta', 'jacksonville', 'miami'], licence: 5, text: 'Seattle to Miami: the longest run on the map.' },
 ];
 export const expressById = (id) => EXPRESSES.find((x) => x.id === id) ?? null;
 export const expressLines = (express) => express.path.slice(1).map((city, i) => lineBetween(express.path[i], city));
 export const expressMiles = (express) => expressLines(express).reduce((sum, line) => sum + line.miles, 0);
 
-// Rail reputation: what the railroads think of you. Every company's reputation counts, plus what
-// you earn on the map itself (deliveries and express legs).
-export function railRep(conductor) {
-  const companies = Object.values(conductor.companies ?? {}).reduce((sum, record) => sum + (record.rep ?? 0), 0);
-  return (conductor.railRep ?? 0) + companies;
+// Licences: earned only by miles driven. Each one opens more lines and expresses and pays more.
+export const LICENCES = () => B.LICENCES;
+export const milesOf = (conductor) => Math.floor(conductor.stats?.miles ?? 0);
+export function licenceLevel(conductor) {
+  const miles = milesOf(conductor);
+  let level = 0;
+  B.LICENCES.forEach((l, i) => {
+    if (miles >= l.miles) level = i;
+  });
+  return level;
 }
-export const lineOpen = (conductor, line) => railRep(conductor) >= line.rep;
-export const nextUnlock = (conductor) => [...new Set([...LINES.map((l) => l.rep), ...EXPRESSES.map((x) => x.rep)])].sort((a, b) => a - b).find((rep) => rep > railRep(conductor)) ?? null;
+export const licenceOf = (conductor) => B.LICENCES[licenceLevel(conductor)];
+export const nextLicence = (conductor) => B.LICENCES[licenceLevel(conductor) + 1] ?? null;
+export const lineOpen = (conductor, line) => licenceLevel(conductor) >= line.licence;
+export const expressOpen = (conductor, express) => licenceLevel(conductor) >= express.licence;
 
 // Post this week's jobs on the open lines: each gets a line, a spot along it and the line's terrain.
 export function placeJobs(conductor, rng) {

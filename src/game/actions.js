@@ -1,5 +1,5 @@
 import { B } from './balance.js';
-import { expressById, expressLegs, placeJobs, railRep } from './routemap.js';
+import { expressById, expressLegs, expressOpen, licenceLevel, placeJobs } from './routemap.js';
 import { makeRng, randRange } from './rng.js';
 import { traitPower } from './traits.js';
 import { activeLoco, addXp, avgFuelCost } from './conductor.js';
@@ -553,7 +553,6 @@ export function settleRun(conductor, { ctx, result, now }) {
           add(`Early by ${Math.round(result.underLimitPct)}%`, Math.floor((base * pct) / 100));
         }
         xp = jobXp(job, haul);
-        conductor.railRep = (conductor.railRep ?? 0) + B.EXPRESS.rep.delivery;
       } else if (!forfeit) {
         xp = Math.floor(jobXp(job, haul) * J.lateXpShare);
       }
@@ -584,7 +583,6 @@ export function settleRun(conductor, { ctx, result, now }) {
         record.jobs += 1;
         conductor.companies[ctx.companyId] = record;
         receipt.reputation = gainReputation(conductor, ctx.companyId, J.reputation.companyJob);
-        conductor.railRep = (conductor.railRep ?? 0) + B.EXPRESS.rep.companyJob;
         xp = jobXp(job, haul);
         conductor.board.company[ctx.companyId] = conductor.board.company[ctx.companyId].filter((item) => item.id !== job.id);
       } else if (!forfeit) {
@@ -669,17 +667,21 @@ export function settleRun(conductor, { ctx, result, now }) {
         run.paid = Math.round((run.paid + legPay) * 10) / 10;
         run.late = run.late || !arrived;
         run.leg += 1;
-        conductor.railRep = (conductor.railRep ?? 0) + X.rep.leg;
         if (run.leg >= run.legs.length) {
           const bonus = Math.floor(run.paid * (run.late ? X.lateBonus : X.bonus));
           add(`${express.name} complete${run.late ? ' (a leg ran late)' : ''}`, bonus);
           xp = Math.floor(xp * (1 + X.xpBonus)) + run.legs.length * 50;
-          conductor.railRep += X.rep.finish;
           conductor.expressDone = { ...(conductor.expressDone ?? {}), [run.id]: (conductor.expressDone?.[run.id] ?? 0) + 1 };
           receipt.expressDone = express.name;
           conductor.express = null;
         } else receipt.expressNext = run.leg + 1;
       }
+    }
+
+    // Licence pay: every licence earned by miles driven pays a little more on every job.
+    const licence = B.LICENCES[licenceLevel(conductor)];
+    if (!forfeit && licence.pay > 0 && receipt.payout > 0 && ['delivery', 'company', 'race', 'express'].includes(ctx.kind)) {
+      add(`${licence.name} +${Math.round(licence.pay * 100)}%`, Math.floor(receipt.payout * licence.pay));
     }
 
     // Captain talents (NFT edition): Business pay, contract-job pay and the Rail Magnate purse.
@@ -719,9 +721,11 @@ export function settleRun(conductor, { ctx, result, now }) {
     conductor.lt = Math.max(0, Math.round((conductor.lt + receipt.payout - (receipt.advanceRepaid ?? 0) - receipt.ammoCost) * 10) / 10);
 
     const win = ['won', 'delivered'].includes(receipt.outcome);
+    const licenceBefore = licenceLevel(conductor);
     conductor.stats.runs += 1;
     conductor.stats.wins += win ? 1 : 0;
     conductor.stats.miles += result.distance;
+    if (licenceLevel(conductor) > licenceBefore) receipt.licenceUp = { ...B.LICENCES[licenceLevel(conductor)], level: licenceLevel(conductor) };
     conductor.stats.earned += receipt.payout;
     conductor.history = [
       { at: now, title: receipt.title, outcome: receipt.outcome, payout: receipt.payout, xp, miles: Math.round(result.distance) },
@@ -745,7 +749,7 @@ export function startExpress(conductor, { id }) {
   const express = expressById(id);
   if (!express) throw new GameError('No such express.');
   if (conductor.express) throw new GameError('Finish or abandon your current express first.');
-  if (railRep(conductor) < express.rep) throw new GameError(`The ${express.name} needs ${express.rep} rail reputation.`);
+  if (!expressOpen(conductor, express)) throw new GameError(`The ${express.name} needs the ${B.LICENCES[express.licence].name}.`);
   return withRng(conductor, (rng) => {
     const legs = expressLegs(express, rng).map((leg) => ({ ...leg, ...rollHazard(rng, leg.distance) }));
     conductor.express = { id, legs, leg: 0, paid: 0, late: false, startedAt: conductor.clock ?? 0 };

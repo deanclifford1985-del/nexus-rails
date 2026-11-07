@@ -43,7 +43,7 @@ export const B = {
     growth: [1.07, 1.12], // each further point of Power multiplies both
     weightBase: 10000, // lb
     weightPerDurability: 500, // lb
-    fuelLbPerGallon: 12, // aether fuel is heavy: every gallon loaded slows the train
+    fuelLbPerGallon: 24, // aether fuel is heavy: every gallon loaded slows the train (doubled: carrying extra for missiles is a real choice)
     tankBase: 150, // gallons in the built-in tank; Fuel Storage slots add more
     // Top speed: mph = horsepower x mphPerHp x (refWeight / total weight)
     mphPerHp: 0.012,
@@ -82,10 +82,10 @@ export const B = {
   // Slot modules sold in the Armory. Weight is per module; slots is how many cargo slots it fills.
   MODULES: {
     fuel: { name: 'Fuel Storage', kind: 'storage', slots: 1, weight: 400, price: 300, fuel: 60, text: '+60 gallons of tank' },
-    ammo: { name: 'Ammo Storage', kind: 'storage', slots: 1, weight: 600, price: 250, ammo: 30, text: 'Holds 10 cannonballs or 15 missiles' },
+    ammo: { name: 'Ammo Storage', kind: 'storage', slots: 1, weight: 600, price: 250, ammo: 30, text: 'Holds 10 cannonballs' },
     battery: { name: 'Battery Bank', kind: 'storage', slots: 1, weight: 300, price: 400, charge: 50, text: '+50 charge for plasma, lightning and shields' },
     engine: { name: 'Engine Block', kind: 'engine', slots: 2, weight: 1800, price: 1500, power: 0.1, text: '+10% horsepower and torque' },
-    launcher: { name: 'Missile Launcher', kind: 'weapon', slots: 1, weight: 1800, price: 700, arm: 'launcher', text: 'Bursts of 3 missiles, 10 damage each; 9 missiles on board' },
+    launcher: { name: 'Missile Launcher', kind: 'weapon', slots: 1, weight: 1800, price: 700, arm: 'launcher', text: 'Bursts of 3 missiles, 10 damage each. Missiles burn fuel: 2 gallons each, out of your tank' },
     cannon: { name: 'Basic Cannon', kind: 'weapon', slots: 1, weight: 2500, price: 800, arm: 'cannon', text: 'Longer reach, 50 damage a shot; 3 cannonballs on board' },
     heavy: { name: 'Heavy Cannon', kind: 'weapon', slots: 2, weight: 4500, price: 4000, arm: 'heavy', text: 'Big hits, slow to reload; 3 cannonballs on board' },
     plasma: { name: 'Plasma Lance', kind: 'weapon', slots: 1, weight: 700, price: 2500, arm: 'plasma', text: 'Light and quick, low damage, runs on charge' },
@@ -95,10 +95,11 @@ export const B = {
     radar2: { name: 'Radar Mk II', kind: 'sensor', slots: 1, weight: 400, price: 5000, sight: 12, text: 'Spots obstacles 12 miles ahead' },
     heat: { name: 'Heat Cannon', kind: 'weapon', slots: 1, weight: 2000, price: 3500, arm: 'heat', text: 'Takes 10% of your engine heat and fires it as a blast wave: the hotter the engine, the harder it hits, and the engine cools' },
     tesla: { name: 'Tesla Coil', kind: 'weapon', slots: 2, weight: 2600, price: 7000, arm: 'tesla', text: 'Wheel capacitors charge its battery pack while switched on (they slow you down); fire to release every volt. Damage grows exponentially. Takes a weapon slot and a battery slot' },
+    windjet: { name: 'Wind Jet', kind: 'wind', slots: 1, weight: 1400, price: 4500, wind: true, text: 'Deploy panels to catch the wind (they slow you 10% while out). The faster you go, the faster they fill. Spend the wind on a burst of speed, or on a gust that slows every rival in range' },
     vent: { name: 'Coolant Vent', kind: 'cooler', slots: 1, weight: 700, price: 2200, arm: 'vent', text: 'Vents 25% engine heat on demand; runs on charge' },
     sonar: { name: 'Deep Sonar', kind: 'sensor', slots: 2, weight: 900, price: 18000, sight: 24, text: 'Spots obstacles 24 miles ahead' },
   },
-  // Ammo is counted in units: a cannonball takes 3, a missile 2. Restocking costs per unit.
+  // Ammo is counted in units: a cannonball takes 3. Restocking costs per unit. (Missiles burn fuel instead.)
   ARMORY: { resale: 0.5, roundPrice: 2, startKit: ['launcher', 'fuel'] },
   // Spells belong to Epic and Legendary engines only. Mythic engines have their own.
   SPELLS: {
@@ -422,6 +423,12 @@ export const B = {
     advanceGallons: 60,
   },
 
+  // Wind Jet: deployed panels cost `drag` of top speed and gather perMile x mph wind every mile
+  // (so a train twice as fast fills about four times as quickly), up to max. From minUse it can be
+  // spent: Boost adds boostSpeed of top speed (and a kick of half that at once) for 2 + 8 x fill
+  // seconds; Gust slows every rival within gustRange by gustSlow for 2 + 8 x fill seconds.
+  WIND: { max: 100, drag: 0.1, perMile: 0.4, minUse: 25, cooldown: 4, boostSpeed: 0.2, gustRange: 1.5, gustSlow: 0.25, base: 2, perFill: 8 },
+
   // Express runs on the rail map: long hauls city to city, a leg at a time. Legs pay like a
   // well-paid delivery; finishing every leg pays a bonus of `bonus` x everything the legs paid
   // (`lateBonus` if any leg ran late). Rail reputation opens the map's lines and expresses.
@@ -436,8 +443,19 @@ export const B = {
     lateBonus: 0.2,
     latePay: 0.5,
     xpBonus: 0.5,
-    rep: { delivery: 10, companyJob: 15, leg: 15, finish: 100 },
   },
+
+  // Licences: earned only by miles driven (every run counts). Each raises the pay on every job
+  // and opens more of the rail map. Company reputation is separate and comes only from that
+  // company's contracts.
+  LICENCES: [
+    { id: 'apprentice', name: 'Apprentice', miles: 0, pay: 0, text: 'The heartland lines.' },
+    { id: 'fireman', name: "Fireman's Licence", miles: 500, pay: 0.02, text: 'The coasts and the Gulf, and the Gulf Coast Flyer.' },
+    { id: 'engineer', name: "Engineer's Licence", miles: 2000, pay: 0.04, text: 'The mountains and the far south, and the Atlantic Express.' },
+    { id: 'foreman', name: 'Road Foreman', miles: 6000, pay: 0.06, text: 'The West Coast, and the Southwest Chief.' },
+    { id: 'master', name: 'Master Engineer', miles: 15000, pay: 0.08, text: 'The Transcontinental.' },
+    { id: 'legend', name: 'Iron Legend', miles: 35000, pay: 0.1, text: 'Coast to Coast, Seattle to Miami.' },
+  ],
 
   // Weapons and spells. In play wherever there are rivals (not the test drive) or boulders. Times are real seconds.
   COMBAT: {
@@ -450,7 +468,7 @@ export const B = {
     chargeRegen: 2, // charge a second
     roundsPerCannon: 3,
     // Ammo units each weapon carries on board, and what one shot (or missile) costs.
-    magazine: { cannon: 9, heavy: 9, launcher: 18 },
+    magazine: { cannon: 9, heavy: 9 },
     spellPerInt: 0.02, // each point of Intelligence: spells hit 2% harder
     // Damage over time. Burn: 1 damage per stack each second, then it loses a stack.
     // Poison: 1 damage per stack every 2 seconds, and the stacks never fall away.
@@ -482,7 +500,8 @@ export const B = {
       tesla: { type: 'time', s: 0 },
     },
     // Weapons
-    launcher: { use: 'ammo', cost: 2, cooldown: 4, range: 2.4, damage: [10, 10], travel: 0.65, burst: 3, burstGap: 0.22 },
+    // Missiles burn fuel: `cost` gallons each, straight out of the tank (half for a Legendary launcher).
+    launcher: { use: 'fuel', cost: 2, cooldown: 4, range: 2.4, damage: [10, 10], travel: 0.65, burst: 3, burstGap: 0.22 },
     cannon: { use: 'ammo', cost: 3, cooldown: 5, range: 3.6, damage: [46, 54], travel: 0.8 },
     heavy: { use: 'ammo', cost: 3, cooldown: 8, range: 4.8, damage: [80, 100], travel: 0.9 },
     plasma: { use: 'charge', cost: 8, cooldown: 1.2, range: 2.4, damage: [6, 9], travel: 0.25 },

@@ -78,6 +78,13 @@ function makeTrain(spec, isPlayer) {
     volts: 0,
     voltsMax: Math.max(0, ...Object.entries(spec.stats.weaponStats ?? {}).filter(([k]) => k.split('#')[0] === 'tesla').map(([, w]) => w.voltsMax ?? 0)),
     capacitors: false,
+    // Wind Jet: panels out or in, wind stored, and the gust that slows a train it catches.
+    windMax: spec.stats.wind ? B.WIND.max : 0,
+    wind: 0,
+    panels: false,
+    windCd: 0,
+    windSlowFor: 0,
+    windSlow: 0,
     armor: spec.stats.armor ?? 0,
     shotsFired: {}, // per weapon, for Echoing Shot
     parked: !!spec.parked, // the Damage Wall: the train stays put
@@ -267,6 +274,14 @@ function advanceTrain(race, train, h) {
     vmax += train.surgeMph;
     train.surgeFor -= h;
   }
+  // A rival's Wind Gust: resistance that holds the train back for a few seconds.
+  if (train.windSlowFor > 0) {
+    vmax *= 1 - train.windSlow;
+    train.windSlowFor -= h;
+  }
+  if (train.windCd > 0) train.windCd -= h;
+  // Wind Jet panels out: drag now, wind for later.
+  if (train.panels && train.windMax > 0) vmax *= 1 - B.WIND.drag;
   // Damage drags top speed down, and a fresh hit staggers the train.
   vmax *= C.hullSpeedFloor + (1 - C.hullSpeedFloor) * (train.hull / train.hullMax);
   if (train.stagger > 0) vmax *= C.staggerSpeed;
@@ -287,7 +302,7 @@ function advanceTrain(race, train, h) {
   if (train.journey) vmax *= 1 + train.journeyStacks * B.JOURNEY.speed;
   // Tesla capacitors on the wheels: resistance that slows the train while they charge the coil.
   const coil = train.capacitors && train.voltsMax > 0 ? teslaOf(train) : null;
-  if (coil) vmax *= 1 - coil.drag;
+  if (coil) vmax *= 1 - coil.drag * (coil.drain ?? 1);
   train.vmax = vmax;
   // Bends: every train slows to the bend's limit, braking early enough to make it.
   // Ice: bends hold less speed unless Agility grips.
@@ -348,6 +363,7 @@ function advanceTrain(race, train, h) {
   const before = train.distance;
   train.distance += miles;
   if (coil) train.volts = Math.min(train.voltsMax, train.volts + miles * coil.chargePerMile);
+  if (train.panels && train.windMax > 0) train.wind = Math.min(train.windMax, train.wind + miles * train.speed * B.WIND.perMile);
   if (!train.parked) {
     const H = B.HEAT;
     const lever = train.lever * (1 + boost);
@@ -575,6 +591,47 @@ export function setCapacitors(race, on) {
   player.capacitors = !!on;
   return true;
 }
+// ---------- Wind Jet ----------
+export function setPanels(race, on) {
+  const player = race.trains.find((t) => t.isPlayer);
+  if (!player || !(player.windMax > 0)) return false;
+  player.panels = !!on;
+  return true;
+}
+export function windBlocker(race, train, use) {
+  if (!(train.windMax > 0)) return 'No Wind Jet';
+  if (race.status !== 'running' || !live(train)) return 'Not now';
+  if (train.windCd > 0) return 'Recharging';
+  if (train.wind < B.WIND.minUse) return train.panels ? 'Gathering wind' : 'Deploy the panels';
+  if (use === 'gust' && !windTargets(race, train).length) return 'No rival in range';
+  return null;
+}
+const windTargets = (race, from) => race.trains.filter((t) => t !== from && live(t) && Math.abs(t.distance - from.distance) <= B.WIND.gustRange);
+// Spend the wind: a burst of speed, or a gust that slows every rival in range.
+export function useWind(race, use) {
+  const from = race.trains.find((t) => t.isPlayer);
+  if (!from || windBlocker(race, from, use)) return false;
+  const W = B.WIND;
+  const fill = from.wind / W.max;
+  const seconds = W.base + W.perFill * fill;
+  from.wind = 0;
+  from.windCd = W.cooldown;
+  if (use === 'boost') {
+    from.surgeMph = Math.max(from.surgeMph ?? 0, from.vmax * W.boostSpeed);
+    from.surgeFor = Math.max(from.surgeFor ?? 0, seconds);
+    from.speed += from.surgeMph * 0.5;
+    race.fx.push({ type: 'windBoost', id: from.id, seconds });
+  } else {
+    const hit = windTargets(race, from);
+    for (const t of hit) {
+      t.windSlow = W.gustSlow;
+      t.windSlowFor = Math.max(t.windSlowFor, seconds);
+    }
+    race.fx.push({ type: 'windGust', id: from.id, to: hit.map((t) => t.id), seconds });
+  }
+  return true;
+}
+
 // The Tesla Coil's damage for this many volts: exponential, so a full pack hits far harder than two halves.
 export const teslaDamage = (arm, volts) => arm.damage[0] * (Math.exp(volts / arm.voltScale) - 1);
 export const isSpell = (key) => C[kindOf(key)]?.use === 'mp';
@@ -623,7 +680,9 @@ export function armOf(train, key) {
   return { ...base, ...own, cost: base.cost + (own.chargeExtra ?? 0) };
 }
 
-const resource = (train, use) => (use === 'mp' ? train.mp : use === 'ammo' ? train.ammo : use === 'heat' ? train.heat : use === 'volts' ? train.volts : train.charge);
+const resource = (train, use) => (use === 'mp' ? train.mp : use === 'ammo' ? train.ammo : use === 'fuel' ? train.fuel : use === 'heat' ? train.heat : use === 'volts' ? train.volts : train.charge);
+// What one shot (one missile) costs this train: missiles cost fuel, half for a Legendary launcher.
+const shotCost = (arm) => arm.cost * (arm.use === 'fuel' ? arm.drain ?? 1 : 1);
 
 // Why `from` cannot use `kind` right now, or null if it can.
 export function castBlocker(race, from, kind) {
@@ -641,7 +700,7 @@ export function castBlocker(race, from, kind) {
   if (cooler && from.heat < 3) return 'Engine is cool';
   if (arm.use === 'heat' && from.heat < 3) return 'Engine is cool';
   if (arm.use === 'volts' && from.volts < (arm.minVolts ?? 1)) return from.capacitors ? 'Charging' : 'Charge the coil';
-  if (resource(from, arm.use) < arm.cost * (arm.use === 'mp' ? from.mpCostMult ?? 1 : 1)) return arm.use === 'mp' ? 'Not enough MP' : arm.use === 'ammo' ? 'Out of ammo' : 'Battery low';
+  if (!(arm.use === 'fuel' && race.guide) && resource(from, arm.use) < shotCost(arm) * (arm.use === 'mp' ? from.mpCostMult ?? 1 : 1)) return arm.use === 'mp' ? 'Not enough MP' : arm.use === 'ammo' ? 'Out of ammo' : arm.use === 'fuel' ? 'Not enough fuel' : 'Battery low';
   if (arm.range && !targetFor(race, from, arm.range)) return 'Nothing in range';
   return null;
 }
@@ -649,9 +708,18 @@ export function castBlocker(race, from, kind) {
 export function castSpell(race, from, kind) {
   if (castBlocker(race, from, kind)) return false;
   const arm = armOf(from, kind);
-  // A missile launcher fires as much of its burst as the ammo allows.
-  const burst = arm.burst ? Math.max(1, Math.min(arm.burst, Math.floor(from.ammo / arm.cost))) : 1;
+  // A missile launcher fires as much of its burst as the fuel allows.
+  // The guided first run supplies the propellant: a new conductor can't strand themselves learning to fight.
+  const freeFuel = arm.use === 'fuel' && race.guide;
+  const burst = arm.burst ? (freeFuel ? arm.burst : Math.max(1, Math.min(arm.burst, Math.floor(resource(from, arm.use) / shotCost(arm))))) : 1;
   if (arm.use === 'mp') from.mp -= arm.cost * (from.mpCostMult ?? 1);
+  else if (arm.use === 'fuel' && !freeFuel) {
+    // Missile propellant comes out of the tank and is paid for like any fuel burned.
+    const gallons = shotCost(arm) * burst;
+    from.fuel = Math.max(0, from.fuel - gallons);
+    from.fuelUsed += gallons;
+    from.fuelFired = (from.fuelFired ?? 0) + gallons;
+  }
   else if (arm.use === 'ammo') {
     from.ammo -= arm.cost * burst;
     from.roundsFired += arm.cost * burst;

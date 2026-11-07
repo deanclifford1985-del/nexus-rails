@@ -928,6 +928,22 @@ export class RailScene {
     this.decorate(model, P, cars, extras, { mBody, mTrim, mDark, mLamp });
     this.mountArms(train.arms ?? [], P, { mDark, mMetal, mTrim });
 
+    // Wind Jet panels: folded flat against the tender, swung out into the wind when deployed.
+    if (train.windMax > 0) {
+      extras.windPanels = [];
+      for (const side of [-1, 1]) {
+        const pivot = new THREE.Group();
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.1, 3.2), mMetal);
+        panel.position.set(side * 0.9, 0, 0);
+        pivot.add(panel);
+        const vane = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.2), this.glow(0x9fe8ff));
+        vane.position.set(side * 0.9, 0.07, 1.4);
+        pivot.add(vane);
+        P(new THREE.BoxGeometry(0.1, 0.1, 0.1), mMetal, side * 1.45, 3.6, -15.8, 2).add(pivot);
+        pivot.userData.side = side;
+        extras.windPanels.push(pivot);
+      }
+    }
     const barrier = new THREE.Mesh(
       new THREE.SphereGeometry(1, 12, 8),
       new THREE.MeshBasicMaterial({ color: 0x7cf5c9, wireframe: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
@@ -1589,6 +1605,27 @@ export class RailScene {
         const at = this.worldPos(t, 0, 4.5, 2);
         for (let i = 0; i < 18; i++) this.spawn(this.TEX.smoke, at, { s0: 1.2, s1: rand(3, 5), life: rand(0.6, 1.1), a: 0.8, color: 0xdff6ff, vel: new THREE.Vector3(rand(-5, 5), rand(3, 7), rand(-5, 5)) });
         if (fx.id === 'player' || !fx.id) sfx.whoosh();
+      } else if (fx.type === 'windBoost') {
+        const t = this.vis(fx.id);
+        if (t) {
+          for (let i = 0; i < 24; i++) this.spawn(this.TEX.smoke, this.worldPos(t, rand(-2.5, 2.5), rand(1, 4), rand(-18, -12)), { s0: 1, s1: rand(3, 5), life: rand(0.4, 0.8), a: 0.7, color: 0xe8fbff, vel: this.forward(t.s).multiplyScalar(-rand(14, 24)) });
+          this.popNum(t, 'Wind boost', 'zap');
+          sfx.whoosh();
+        }
+      } else if (fx.type === 'windGust') {
+        const from = this.vis(fx.id);
+        for (const id of fx.to ?? []) {
+          const t = this.vis(id);
+          if (!t || !from) continue;
+          const a = this.worldPos(from, 0, 4, -16);
+          const b = this.worldPos(t, 0, 3, 0);
+          for (let i = 0; i < 16; i++) {
+            const k = i / 16;
+            this.spawn(this.TEX.smoke, a.clone().lerp(b, k), { s0: 1.2, s1: 4, life: 0.6 + k * 0.3, a: 0.55, color: 0xcff4ff, vel: b.clone().sub(a).normalize().multiplyScalar(10) });
+          }
+          this.popNum(t, 'Gust: slowed', 'block');
+        }
+        sfx.whoosh();
       } else if (fx.type === 'online') {
         sfx.chime();
       } else if (fx.type === 'siphon') {
@@ -1621,6 +1658,15 @@ export class RailScene {
       car.rotation.x = -Math.atan(this.path.slope(s + t.centre[i]));
     });
     t.barrier.visible = train.barrier > 0;
+    if (t.windPanels) {
+      for (const pivot of t.windPanels) {
+        const want = train.panels ? pivot.userData.side * -1.25 : 0;
+        pivot.rotation.z += (want - pivot.rotation.z) * Math.min(1, dt * 6);
+      }
+      if (train.panels && t.v > 2 && Math.random() < dt * 10) {
+        for (const side of [-1, 1]) this.spawn(this.TEX.smoke, this.worldPos(t, side * 3.2, 3.8, rand(-17, -14)), { s0: 0.4, s1: 1.4, life: 0.35, a: 0.35, color: 0xdff6ff, vel: this.forward(t.s).multiplyScalar(-6) });
+      }
+    }
     if (t.barrier.visible) t.barrier.rotation.z += dt * 0.6;
     if (t.orb) t.orb.position.y = t.orb.userData.y + Math.sin(this.time * 3) * 0.25;
     t.crank += ds / 0.8;

@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Flag, Lock, MapPin, Package, Route, TrainFront, Trophy } from 'lucide-react';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
-import { CITIES, EXPRESSES, LINES, expressLines, expressMiles, lineById, lineOpen, nextUnlock, railRep } from '../game/routemap.js';
+import { CITIES, EXPRESSES, LINES, expressLines, expressMiles, expressOpen, lineById, lineOpen } from '../game/routemap.js';
+import { Licences } from './Licence.jsx';
 import { jobPay } from '../game/jobs.js';
 import { fmt, ltWhole } from './format.js';
 
@@ -49,14 +50,12 @@ function boardJobs(conductor) {
 
 export default function RouteMap() {
   const { conductor, go, act } = useGame();
-  const rep = railRep(conductor);
   const jobs = useMemo(() => boardJobs(conductor), [conductor]);
   const [sel, setSel] = useState(() => (conductor.express ? { express: conductor.express.id } : null));
   const run = conductor.express;
   const selLine = sel?.line ? lineById(sel.line) : null;
   const selExpress = sel?.express ? EXPRESSES.find((x) => x.id === sel.express) : null;
   const expressSet = new Set(selExpress ? expressLines(selExpress).map((l) => l.id) : []);
-  const unlock = nextUnlock(conductor);
   const owned = conductor.containers ?? 0;
 
   const pinAt = (job) => {
@@ -85,11 +84,7 @@ export default function RouteMap() {
   return (
     <div className="stack">
       <div className="rmap-head">
-        <div>
-          <span className="label">Rail reputation</span>
-          <b className="num rmap-rep">{fmt(rep)}</b>
-          <span className="small muted">{unlock ? ` · next lines open at ${fmt(unlock)}` : ' · every line is open'}</span>
-        </div>
+        <Licences conductor={conductor} compact />
         <div className="rmap-legend" aria-label="Line terrain">
           {Object.entries(TERRAIN).map(([id, t]) => (
             <span key={id}>
@@ -103,7 +98,7 @@ export default function RouteMap() {
           </span>
         </div>
       </div>
-      <p className="small muted">Earn rail reputation with deliveries (+{B.EXPRESS.rep.delivery}), contract jobs, contract wins and express legs. Tap a line to see its jobs, or an express to run it.</p>
+      <p className="small muted">Licences come only from miles driven: every run counts, so long hauls build them fastest. Each licence opens more lines and expresses and pays more on every job. Tap a line to see its jobs, or an express to run it.</p>
 
       <div className="rmap-scroll">
         <svg className="rmap" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Rail map of the United States">
@@ -130,7 +125,7 @@ export default function RouteMap() {
             const hot = sel?.line === line.id || expressSet.has(line.id);
             const color = TERRAIN[line.terrain].color;
             return (
-              <g key={line.id} className="rmap-line" onClick={() => setSel({ line: line.id })} role="button" aria-label={`${line.name}, ${line.miles} miles${open ? '' : `, locked until ${line.rep} rail reputation`}`}>
+              <g key={line.id} className="rmap-line" onClick={() => setSel({ line: line.id })} role="button" aria-label={`${line.name}, ${line.miles} miles${open ? '' : `, needs the ${B.LICENCES[line.licence].name}`}`}>
                 <line x1={ax} y1={ay} x2={bx} y2={by} stroke="transparent" strokeWidth="18" />
                 {hot ? <line x1={ax} y1={ay} x2={bx} y2={by} stroke={color} strokeWidth="9" opacity="0.35" filter="url(#rmap-glow)" /> : null}
                 <line x1={ax} y1={ay} x2={bx} y2={by} stroke={open ? color : '#4b5a6c'} strokeWidth={hot ? 4.5 : 3} strokeDasharray={open ? '' : '7 6'} strokeLinecap="round" opacity={open ? 0.95 : 0.7} />
@@ -190,7 +185,7 @@ export default function RouteMap() {
         </h3>
         <div className="rmap-express-grid">
           {EXPRESSES.map((x) => {
-            const open = rep >= x.rep;
+            const open = expressOpen(conductor, x);
             const active = run?.id === x.id;
             const miles = expressMiles(x);
             const legs = expressLines(x).reduce((n, l) => n + Math.ceil(l.miles / B.EXPRESS.legMiles), 0);
@@ -199,7 +194,7 @@ export default function RouteMap() {
               <article key={x.id} className={`rmap-express ${active ? 'active' : ''} ${open ? '' : 'locked'} ${sel?.express === x.id ? 'sel' : ''}`} onClick={() => setSel({ express: x.id })}>
                 <div className="spread">
                   <b>{x.name}</b>
-                  {open ? <span className="small num">{fmt(miles)} mi</span> : <span className="small"><Lock aria-hidden="true" /> {fmt(x.rep)} rep</span>}
+                  {open ? <span className="small num">{fmt(miles)} mi</span> : <span className="small"><Lock aria-hidden="true" /> {B.LICENCES[x.licence].name}</span>}
                 </div>
                 <span className="small muted">{x.path.map((id) => CITIES[id].name).join(' → ')}</span>
                 <span className="small">{x.text}</span>
@@ -235,7 +230,9 @@ export default function RouteMap() {
                     <Flag aria-hidden="true" /> {run ? 'Finish your current express first' : `Start the ${x.name}`}
                   </button>
                 ) : (
-                  <span className="small muted">Opens at {fmt(x.rep)} rail reputation ({fmt(x.rep - rep)} to go).</span>
+                  <span className="small muted">
+                    Opens with the {B.LICENCES[x.licence].name} ({fmt(Math.max(0, B.LICENCES[x.licence].miles - Math.floor(conductor.stats?.miles ?? 0)))} more miles).
+                  </span>
                 )}
               </article>
             );
@@ -285,7 +282,7 @@ function LinePanel({ line, jobs, owned, onClose }) {
       </span>
       {!open ? (
         <p className="small muted">
-          <Lock aria-hidden="true" /> No jobs here yet: this line opens at {fmt(line.rep)} rail reputation ({fmt(line.rep - railRep(conductor))} to go).
+          <Lock aria-hidden="true" /> No jobs here yet: this line opens with the {B.LICENCES[line.licence].name} ({fmt(Math.max(0, B.LICENCES[line.licence].miles - Math.floor(conductor.stats?.miles ?? 0)))} more miles).
         </p>
       ) : jobs.length ? (
         <div className="stack-xs">

@@ -1,3 +1,4 @@
+import { LicenceBadge } from '../ui/Licence.jsx';
 import React from 'react';
 import { ArrowRight, Plus } from 'lucide-react';
 import { B } from '../game/balance.js';
@@ -92,6 +93,18 @@ export default function Receipt() {
             <span className={`medal ${receipt.medal}`}>{receipt.medal === 'none' ? 'No medal' : `${receipt.medal} medal`}</span>
           </p>
         ) : null}
+        {receipt.licenceUp ? (
+          <div className="licence-up">
+            <LicenceBadge level={receipt.licenceUp.level} big />
+            <div>
+              <b>New licence: {receipt.licenceUp.name}</b>
+              <span className="small">
+                {Math.round(receipt.licenceUp.pay * 100)}% more pay on every job. Opens: {receipt.licenceUp.text}
+              </span>
+            </div>
+          </div>
+        ) : null}
+        {receipt.expressDone ? <p className="note">The {receipt.expressDone} is complete. Bonus paid below.</p> : null}
         {receipt.prizeWeapon ? (
           <div className="note stack-sm">
             <b>Prize: a weapon for your shelf.</b>

@@ -392,16 +392,42 @@ Every course has a terrain, picked from its seed (the first run and the test dri
 The 3D scene changes with the terrain (sky, ground, mountains, trees); floodwater sits over the line with spray off the wheels, and a banner warns of floodwater ahead with the speed it will cost.
 
 ### Rail map (Dispatch → Rail map)
-- 25 real cities and 30 rail lines across the lower 48, each line with its terrain. Lines open with **rail reputation**: the heartland at 0, the coasts and the Gulf at 150, the mountains and the far south at 400, the West Coast at 800.
-- Rail reputation = your company reputation (all companies) plus map reputation: +10 a delivery, +15 a contract job, +15 an express leg, +100 an express finished.
+- 25 real cities and 30 rail lines across the lower 48, each line with its terrain. Lines open with your **licence** (earned by miles driven, see below): the heartland with the Apprentice licence, the coasts and the Gulf with the Fireman's Licence, the mountains and the far south with the Engineer's Licence, the West Coast with Road Foreman. Company reputation is separate and only comes from that company's own jobs and contracts.
 - This week's jobs sit on open lines as pins (deliveries, contract jobs, open contracts, prize races). Tap a line for its jobs and terrain.
 
 ### Express runs
-- Five long hauls, run one leg at a time (legs of at most 240 miles, each a delivery of up to 5 containers): Gulf Coast Flyer (Dallas–Memphis, 1,080 mi, 6 legs, 150 rep), Atlantic Express (Boston–Miami, 1,860 mi, 10 legs, 400), Southwest Chief (Chicago–Los Angeles, 2,660 mi, 14 legs, 800), Transcontinental (New York–San Francisco, 3,220 mi, 16 legs, 1,500), Coast to Coast (Seattle–Miami, 3,770 mi, 20 legs, 2,500).
-- Each leg pays 1.2 LT a mile plus 2.6 LT a mile per container; a late leg pays half. Finishing every leg pays a bonus of 50% of everything the legs paid (20% if a leg ran late), 50% more XP, and +100 rail reputation. One express at a time; abandoning loses the bonus. A forfeited leg can be run again.
+- Five long hauls, run one leg at a time (legs of at most 240 miles, each a delivery of up to 5 containers): Gulf Coast Flyer (Dallas–Memphis, 1,080 mi, 6 legs, Fireman's Licence), Atlantic Express (Boston–Miami, 1,860 mi, 10 legs, Engineer's Licence), Southwest Chief (Chicago–Los Angeles, 2,660 mi, 14 legs, Road Foreman), Transcontinental (New York–San Francisco, 3,220 mi, 16 legs, Master Engineer), Coast to Coast (Seattle–Miami, 3,770 mi, 20 legs, Iron Legend).
+- Each leg pays 1.2 LT a mile plus 2.6 LT a mile per container; a late leg pays half. Finishing every leg pays a bonus of 50% of everything the legs paid (20% if a leg ran late), and 50% more XP. One express at a time; abandoning loses the bonus. A forfeited leg can be run again.
 
 ### Heat Cannon
 1 slot, 2,000 lb, 3,500 LT. Each shot draws off 10% of the engine's heat (12.5% Rare, 15% Epic, 18.75% Legendary; +5% with the Furnace Core trait) and fires it as a blast wave: damage = 10–14 + 4 per point of heat drawn. Comes online above 15% heat; 6 s reload; reaches 3 mi. At 80 heat it hits for about 44 and cools the engine by 8.
 
 ### Tesla Coil
 2 slots (the coil and its battery pack), 2,600 lb, 7,000 LT. Flip the wheel capacitors on (V, or the Capacitors button): they cost 12% of top speed while on and charge 40 volts a mile (30% faster with Coil Wound), up to 400 V. Switch them off and the pack holds its charge. Fire any time from 25 V: it releases every volt for damage = 8 x (e^(volts/115) − 1): about 11 at 100 V, 38 at 200 V, 100 at 300 V, 250 at a full 400 V. Rarity scales the 8. 3 s reload; reaches 3.2 mi.
+
+## Licences, fuel-fired missiles, heavier fuel and the Wind Jet (Dean, 7 Nov)
+
+### Licences (replace rail reputation)
+Earned **only by miles driven** (every run counts its miles). Each one is a badge on the Fleet screen and the rail map, adds pay to every delivery, contract job, race and express leg, and opens more lines and expresses. Company reputation is untouched by them.
+
+| Licence | Miles | Pay | Opens |
+|---|---|---|---|
+| Apprentice | 0 | – | The heartland lines |
+| Fireman's Licence | 500 | +2% | The coasts and the Gulf; Gulf Coast Flyer |
+| Engineer's Licence | 2,000 | +4% | The mountains and the far south; Atlantic Express |
+| Road Foreman | 6,000 | +6% | The West Coast; Southwest Chief |
+| Master Engineer | 15,000 | +8% | Transcontinental |
+| Iron Legend | 35,000 | +10% | Coast to Coast |
+
+The receipt shows a banner when a run earns a new licence.
+
+### Every weapon is a give-and-take until Legendary
+- **Missiles burn fuel:** 2 gallons a missile, from the tender. No fuel, no missile. (Free during the guided first run.) The ammo box now only holds cannonballs.
+- **Fuel weighs twice as much:** 24 lb a gallon (was 12). Stocking extra fuel for missiles makes the train heavier.
+- Heat Cannon waits on engine heat; the Tesla Coil's capacitors cost top speed while charging; the Wind Jet's panels cost top speed while out.
+- **Legendary weapons pay half the drawback:** half the fuel a missile, half the Tesla capacitor drag.
+
+### Wind Jet
+1 slot, 1,400 lb, 4,500 LT. Open the panels (J): they cost 10% of top speed and take in wind as you go, 0.4 a mile per mph, up to 100. Faster trains fill it faster, so it scales late game. Use it from 25 wind, 4 s cooldown, either way:
+- **Wind boost (K):** top speed +20% for 2 s plus 8 s per full tank (2–10 s).
+- **Wind gust (L):** every rival within 1.5 mi slows by 25% for the same time.

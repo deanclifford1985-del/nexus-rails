@@ -12,6 +12,7 @@ import { fmt, gal, lt, ltWhole } from '../ui/format.js';
 import { CalendarCard } from '../ui/Calendar.jsx';
 import GameCard from '../ui/GameCard.jsx';
 import { StartChecklist } from '../ui/Intro.jsx';
+import { Licences } from '../ui/Licence.jsx';
 import { IS_NFT } from '../edition.js';
 
 const OUTCOME = {
@@ -33,6 +34,9 @@ export default function Yard() {
     <div className="stack">
       <StartChecklist />
       <CalendarCard />
+      <section className="plate">
+        <Licences conductor={conductor} />
+      </section>
       <div className="cols">
         <section className="paper licence">
           <div className="spread">

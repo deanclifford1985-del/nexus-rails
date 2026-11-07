@@ -109,6 +109,9 @@ export function weaponStats(entry) {
     chargePerMile: W.base[w.base].chargePerMile ?? 0,
     drag: W.base[w.base].drag ?? 0,
     minVolts: W.base[w.base].minVolts ?? 0,
+    // Every weapon gives something up to fire, until Legendary: a Legendary weapon pays half the price
+    // (half the fuel a missile, half the Tesla capacitors' drag).
+    drain: w.rarity === 'legendary' ? 0.5 : 1,
     // Boot-up: rarer weapons come online a little sooner.
     boot: { ...B.COMBAT.boot[w.base], mult: 1 / (1 + ({ uncommon: 0, rare: 0.1, epic: 0.2, legendary: 0.35 }[w.rarity] ?? 0)) },
   };

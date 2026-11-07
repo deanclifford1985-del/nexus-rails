@@ -15,7 +15,7 @@ import { fmt, lb } from '../ui/format.js';
 const M = B.MODULES;
 const ICON = { fuel: Fuel, ammo: Package, battery: Battery, engine: Cog, cannon: Crosshair, heavy: Crosshair, plasma: Sparkles, shield: Shield, radar1: Radar, radar2: Radar, sonar: Radar };
 const GROUPS = [
-  { label: 'Weapons', ids: ['launcher', 'cannon', 'heavy', 'heat', 'plasma', 'arc', 'tesla'] },
+  { label: 'Weapons', ids: ['launcher', 'cannon', 'heavy', 'heat', 'plasma', 'arc', 'tesla', 'windjet'] },
   { label: 'Shields and cooling', ids: ['shield', 'vent'] },
   { label: 'Sensors', ids: ['radar1', 'radar2', 'sonar'] },
   { label: 'Storage', ids: ['fuel', 'ammo', 'battery'] },
@@ -139,7 +139,7 @@ export default function Armory() {
           </div>
           <div className="stat">
             <span className="label">Ammo</span>
-            <b title="Ammo units: a cannonball takes 3, a missile 2">
+            <b title="Ammo units: a cannonball takes 3. Missiles burn fuel instead">
               {stats.ammo}
               <small>units</small>
             </b>
@@ -206,7 +206,7 @@ export default function Armory() {
           <ImpactPanel now={now} before={before} tow={stats.tow} />
         </div>
         <p className="small muted">
-          Fuel costs weight too: every gallon you load adds {B.LOCO.fuelLbPerGallon} lb. Ammo fired is restocked after each run: {fmt(B.ARMORY.roundPrice * 3, 1)} LT a cannonball, {fmt(B.ARMORY.roundPrice * 2)} LT a missile.
+          Fuel costs weight too: every gallon you load adds {B.LOCO.fuelLbPerGallon} lb. Cannonballs fired are restocked after each run at {fmt(B.ARMORY.roundPrice * 3, 1)} LT each. Missiles burn {B.COMBAT.launcher.cost} gallons of fuel apiece from your tank, so a launcher wants a bigger fuel load (and fuel is heavy).
         </p>
       </section>
 
