@@ -397,7 +397,7 @@ The 3D scene changes with the terrain (sky, ground, mountains, trees); floodwate
 - This week's jobs sit on open lines as pins (deliveries, contract jobs, open contracts, prize races). Tap a line for its jobs and terrain.
 
 ### Express runs
-- Five long hauls, run one leg at a time (legs of at most 240 miles, each a delivery of up to 5 containers): Gulf Coast Flyer (Dallas–Memphis, 150 rep), Atlantic Express (Boston–Miami, about 1,800 mi, 400), Southwest Chief (Chicago–Los Angeles, 800), Transcontinental (New York–San Francisco, 1,500), Coast to Coast (Seattle–Miami, 3,000+ mi, 2,500).
+- Five long hauls, run one leg at a time (legs of at most 240 miles, each a delivery of up to 5 containers): Gulf Coast Flyer (Dallas–Memphis, 1,080 mi, 6 legs, 150 rep), Atlantic Express (Boston–Miami, 1,860 mi, 10 legs, 400), Southwest Chief (Chicago–Los Angeles, 2,660 mi, 14 legs, 800), Transcontinental (New York–San Francisco, 3,220 mi, 16 legs, 1,500), Coast to Coast (Seattle–Miami, 3,770 mi, 20 legs, 2,500).
 - Each leg pays 1.2 LT a mile plus 2.6 LT a mile per container; a late leg pays half. Finishing every leg pays a bonus of 50% of everything the legs paid (20% if a leg ran late), 50% more XP, and +100 rail reputation. One express at a time; abandoning loses the bonus. A forfeited leg can be run again.
 
 ### Heat Cannon
