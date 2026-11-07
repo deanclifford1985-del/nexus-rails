@@ -21,6 +21,9 @@ const TABS = [
 const when = (at) => new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 function ledgerLabel(row) {
   if (row.type === 'grant') return row.note === 'welcome' ? 'Welcome gift' : `Admin award${row.note && row.note !== 'admin award' ? `: ${row.note}` : ''}`;
+  if (row.type === 'swap') return `Swapped ${row.note || 'LT'} for Nexus`;
+  if (row.type === 'cashout') return `Cash-out ${row.note || 'request'}`;
+  if (row.type === 'refund') return `Cash-out returned${row.note ? `: ${row.note}` : ''}`;
   if (row.type === 'trade') return `${row.nexus < 0 ? 'Sent to' : 'From'} ${row.other ?? 'a player'}${row.note ? ` · ${row.note}` : ''}`;
   return `${CRATE_TIERS[row.tier]?.name ?? 'Crate'}${row.picked ? ' (picked)' : ''}`;
 }
@@ -174,6 +177,7 @@ export function AdminPanel() {
   const [notes, setNotes] = useState({});
   const [open, setOpen] = useState(null);
   const [history, setHistory] = useState([]);
+  const [paid, setPaid] = useState(true);
   const load = (text = q) =>
     api(`/api/admin/players?q=${encodeURIComponent(text)}`)
       .then(setPlayers)
@@ -195,8 +199,8 @@ export function AdminPanel() {
     const amount = Math.round(Number(value) * 100) / 100;
     if (!(amount > 0)) return notify('Enter an amount above zero.', 'error');
     try {
-      const reply = await api('/api/admin/award', { playerId: p.id, amount, note: notes[p.id] ?? '' });
-      notify(`Awarded ${amount} Nexus to ${reply.player.name}.`, 'good');
+      const reply = await api('/api/admin/award', { playerId: p.id, amount, note: notes[p.id] ?? '', paid });
+      notify(`Awarded ${amount} ${paid ? 'paid' : 'gift'} Nexus to ${reply.player.name}.`, 'good');
       setAmounts((a) => ({ ...a, [p.id]: '' }));
       load();
       if (open === p.id) setHistory(await api(`/api/admin/ledger/${encodeURIComponent(p.id)}`));
@@ -211,6 +215,19 @@ export function AdminPanel() {
         <span className="chip">{players ? players.length : '…'} shown</span>
       </div>
       <input className="field" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by player name or email" aria-label="Search players" />
+      <div className="seg" role="group" aria-label="Awards count as">
+        <button type="button" aria-pressed={paid} onClick={() => setPaid(true)}>
+          Paid buy-in ($1 each)
+        </button>
+        <button type="button" aria-pressed={!paid} onClick={() => setPaid(false)}>
+          Gift (crates only)
+        </button>
+      </div>
+      <p className="small muted">
+        {paid
+          ? 'Paid Nexus: the player gave you $1 for each. They can spend, send or cash them out, and 85% of what they spend on crates goes into the treasury.'
+          : "Gift Nexus: free. Spendable on crates only (can't be sent or cashed out), and they add nothing to the treasury."}
+      </p>
       <div className="admin-list">
         {(players ?? []).map((p) => (
           <article className="admin-row" key={p.id}>

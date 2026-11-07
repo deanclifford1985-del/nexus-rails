@@ -171,6 +171,87 @@ export function GameProvider({ children }) {
     };
   }, [signedIn, notify]);
 
+  // Nexus Rail: every LT a Captain earns comes out of the treasury pool, and every LT spent goes
+  // back into it. The save remembers how much the server knows about (ltSynced); a second after
+  // the balance changes, the difference is reported. If the pool is low the server pays part of
+  // an earning, and the save's LT drop to match.
+  const syncingLt = useRef(null);
+  const [treasuryFunded, setTreasuryFunded] = useState(true);
+  const syncLt = useCallback(() => {
+    if (!IS_NFT || syncingLt.current) return syncingLt.current ?? Promise.resolve();
+    const current = savesRef.current;
+    const save = current.active !== null ? current.slots[current.active] : null;
+    if (!save) return Promise.resolve();
+    const delta = Math.round(((save.lt ?? 0) - (save.ltSynced ?? 0)) * 10) / 10;
+    if (Math.abs(delta) < 0.1) return Promise.resolve();
+    const saveId = save.createdAt;
+    const run = api('/api/lt/sync', { delta, reason: delta > 0 ? 'earned' : 'spent' })
+      .then((reply) => {
+        setTreasuryFunded(!reply.unfunded);
+        if (reply.unfunded) return;
+        const latest = savesRef.current;
+        const index = latest.slots.findIndex((slot) => slot?.createdAt === saveId);
+        if (index < 0) return;
+        const next = structuredClone(latest.slots[index]);
+        next.ltSynced = Math.round(((next.ltSynced ?? 0) + reply.granted) * 10) / 10;
+        if (delta > 0 && reply.granted < delta - 0.05) {
+          const short = Math.round((delta - reply.granted) * 10) / 10;
+          next.lt = Math.round((next.lt - short) * 10) / 10;
+          notify(`The treasury pool is running low: ${Math.round((reply.granted / delta) * 100)}% paid (${reply.granted.toLocaleString()} of ${delta.toLocaleString()} LT).`, 'error');
+        }
+        const slots = latest.slots.slice();
+        slots[index] = next;
+        commit({ slots, active: latest.active });
+      })
+      .catch(() => {})
+      .finally(() => {
+        syncingLt.current = null;
+      });
+    syncingLt.current = run;
+    return run;
+  }, [commit, notify]);
+  useEffect(() => {
+    if (!IS_NFT || !signedIn) return undefined;
+    const save = saves.active !== null ? saves.slots[saves.active] : null;
+    if (!save || Math.abs((save.lt ?? 0) - (save.ltSynced ?? 0)) < 0.1) return undefined;
+    const timer = window.setTimeout(syncLt, 1000);
+    return () => window.clearTimeout(timer);
+  }, [saves, signedIn, syncLt, treasuryFunded]);
+  // While the treasury is unfunded, earnings wait; try again every 20 seconds.
+  useEffect(() => {
+    if (!IS_NFT || !signedIn || treasuryFunded) return undefined;
+    const timer = window.setInterval(syncLt, 20000);
+    return () => window.clearInterval(timer);
+  }, [signedIn, treasuryFunded, syncLt]);
+
+  // Swap the active Captain's LT for Nexus at today's price.
+  const swapLt = useCallback(
+    async (lt) => {
+      await syncLt();
+      const current = savesRef.current;
+      const save = current.active !== null ? current.slots[current.active] : null;
+      if (!save) return null;
+      if (lt > (save.lt ?? 0) + 0.01) {
+        notify(`${save.name} has ${(save.lt ?? 0).toLocaleString()} LT.`, 'error');
+        return null;
+      }
+      const reply = await bank('/api/treasury/swap', { lt });
+      if (!reply) return null;
+      const latest = savesRef.current;
+      const index = latest.slots.findIndex((slot) => slot?.createdAt === save.createdAt);
+      if (index >= 0) {
+        const next = structuredClone(latest.slots[index]);
+        next.lt = Math.round((next.lt - reply.lt) * 10) / 10;
+        next.ltSynced = Math.round(((next.ltSynced ?? 0) - reply.lt) * 10) / 10;
+        const slots = latest.slots.slice();
+        slots[index] = next;
+        commit({ slots, active: latest.active });
+      }
+      return reply;
+    },
+    [bank, commit, notify, syncLt],
+  );
+
   // Open a crate; returns the NFT.
   const openCrateFor = useCallback(
     async ({ tier, pickId = null }) => {
@@ -234,8 +315,8 @@ export function GameProvider({ children }) {
   );
 
   const value = useMemo(
-    () => ({ saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor, deployCrate }),
-    [saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor, deployCrate],
+    () => ({ saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor, deployCrate, syncLt, swapLt, treasuryFunded }),
+    [saves, conductor, screen, toasts, go, act, notify, createSave, loadSlot, deleteSlot, vault, deploy, account, bank, startSession, refreshVault, openCrateFor, deployCrate, syncLt, swapLt, treasuryFunded],
   );
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }

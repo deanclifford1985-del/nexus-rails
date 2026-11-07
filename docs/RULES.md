@@ -340,3 +340,25 @@ Every crate holds one locomotive and one conductor, so no Captain ends up with a
 - Each half is its own NFT (crate id + "-T" and "-C") and can be kept or sent on its own. "Send both" sends the pair; the crate's conductor drives the crate's locomotive, except that on the locomotive already on the main line the higher-rated conductor keeps the controls.
 - The 10 welcome Nexus buys a Basic crate: a new Captain's first crate gets them a train and a driver.
 - Crates opened before this change keep their single NFTs.
+
+## Tokenomics and the Treasury (Dean, 7 Nov)
+
+Real dollars back every LocoToken (LT). Every number lives in `src/game/treasury.js`.
+
+| Rule | As built |
+|---|---|
+| Nexus | 1 Nexus = $1. Admin awards are either **paid** (a buy-in: the player gave $1 a Nexus) or **gift** (free). The 10 welcome Nexus are gift. Gift Nexus only buy crates; paid Nexus can also be sent to players and cashed out. Crates spend gift Nexus first. |
+| Money into the treasury | Dean's deposits (100%), and 85% of every paid Nexus spent on crates. The other 15% is the house share. Gift Nexus add nothing. |
+| LT price | Dollars in the treasury ÷ all LT in existence (the pool plus what players hold). Starts at $0.0001 (10,000 LT = $1), so Dean's $100 seed releases 1,000,000 LT into the pool. |
+| Money in | New LT are released into the pool at today's price, so the price never moves on a deposit or crate sale. |
+| Earning and spending | Every LT a Captain earns (jobs, contracts, prize races, the starting 500, unused rerolls, station sales) comes out of the pool; every LT spent (fuel, upgrades, research, the station) goes back into it. The game reports each Captain's LT change to the server about a second after it happens. |
+| Low pool | Once the pool is under 10% of all LT, payouts shrink in step (never below 25%), so the pool can't run dry. The game shows a toast when an earning is cut. |
+| Before the first deposit | Earnings wait in the save and are counted once the treasury opens. |
+| Swap LT for Nexus | At today's price; Nexus are whole cents, so only the LT those cents are worth are used. The dollars behind them leave the treasury with the Nexus (paid Nexus), and the LT go on hold. They come back into the pool first when the next money comes in. The price doesn't move. |
+| Cash out | Paid Nexus only, at least 1. The Nexus leave the balance at once; the admin pays in person and marks the request paid, or turns it down and the Nexus come back. |
+| Treasury screen | Everyone: money available to earn, 1 LT in dollars, the pool (with the 10% line), LT held, LT on hold, money in (deposits and crates), house share, swapped and cashed out, recent activity. You: your Captain's LT and its value, your Nexus (paid and gift), LT earned this week, month, year and all time (last 7, 30 and 365 days, all Captains, valued at today's price), swap, cash-out and your requests. |
+| Admin | On the Treasury screen and /#admin: deposit dollars, and the cash-out queue ("I paid this" or "Turn down"). Awards choose Paid buy-in or Gift. |
+| Existing players | When the treasury first opens, each existing player's first 10 Nexus are marked as gift (the welcome). |
+| Trust | The game reports LT from the browser, so a player who edits their save could report LT they didn't earn. Fine for the friends test; server-checked races are the fix before real stakes. |
+
+What an hour is worth at the start: a new Captain nets about 2,000 LT an hour on simple jobs after fuel (about $0.20 at 10,000 LT = $1); company jobs pay 2,000 to 13,000 LT each later on.

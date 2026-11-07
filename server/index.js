@@ -123,7 +123,14 @@ export async function createApp({ repo = null, authMode = null } = {}) {
   app.post('/api/send', route((who, req) => bank.send(repo, who.id, { to: req.body?.to, amount: req.body?.amount, note: req.body?.note ?? '' })));
   app.get('/api/players', route((who, req) => bank.findPlayers(repo, req.query.q)));
   app.get('/api/admin/players', route((who, req) => bank.adminPlayers(repo, { q: req.query.q ?? '' }), { admin: true }));
-  app.post('/api/admin/award', route((who, req) => bank.adminAward(repo, who.id, { playerId: req.body?.playerId, amount: req.body?.amount, note: req.body?.note ?? '' }), { admin: true }));
+  app.post('/api/admin/award', route((who, req) => bank.adminAward(repo, who.id, { playerId: req.body?.playerId, amount: req.body?.amount, note: req.body?.note ?? '', paid: req.body?.paid !== false }), { admin: true }));
+  app.get('/api/treasury', route((who) => bank.treasury(repo, who.id)));
+  app.post('/api/lt/sync', route((who, req) => bank.syncLt(repo, who.id, { delta: req.body?.delta, reason: req.body?.reason ?? '' })));
+  app.post('/api/treasury/swap', route((who, req) => bank.swapLt(repo, who.id, { lt: req.body?.lt })));
+  app.post('/api/treasury/cashout', route((who, req) => bank.requestCashout(repo, who.id, { nexus: req.body?.nexus })));
+  app.post('/api/admin/deposit', route((who, req) => bank.adminDeposit(repo, who.id, { usd: req.body?.usd, note: req.body?.note ?? '' }), { admin: true }));
+  app.get('/api/admin/cashouts', route((who, req) => bank.adminCashouts(repo, { status: req.query.status ?? null }), { admin: true }));
+  app.post('/api/admin/cashouts/:id', route((who, req) => bank.adminDecideCashout(repo, who.id, { cashoutId: req.params.id, action: req.body?.action }), { admin: true }));
   app.get('/api/admin/ledger/:id', route((who, req) => bank.adminLedger(repo, req.params.id), { admin: true }));
   app.use('/api', (req, res) => res.status(404).json({ error: 'No such API.' }));
 

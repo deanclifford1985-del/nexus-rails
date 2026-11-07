@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, ClipboardList, Coins, Crown, FlaskConical, Fuel, Gem, Home, Shield, Store, TrainFront, Wrench } from 'lucide-react';
+import { Landmark, Box, ClipboardList, Coins, Crown, FlaskConical, Fuel, Gem, Home, Shield, Store, TrainFront, Wrench } from 'lucide-react';
 import { IS_NFT } from '../edition.js';
 import { pointsLeft } from '../game/captain.js';
 import { useGame } from '../state/store.jsx';
@@ -26,6 +26,7 @@ const NAV = [
           items: [
             { id: 'talents', label: 'Captain', icon: Crown },
             { id: 'crates', label: 'Crates', icon: Box },
+            { id: 'treasury', label: 'Treasury', icon: Landmark },
           ],
         },
       ]
