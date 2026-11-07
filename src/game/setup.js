@@ -8,6 +8,7 @@ import { phoenixForSale } from './economy.js';
 import { planTrip } from './race.js';
 import { traitPower } from './traits.js';
 import { estimateBand } from './estimate.js';
+import { expressJob } from './routemap.js';
 
 // A "run" is anything that ends on the race screen. Its context is a small object:
 //   { kind: 'test' }                              the first run against Benchmark
@@ -24,6 +25,7 @@ export function findRun(conductor, ctx) {
   if (ctx.kind === 'company') return board?.company[ctx.companyId]?.find((job) => job.id === ctx.jobId) ?? null;
   if (ctx.kind === 'contract') return board?.contracts.find((contract) => contract.id === ctx.contractId) ?? null;
   if (ctx.kind === 'race') return board?.races?.find((race) => race.id === ctx.raceId) ?? null;
+  if (ctx.kind === 'express') return expressJob(conductor);
   return null;
 }
 

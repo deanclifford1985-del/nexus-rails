@@ -1350,3 +1350,62 @@ describe('Nexus Rail welcome', () => {
     expect(v.nexus).toBe(0);
   });
 });
+
+describe('the rail map and express runs', () => {
+  it('joins real cities with lines; the far lines open with rail reputation', async () => {
+    const M = await import('../src/game/routemap.js');
+    expect(M.LINES.length).toBeGreaterThan(25);
+    for (const line of M.LINES) {
+      expect(M.CITIES[line.a] && M.CITIES[line.b]).toBeTruthy();
+      expect(line.miles).toBeGreaterThan(150);
+      expect(line.miles).toBeLessThan(1100);
+    }
+    // Every express runs along real lines, Boston to Miami among them.
+    for (const x of M.EXPRESSES) expect(M.expressLines(x).every(Boolean)).toBe(true);
+    const atlantic = M.expressById('atlantic');
+    expect(M.expressMiles(atlantic)).toBeGreaterThan(1500);
+    expect(M.expressMiles(M.expressById('coast'))).toBeGreaterThan(3000);
+    const c = newConductor();
+    expect(M.railRep(c)).toBe(0);
+    expect(M.lineOpen(c, M.lineById('chicago-stlouis'))).toBe(true);
+    expect(M.lineOpen(c, M.lineById('phoenix-losangeles'))).toBe(false);
+    // This week's jobs sit on open lines, with the line's terrain.
+    actions.refreshWorld(c, { now: NOW });
+    for (const job of c.board.simple) {
+      const line = M.lineById(job.line);
+      expect(line.rep).toBe(0);
+      expect(job.theme).toBe(line.terrain);
+    }
+  });
+
+  it('runs an express a leg at a time and pays the bonus at the end', async () => {
+    const M = await import('../src/game/routemap.js');
+    const c = newConductor();
+    c.lt = 50000;
+    expect(() => actions.startExpress(c, { id: 'gulf' })).toThrow(/rail reputation/);
+    c.railRep = 200;
+    actions.startExpress(c, { id: 'gulf' });
+    const run = c.express;
+    expect(run.legs.length).toBeGreaterThanOrEqual(4);
+    for (const leg of run.legs) expect(leg.distance).toBeLessThanOrEqual(B.EXPRESS.legMiles);
+    expect(run.legs[0].from).toBe('Dallas');
+    expect(run.legs.at(-1).to).toBe('Memphis');
+    expect(() => actions.startExpress(c, { id: 'gulf' })).toThrow(/current express/);
+    const ctx = { kind: 'express' };
+    let total = 0;
+    let receipt;
+    for (let i = 0; i < run.legs.length; i++) {
+      const plan = describeRun(c, ctx);
+      expect(plan.course.theme).toBe(run.legs[i].theme);
+      const result = { kind: 'express', reason: 'finished', finished: true, place: 1, field: 1, distance: plan.distance, underLimitPct: 0, fuelLoaded: 0, fuelUsed: 0, fuelLeft: 0, emergencyGallons: 0, emergencyCost: 0, towUse: plan.towUse };
+      receipt = actions.settleRun(c, { ctx, result, now: NOW });
+      total += receipt.lines[0].lt;
+    }
+    expect(c.express).toBeNull();
+    expect(receipt.expressDone).toBe('Gulf Coast Flyer');
+    const bonus = receipt.lines.find((l) => l.label.startsWith('Gulf Coast Flyer complete'));
+    expect(bonus.lt).toBe(Math.floor(total * B.EXPRESS.bonus));
+    expect(c.expressDone.gulf).toBe(1);
+    expect(M.railRep(c)).toBe(200 + run.legs.length * B.EXPRESS.rep.leg + B.EXPRESS.rep.finish);
+  });
+});

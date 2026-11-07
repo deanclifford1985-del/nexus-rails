@@ -74,7 +74,7 @@ function rollMiles(rng) {
 
 // Obstacles: harder jobs have more of them, and bigger. Each is { at: miles, size }.
 const SIZE_IDS = ['debris', 'boulder', 'large', 'giant'];
-function rollHazard(rng, distance) {
+export function rollHazard(rng, distance) {
   const H = B.HAZARD;
   if (distance < H.minMiles) return { hazard: 0, boulders: [] };
   const hazard = weightedPick(rng, [0, 1, 2, 3], (level) => H.chance[level]);

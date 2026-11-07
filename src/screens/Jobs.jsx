@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Award, Clock, FileSignature, Flag, Lock, Mountain, Package, PartyPopper, Trophy, Truck } from 'lucide-react';
+import { Award, Clock, FileSignature, Flag, Lock, Map as MapIcon, Mountain, Package, PartyPopper, TrainFront, Trophy, Truck } from 'lucide-react';
+import RouteMap from '../ui/RouteMap.jsx';
+import { expressById, lineById } from '../game/routemap.js';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import { activeLoco, avgFuelCost } from '../game/conductor.js';
@@ -15,6 +17,7 @@ import { estimateBand, estimateRange } from '../game/estimate.js';
 import { festivalInfo, fmtSpan } from '../game/calendar.js';
 
 const TABS = [
+  { id: 'map', label: 'Rail map', icon: MapIcon },
   { id: 'deliveries', label: 'Deliveries', icon: Truck },
   { id: 'contracts', label: 'Contracts', icon: FileSignature },
   { id: 'races', label: 'Races', icon: Trophy },
@@ -188,6 +191,24 @@ export default function Jobs() {
         ))}
       </div>
 
+      {conductor.express && main !== 'map' ? (
+        <div className="express-banner">
+          <TrainFront aria-hidden="true" />
+          <span className="grow">
+            <b>{expressById(conductor.express.id)?.name}</b> under way: leg {conductor.express.leg + 1} of {conductor.express.legs.length}, {conductor.express.legs[conductor.express.leg].from} to {conductor.express.legs[conductor.express.leg].to}
+          </span>
+          <button type="button" className="btn btn-sm btn-brass" onClick={() => go('setup', { ctx: { kind: 'express' } })}>
+            Run leg {conductor.express.leg + 1}
+          </button>
+        </div>
+      ) : null}
+
+      {main === 'map' ? (
+        <section className="stack" role="tabpanel">
+          <RouteMap />
+        </section>
+      ) : null}
+
       {main === 'deliveries' ? (
         <section className="stack" role="tabpanel">
           <p className="muted">Haul freight on the open board. Paid per container you pull; get it there inside the time limit.</p>
@@ -206,6 +227,7 @@ export default function Jobs() {
                   </div>
                   <span className="muted">
                     {job.from} to {job.to}, <b>{job.distance} miles</b> · <Terrain id={job.id} distance={job.distance} theme={job.theme} />
+                    {job.line && lineById(job.line) ? <span className="small"> · {lineById(job.line).name} line</span> : null}
                   </span>
                   <Load job={job} stats={stats} owned={owned} />
                   <MixLine job={job} />

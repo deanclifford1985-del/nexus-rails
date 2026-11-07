@@ -1,4 +1,5 @@
 import { B } from './balance.js';
+import { expressById, expressLegs, placeJobs, railRep } from './routemap.js';
 import { makeRng, randRange } from './rng.js';
 import { traitPower } from './traits.js';
 import { activeLoco, addXp, avgFuelCost } from './conductor.js';
@@ -11,6 +12,7 @@ import {
   generateContract,
   generateRace,
   generateSimpleJob,
+  rollHazard,
   jobPay,
   jobXp,
   starsFor,
@@ -95,6 +97,7 @@ export function refreshWorld(conductor, { now }) {
     if (conductor.depot.week !== week) conductor.depot = { week, bought: 0 };
     if (!conductor.station.stock.length || conductor.station.week !== week) conductor.station = { stock: generateStationStock(rng), week };
     fillCompanyJobs(rng, conductor);
+    placeJobs(conductor, rng);
     const done = conductor.research.justDone;
     if (done) delete conductor.research.justDone;
     return { researchDone: done ?? null };
@@ -550,6 +553,7 @@ export function settleRun(conductor, { ctx, result, now }) {
           add(`Early by ${Math.round(result.underLimitPct)}%`, Math.floor((base * pct) / 100));
         }
         xp = jobXp(job, haul);
+        conductor.railRep = (conductor.railRep ?? 0) + B.EXPRESS.rep.delivery;
       } else if (!forfeit) {
         xp = Math.floor(jobXp(job, haul) * J.lateXpShare);
       }
@@ -580,6 +584,7 @@ export function settleRun(conductor, { ctx, result, now }) {
         record.jobs += 1;
         conductor.companies[ctx.companyId] = record;
         receipt.reputation = gainReputation(conductor, ctx.companyId, J.reputation.companyJob);
+        conductor.railRep = (conductor.railRep ?? 0) + B.EXPRESS.rep.companyJob;
         xp = jobXp(job, haul);
         conductor.board.company[ctx.companyId] = conductor.board.company[ctx.companyId].filter((item) => item.id !== job.id);
       } else if (!forfeit) {
@@ -649,15 +654,44 @@ export function settleRun(conductor, { ctx, result, now }) {
       }
     }
 
+    // Express legs: pay for the leg; the last leg pays the bonus for the whole run.
+    if (ctx.kind === 'express' && job && conductor.express) {
+      const X = B.EXPRESS;
+      const run = conductor.express;
+      const express = expressById(run.id);
+      receipt.title = job.title;
+      receipt.outcome = forfeit ? 'forfeit' : arrived ? 'delivered' : 'late';
+      if (!forfeit) {
+        const base = jobPay(job, haul);
+        const legPay = arrived ? base : Math.floor(base * X.latePay);
+        add(arrived ? `Leg ${run.leg + 1}: ${haul} container${haul === 1 ? '' : 's'} delivered` : `Leg ${run.leg + 1} (late, half pay)`, legPay);
+        xp = arrived ? jobXp(job, haul) : Math.floor(jobXp(job, haul) * J.lateXpShare);
+        run.paid = Math.round((run.paid + legPay) * 10) / 10;
+        run.late = run.late || !arrived;
+        run.leg += 1;
+        conductor.railRep = (conductor.railRep ?? 0) + X.rep.leg;
+        if (run.leg >= run.legs.length) {
+          const bonus = Math.floor(run.paid * (run.late ? X.lateBonus : X.bonus));
+          add(`${express.name} complete${run.late ? ' (a leg ran late)' : ''}`, bonus);
+          xp = Math.floor(xp * (1 + X.xpBonus)) + run.legs.length * 50;
+          conductor.railRep += X.rep.finish;
+          conductor.expressDone = { ...(conductor.expressDone ?? {}), [run.id]: (conductor.expressDone?.[run.id] ?? 0) + 1 };
+          receipt.expressDone = express.name;
+          conductor.express = null;
+        } else receipt.expressNext = run.leg + 1;
+      }
+    }
+
     // Captain talents (NFT edition): Business pay, contract-job pay and the Rail Magnate purse.
     if (conductor.captain && !forfeit) {
       const earned = receipt.payout;
       const pay = talent(conductor, 'pay') + (ctx.kind === 'company' ? talent(conductor, 'contractPay') : 0);
-      if (earned > 0 && pay > 0 && ['delivery', 'company', 'race'].includes(ctx.kind)) add('Captain: Business', Math.floor(earned * pay));
+      if (earned > 0 && pay > 0 && ['delivery', 'company', 'race', 'express'].includes(ctx.kind)) add('Captain: Business', Math.floor(earned * pay));
       if (ctx.kind === 'contract' && job && talent(conductor, 'magnate') > 0) add('Captain: Rail Magnate purse', Math.round(job.distance * 25));
     }
 
     fillCompanyJobs(rng, conductor);
+    placeJobs(conductor, rng);
 
     // Knocking rivals off the rails, and clearing boulders, are worth a little experience of their own.
     if (!forfeit && result.rivalsDerailed) xp += result.rivalsDerailed * B.COMBAT.derailXp;
@@ -703,4 +737,24 @@ export function settleRun(conductor, { ctx, result, now }) {
     conductor.lastSeen = now;
     return receipt;
   });
+}
+
+// ---------- Express runs on the rail map ----------
+
+export function startExpress(conductor, { id }) {
+  const express = expressById(id);
+  if (!express) throw new GameError('No such express.');
+  if (conductor.express) throw new GameError('Finish or abandon your current express first.');
+  if (railRep(conductor) < express.rep) throw new GameError(`The ${express.name} needs ${express.rep} rail reputation.`);
+  return withRng(conductor, (rng) => {
+    const legs = expressLegs(express, rng).map((leg) => ({ ...leg, ...rollHazard(rng, leg.distance) }));
+    conductor.express = { id, legs, leg: 0, paid: 0, late: false, startedAt: conductor.clock ?? 0 };
+    return { legs: legs.length };
+  });
+}
+
+export function abandonExpress(conductor) {
+  if (!conductor.express) throw new GameError('No express under way.');
+  conductor.express = null;
+  return {};
 }

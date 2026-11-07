@@ -422,6 +422,23 @@ export const B = {
     advanceGallons: 60,
   },
 
+  // Express runs on the rail map: long hauls city to city, a leg at a time. Legs pay like a
+  // well-paid delivery; finishing every leg pays a bonus of `bonus` x everything the legs paid
+  // (`lateBonus` if any leg ran late). Rail reputation opens the map's lines and expresses.
+  EXPRESS: {
+    legMiles: 240,
+    containers: 5,
+    containerLb: [2000, 5000],
+    feePerMile: 1.2,
+    perContainerPerMile: 2.6,
+    timeLimit: 1,
+    bonus: 0.5,
+    lateBonus: 0.2,
+    latePay: 0.5,
+    xpBonus: 0.5,
+    rep: { delivery: 10, companyJob: 15, leg: 15, finish: 100 },
+  },
+
   // Weapons and spells. In play wherever there are rivals (not the test drive) or boulders. Times are real seconds.
   COMBAT: {
     hullBase: 350, // HP = hullBase + hullPerDurability x Durability

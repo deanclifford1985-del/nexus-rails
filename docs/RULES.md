@@ -376,3 +376,32 @@ What an hour is worth at the start: a new Captain nets about 2,000 LT an hour on
 - **Intro:** four skippable cards right after sign-in, once per account on each device. 1) Welcome, Captain (earn LT, backed by real money). 2) Your first crate is on us (10 Nexus = a Basic Crate: a locomotive and a conductor; "Take me to the Crates"). 3) Getting more Nexus (the Venmo steps, with the player's name and a Copy button, and an Open Venmo button). 4) The Treasury. "Show the intro again" on the Treasury tab and the checklist.
 - **Getting started checklist** on Fleet (and the no-locomotive screen) until hidden: open your first crate, send the train and conductor to your Captain, run your first race or job, visit the Treasury. Each step links to where it's done and ticks itself off.
 - **Treasury tab:** a "Get more Nexus" panel with the same Venmo steps.
+
+## Terrain, the rail map, express runs and two new weapons (Dean, 7 Nov)
+
+### Terrain
+Every course has a terrain, picked from its seed (the first run and the test drive are always plains). Jobs on the rail map take their line's terrain. Shown on job cards and the setup screen.
+
+| Terrain | Chance | Effect |
+|---|---|---|
+| Green Plains | 40% | none |
+| Flooded Plains | 20% | The middle third is under water, deep enough to cover the rails but not the train. Top speed falls by 50% x (1 − resist); resist = torque per ton x 0.0004 + Agility grip x 0.8, at most 75%. Pulling away takes 60% longer, fuel burns 35% more, +0.5 heat a mile. A typical starter loses about 20–30%; a high-torque, high-Agility train about 12%. |
+| Scorched Desert | 22% | Engine heat builds 35% faster and sheds 25% slower. |
+| Frozen Pass | 18% | Icy rails: bend speed limits 12% lower x (1 − Agility grip); pulling away 15% slower; engines shed heat 30% faster. |
+
+The 3D scene changes with the terrain (sky, ground, mountains, trees); floodwater sits over the line with spray off the wheels, and a banner warns of floodwater ahead with the speed it will cost.
+
+### Rail map (Dispatch → Rail map)
+- 25 real cities and 30 rail lines across the lower 48, each line with its terrain. Lines open with **rail reputation**: the heartland at 0, the coasts and the Gulf at 150, the mountains and the far south at 400, the West Coast at 800.
+- Rail reputation = your company reputation (all companies) plus map reputation: +10 a delivery, +15 a contract job, +15 an express leg, +100 an express finished.
+- This week's jobs sit on open lines as pins (deliveries, contract jobs, open contracts, prize races). Tap a line for its jobs and terrain.
+
+### Express runs
+- Five long hauls, run one leg at a time (legs of at most 240 miles, each a delivery of up to 5 containers): Gulf Coast Flyer (Dallas–Memphis, 150 rep), Atlantic Express (Boston–Miami, about 1,800 mi, 400), Southwest Chief (Chicago–Los Angeles, 800), Transcontinental (New York–San Francisco, 1,500), Coast to Coast (Seattle–Miami, 3,000+ mi, 2,500).
+- Each leg pays 1.2 LT a mile plus 2.6 LT a mile per container; a late leg pays half. Finishing every leg pays a bonus of 50% of everything the legs paid (20% if a leg ran late), 50% more XP, and +100 rail reputation. One express at a time; abandoning loses the bonus. A forfeited leg can be run again.
+
+### Heat Cannon
+1 slot, 2,000 lb, 3,500 LT. Each shot draws off 10% of the engine's heat (12.5% Rare, 15% Epic, 18.75% Legendary; +5% with the Furnace Core trait) and fires it as a blast wave: damage = 10–14 + 4 per point of heat drawn. Comes online above 15% heat; 6 s reload; reaches 3 mi. At 80 heat it hits for about 44 and cools the engine by 8.
+
+### Tesla Coil
+2 slots (the coil and its battery pack), 2,600 lb, 7,000 LT. Flip the wheel capacitors on (V, or the Capacitors button): they cost 12% of top speed while on and charge 40 volts a mile (30% faster with Coil Wound), up to 400 V. Switch them off and the pack holds its charge. Fire any time from 25 V: it releases every volt for damage = 8 x (e^(volts/115) − 1): about 11 at 100 V, 38 at 200 V, 100 at 300 V, 250 at a full 400 V. Rarity scales the 8. 3 s reload; reaches 3.2 mi.
