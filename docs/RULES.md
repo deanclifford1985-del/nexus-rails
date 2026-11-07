@@ -369,3 +369,10 @@ What an hour is worth at the start: a new Captain nets about 2,000 LT an hour on
 - **Live feel:** treasury numbers count up when they appear and flash when they rise. Every 20 seconds the game looks for new money in, and every signed-in player gets a pop-up like "boss opened a Rare Crate: +$17.00 to the treasury!" or "$100.00 just landed in the treasury!" (7 seconds, at most two at a time; never during a race).
 - **Leaderboard:** top 10 earners this week, this month and all time, ranked by the dollar value (today's price) of the LT they earned from jobs, contracts and races. Medals for the top 3; your own row is highlighted.
 - **Treasury growth chart:** the treasury's dollars over time (deposits and crate shares add, swaps take away), with a tap-or-hover readout of the amount at any point.
+
+## First-time intro and buying Nexus (Dean, 7 Nov)
+
+- **Buying Nexus:** Venmo only, to @GambitGaming (https://venmo.com/u/GambitGaming). 1 Nexus = $1. Players put their player name in the Venmo note; the admin then awards that many **paid** Nexus. Set in `TREASURY.venmo` in `src/game/treasury.js`.
+- **Intro:** four skippable cards right after sign-in, once per account on each device. 1) Welcome, Captain (earn LT, backed by real money). 2) Your first crate is on us (10 Nexus = a Basic Crate: a locomotive and a conductor; "Take me to the Crates"). 3) Getting more Nexus (the Venmo steps, with the player's name and a Copy button, and an Open Venmo button). 4) The Treasury. "Show the intro again" on the Treasury tab and the checklist.
+- **Getting started checklist** on Fleet (and the no-locomotive screen) until hidden: open your first crate, send the train and conductor to your Captain, run your first race or job, visit the Treasury. Each step links to where it's done and ticks itself off.
+- **Treasury tab:** a "Get more Nexus" panel with the same Venmo steps.

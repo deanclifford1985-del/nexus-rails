@@ -11,6 +11,7 @@ import { CoreStats, LocoStats } from '../ui/LocoStats.jsx';
 import { fmt, gal, lt, ltWhole } from '../ui/format.js';
 import { CalendarCard } from '../ui/Calendar.jsx';
 import GameCard from '../ui/GameCard.jsx';
+import { StartChecklist } from '../ui/Intro.jsx';
 import { IS_NFT } from '../edition.js';
 
 const OUTCOME = {
@@ -30,6 +31,7 @@ export default function Yard() {
 
   return (
     <div className="stack">
+      <StartChecklist />
       <CalendarCard />
       <div className="cols">
         <section className="paper licence">

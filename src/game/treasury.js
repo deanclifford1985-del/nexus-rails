@@ -21,6 +21,8 @@ export const TREASURY = {
   minRate: 0.25, // ... but never below 25%
   maxSync: 100000, // the most LT one sync can report
   minCashout: 1, // Nexus
+  // How players buy Nexus: Venmo, with their player name in the note; the admin then awards paid Nexus.
+  venmo: { handle: 'GambitGaming', url: 'https://venmo.com/u/GambitGaming' },
 };
 
 const cents = (n) => Math.round(n * 100) / 100;

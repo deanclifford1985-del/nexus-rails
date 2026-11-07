@@ -7,6 +7,7 @@ import { fmt, lt as ltFmt } from '../ui/format.js';
 import CountUp from '../ui/CountUp.jsx';
 import TreasuryChart from '../ui/TreasuryChart.jsx';
 import { Leaderboard, usd } from '../ui/TreasuryBits.jsx';
+import { VenmoSteps, markTreasuryVisited, showIntro } from '../ui/Intro.jsx';
 
 // The LocoToken treasury: what backs every LT, what one LT is worth, what you've earned, and where
 // you swap LT for Nexus and ask to cash Nexus out.
@@ -41,6 +42,7 @@ export default function Treasury() {
       notify(e.message, 'error');
     }
   }, [notify, syncLt]);
+  useEffect(() => markTreasuryVisited(), []);
   useEffect(() => {
     load();
     const timer = setInterval(load, 15000);
@@ -182,6 +184,18 @@ export default function Treasury() {
           ))}
         </div>
         <p className="small muted">LT earned from jobs, contracts and races (all your Captains), valued at today's price. Week, month and year are the last 7, 30 and 365 days.</p>
+      </section>
+
+      <section className="plate stack-sm" aria-labelledby="tr-buy">
+        <div className="plate-head">
+          <h2 id="tr-buy">
+            <Gem aria-hidden="true" /> Get more Nexus
+          </h2>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={showIntro}>
+            Show the intro again
+          </button>
+        </div>
+        <VenmoSteps name={account?.player?.name} />
       </section>
 
       <div className="cols">

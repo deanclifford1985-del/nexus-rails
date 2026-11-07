@@ -17,6 +17,7 @@ import Festival from './screens/Festival.jsx';
 import Talents from './screens/Talents.jsx';
 import Crates, { AdminPanel } from './screens/Crates.jsx';
 import Treasury, { TreasuryAdmin } from './screens/Treasury.jsx';
+import { Intro, StartChecklist } from './ui/Intro.jsx';
 import { IS_NFT } from './edition.js';
 
 // Screens that fill the window on their own, without the top bar and tabs.
@@ -30,7 +31,9 @@ const NO_TRAIN_OK = ['crates', 'talents', 'treasury'];
 function NoTrain() {
   const { go } = useGame();
   return (
-    <div className="plate riveted stack" style={{ maxWidth: 560, margin: '40px auto' }}>
+    <div className="stack" style={{ maxWidth: 560, margin: '24px auto' }}>
+    <StartChecklist />
+    <div className="plate riveted stack">
       <h1>
         No locomotive <span className="hl-purple">yet</span>
       </h1>
@@ -38,6 +41,7 @@ function NoTrain() {
       <button type="button" className="btn btn-arcane btn-lg" onClick={() => go('crates', { tab: 'crates' })}>
         Go to the Crates
       </button>
+    </div>
     </div>
   );
 }
@@ -103,6 +107,7 @@ export default function App() {
   return (
     <>
       {view}
+      {adminView ? null : <Intro />}
       <div className="toasts" aria-live="polite">
         {toasts.map((toast) => (
           <div key={toast.id} className={`toast ${toast.tone}`}>
