@@ -120,6 +120,7 @@ export async function createApp({ repo = null, authMode = null } = {}) {
   app.post('/api/name', route((who, req) => bank.rename(repo, who.id, req.body?.name)));
   app.post('/api/crates/open', route((who, req) => bank.open(repo, who.id, { tier: req.body?.tier, pickId: req.body?.pickId ?? null })));
   app.post('/api/nft/deploy', route((who, req) => bank.deploy(repo, who.id, { nftId: req.body?.nftId, saveId: req.body?.saveId })));
+  app.post('/api/nft/release', route((who, req) => bank.releaseSave(repo, who.id, { saveId: req.body?.saveId })));
   app.post('/api/send', route((who, req) => bank.send(repo, who.id, { to: req.body?.to, amount: req.body?.amount, note: req.body?.note ?? '' })));
   app.get('/api/players', route((who, req) => bank.findPlayers(repo, req.query.q)));
   app.get('/api/admin/players', route((who, req) => bank.adminPlayers(repo, { q: req.query.q ?? '' }), { admin: true }));
@@ -143,6 +144,9 @@ export async function createApp({ repo = null, authMode = null } = {}) {
   app.post('/api/admin/deposit', route((who, req) => bank.adminDeposit(repo, who.id, { usd: req.body?.usd, note: req.body?.note ?? '' }), { admin: true }));
   app.get('/api/admin/cashouts', route((who, req) => bank.adminCashouts(repo, { status: req.query.status ?? null }), { admin: true }));
   app.post('/api/admin/cashouts/:id', route((who, req) => bank.adminDecideCashout(repo, who.id, { cashoutId: req.params.id, action: req.body?.action }), { admin: true }));
+  app.get('/api/admin/nfts/:id', route((who, req) => bank.adminNfts(repo, req.params.id), { admin: true }));
+  app.post('/api/admin/nft/release', route((who, req) => bank.adminReleaseNft(repo, who.id, { playerId: req.body?.playerId, nftId: req.body?.nftId }), { admin: true }));
+  app.post('/api/admin/crate/return', route((who, req) => bank.adminReturnCrate(repo, who.id, { crate: req.body?.crate }), { admin: true }));
   app.get('/api/admin/ledger/:id', route((who, req) => bank.adminLedger(repo, req.params.id), { admin: true }));
   app.use('/api', (req, res) => res.status(404).json({ error: 'No such API.' }));
 

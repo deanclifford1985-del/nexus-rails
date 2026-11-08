@@ -262,3 +262,36 @@ describe('the LocoToken treasury', () => {
     expect(mine.leaders.week.find((r) => r.me).name).toBe('Ann');
   });
 });
+
+describe('test-period NFT tools', () => {
+  it('releases a deleted Captain\'s NFTs, and the admin can release one or return a crate to the pool', async () => {
+    const repo = await makeRepo();
+    await bank.signIn(repo, ann);
+    await bank.signIn(repo, bob);
+    await bank.adminAward(repo, 'boss', { playerId: 'u1', amount: 100 });
+    const got = await bank.open(repo, 'u1', { tier: 'basic', rng: () => 0.5 });
+    const [loco, crew] = got.nfts;
+    await bank.deploy(repo, 'u1', { nftId: loco.id, saveId: 111 });
+    await bank.deploy(repo, 'u1', { nftId: crew.id, saveId: 111 });
+    // The player deletes that Captain: both come back.
+    const back = await bank.releaseSave(repo, 'u1', { saveId: 111 });
+    expect(back.released).toBe(2);
+    expect(back.vault.owned.every((n) => !n.deployedTo)).toBe(true);
+    // Stuck again (deleted before this fix): the admin frees one.
+    await bank.deploy(repo, 'u1', { nftId: loco.id, saveId: 222 });
+    await bank.adminReleaseNft(repo, 'boss', { playerId: 'u1', nftId: loco.id });
+    await expect(bank.adminReleaseNft(repo, 'boss', { playerId: 'u1', nftId: loco.id })).rejects.toThrow('already in the vault');
+    expect((await bank.adminNfts(repo, 'u1')).length).toBe(2);
+    // Return the crate: both NFTs leave Ann, and the crate can be opened again by anyone.
+    const r = await bank.adminReturnCrate(repo, 'boss', { crate: got.crate });
+    expect(r.removed.length).toBe(2);
+    expect(r.reopened).toBe(true);
+    const ann2 = await bank.state(repo, 'u1');
+    expect(ann2.vault.owned.length).toBe(0);
+    expect(ann2.vault.opened[got.crate]).toBeUndefined();
+    await expect(bank.adminReturnCrate(repo, 'boss', { crate: got.crate })).rejects.toThrow('already in the pool');
+    await bank.adminAward(repo, 'boss', { playerId: 'u2', amount: 100 });
+    const again = await bank.open(repo, 'u2', { tier: 'basic', pickId: got.crate });
+    expect(again.crate).toBe(got.crate);
+  });
+});

@@ -148,6 +148,24 @@ export async function deploy(repo, id, { nftId, saveId }) {
   });
 }
 
+// A Captain's save was deleted: its NFTs come back to the owner's vault, ready to send to another Captain.
+export async function releaseSave(repo, id, { saveId }) {
+  const key = String(saveId ?? '');
+  if (!key) fail('Which Captain?');
+  return repo.tx(async (tx) => {
+    const player = await tx.getPlayer(id, true);
+    if (!player) fail('Sign in first.', 401);
+    let released = 0;
+    for (const nft of player.owned)
+      if (String(nft.deployedTo) === key) {
+        nft.deployedTo = null;
+        released++;
+      }
+    if (released) await tx.updatePlayer(player);
+    return { released, player: publicPlayer(player), vault: await vaultOf(tx, player) };
+  });
+}
+
 // Player to player: no fee, whole or 2-decimal amounts, by player name.
 export async function send(repo, id, { to, amount, note = '' }, now = Date.now()) {
   const n = money(amount);
@@ -213,6 +231,54 @@ export async function adminAward(repo, adminId, { playerId, amount, note = '', p
     await tx.updatePlayer(player);
     await tx.addLedger({ at: now, kind: 'grant', from_id: adminId, to_id: player.id, amount: n, note: String(note || (paid ? 'buy-in' : 'gift')).slice(0, 80) });
     return { player: { id: player.id, name: player.name, nexus: player.nexus, bonus: money(player.bonus ?? 0) } };
+  });
+}
+
+// Every NFT a player holds, for the admin's NFT tools.
+const nftRow = (p, n) => ({ id: n.id, kind: n.kind, tier: n.tier, crate: n.crate, name: n.data?.name ?? n.id, rarity: n.data?.rarity ?? null, deployedTo: n.deployedTo ?? null, at: n.at, playerId: p.id, player: p.name });
+
+export async function adminNfts(repo, playerId) {
+  return repo.tx(async (tx) => {
+    const player = await tx.getPlayer(playerId);
+    if (!player) fail('No such player.', 404);
+    return player.owned.map((n) => nftRow(player, n));
+  });
+}
+
+// Test period: an NFT stuck with a deleted Captain goes back to its owner's vault.
+export async function adminReleaseNft(repo, adminId, { playerId, nftId }, now = Date.now()) {
+  return repo.tx(async (tx) => {
+    const player = await tx.getPlayer(playerId, true);
+    if (!player) fail('No such player.', 404);
+    const nft = player.owned.find((n) => n.id === nftId);
+    if (!nft) fail('That player does not hold that NFT.', 404);
+    if (!nft.deployedTo) fail('That NFT is already in the vault.');
+    nft.deployedTo = null;
+    await tx.updatePlayer(player);
+    await tx.addLedger({ at: now, kind: 'admin', from_id: adminId, to_id: player.id, amount: 0, note: `released ${nft.data?.name ?? nft.id} to the vault`, nft_id: nft.id });
+    return { nft: nftRow(player, nft) };
+  });
+}
+
+// Test period: take a crate's locomotive and conductor back from whoever holds them and put the
+// crate back in the season pool, so anyone can open it again. No Nexus are refunded.
+export async function adminReturnCrate(repo, adminId, { crate }, now = Date.now()) {
+  const id = String(crate ?? '');
+  if (!id) fail('Which crate?');
+  return repo.tx(async (tx) => {
+    const holders = (await tx.listPlayers('', 100000)).filter((p) => p.owned.some((n) => n.crate === id));
+    const removed = [];
+    for (const row of holders) {
+      const player = await tx.getPlayer(row.id, true);
+      const gone = player.owned.filter((n) => n.crate === id);
+      player.owned = player.owned.filter((n) => n.crate !== id);
+      await tx.updatePlayer(player);
+      removed.push(...gone.map((n) => nftRow(player, n)));
+      await tx.addLedger({ at: now, kind: 'admin', from_id: adminId, to_id: player.id, amount: 0, note: `returned ${gone.map((n) => n.data?.name ?? n.id).join(' + ')} to the crate pool`, nft_id: id });
+    }
+    const reopened = await tx.deleteOpened(id);
+    if (!reopened && !removed.length) fail('That crate is already in the pool.');
+    return { crate: id, removed, reopened };
   });
 }
 

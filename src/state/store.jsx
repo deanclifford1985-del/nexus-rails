@@ -95,11 +95,23 @@ export function GameProvider({ children }) {
   const deleteSlot = useCallback(
     (slot) => {
       const current = savesRef.current;
+      const gone = current.slots[slot];
       const slots = current.slots.slice();
       slots[slot] = null;
       commit({ slots, active: current.active === slot ? null : current.active });
+      // Nexus Rail: a deleted Captain's locomotives and conductors go back to the vault.
+      if (gone?.captain && vaultRef.current)
+        api('/api/nft/release', { saveId: gone.createdAt })
+          .then((reply) => {
+            if (reply?.vault) {
+              vaultRef.current = reply.vault;
+              setVault(reply.vault);
+            }
+            if (reply?.released) notify(`${reply.released} NFT${reply.released === 1 ? '' : 's'} went back to your vault.`, 'good');
+          })
+          .catch(() => {});
     },
-    [commit],
+    [commit, notify],
   );
 
   // The calendar drifts with the real clock (and research with it). Every 15 seconds, outside a

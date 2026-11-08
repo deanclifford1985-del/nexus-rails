@@ -4,7 +4,7 @@ import { useGame } from '../state/store.jsx';
 import { CRATE_TIERS, PICK_PREMIUM, TIER_IDS, WELCOME_NEXUS, cratePrice, crateMix, crateRarity, crewOf, remaining } from '../game/crates.js';
 import { TRAITS } from '../game/traits.js';
 import { api } from '../net/api.js';
-import { RarityTag } from '../ui/bits.jsx';
+import { ConfirmButton, RarityTag } from '../ui/bits.jsx';
 import { fmt } from '../ui/format.js';
 import GameCard, { NftGameCard } from '../ui/GameCard.jsx';
 import CrateOpening from '../ui/CrateOpening.jsx';
@@ -24,6 +24,7 @@ function ledgerLabel(row) {
   if (row.type === 'swap') return `Swapped ${row.note || 'LT'} for Nexus`;
   if (row.type === 'cashout') return `Cash-out ${row.note || 'request'}`;
   if (row.type === 'refund') return `Cash-out returned${row.note ? `: ${row.note}` : ''}`;
+  if (row.type === 'admin') return `Admin: ${row.note}`;
   if (row.type === 'trade') return `${row.nexus < 0 ? 'Sent to' : 'From'} ${row.other ?? 'a player'}${row.note ? ` · ${row.note}` : ''}`;
   return `${CRATE_TIERS[row.tier]?.name ?? 'Crate'}${row.picked ? ' (picked)' : ''}`;
 }
@@ -167,6 +168,68 @@ function SendPanel() {
   );
 }
 
+// Admin, test period: a player's NFTs. Release one stuck with a deleted Captain back to their vault,
+// or return a whole crate (its locomotive and conductor) to the season pool for anyone to open.
+function PlayerNfts({ player, onChange }) {
+  const { notify } = useGame();
+  const [rows, setRows] = useState(null);
+  const load = () =>
+    api(`/api/admin/nfts/${encodeURIComponent(player.id)}`)
+      .then(setRows)
+      .catch((e) => notify(e.message, 'error'));
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player.id]);
+  const run = async (path, body, done) => {
+    try {
+      const reply = await api(path, body);
+      notify(done(reply), 'good');
+      load();
+      onChange?.();
+    } catch (e) {
+      notify(e.message, 'error');
+    }
+  };
+  if (!rows) return <p className="small muted">Loading NFTs…</p>;
+  if (!rows.length) return <p className="small muted">No NFTs.</p>;
+  const crates = [...new Set(rows.map((r) => r.crate))];
+  return (
+    <div className="admin-nfts stack-xs">
+      <p className="small muted">
+        <b>Release</b> puts an NFT back in this player's vault (for one sent to a Captain that was deleted). <b>Return crate</b> takes the crate's locomotive and conductor away from this player and puts the crate back in the pool for anyone to open. No Nexus are refunded; award them separately if needed.
+      </p>
+      {crates.map((crate) => {
+        const pair = rows.filter((r) => r.crate === crate);
+        return (
+          <div className="admin-nft" key={crate}>
+            <div className="grow stack-xs">
+              {pair.map((n) => (
+                <div className="spread small" key={n.id}>
+                  <span>
+                    {n.rarity ? <RarityTag rarity={n.rarity} /> : null} <b>{n.name}</b> <span className="muted">{n.kind === 'loco' ? 'locomotive' : 'conductor'} · {CRATE_TIERS[n.tier]?.name ?? n.tier}</span>
+                  </span>
+                  <span className="row-xs">
+                    <span className="muted">{n.deployedTo ? 'With a Captain' : 'In the vault'}</span>
+                    {n.deployedTo ? (
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => run('/api/admin/nft/release', { playerId: player.id, nftId: n.id }, () => `${n.name} is back in ${player.name}'s vault.`)}>
+                        Release
+                      </button>
+                    ) : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <ConfirmButton confirmLabel="Return to the pool for good" onConfirm={() => run('/api/admin/crate/return', { crate }, (r) => `${r.removed.length} NFT${r.removed.length === 1 ? '' : 's'} returned; the crate is back in the pool.`)}>
+              Return crate
+            </ConfirmButton>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Admin: every player, their balance, and awards. Server-checked: only admin accounts can use it.
 // Used on the Crates screen and on its own at /#admin.
 export function AdminPanel() {
@@ -177,6 +240,7 @@ export function AdminPanel() {
   const [notes, setNotes] = useState({});
   const [open, setOpen] = useState(null);
   const [history, setHistory] = useState([]);
+  const [nftsOf, setNftsOf] = useState(null);
   const [paid, setPaid] = useState(true);
   const load = (text = q) =>
     api(`/api/admin/players?q=${encodeURIComponent(text)}`)
@@ -261,7 +325,11 @@ export function AdminPanel() {
               >
                 {open === p.id ? 'Hide history' : 'History'}
               </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setNftsOf(nftsOf === p.id ? null : p.id)}>
+                {nftsOf === p.id ? 'Hide NFTs' : `NFTs (${p.nfts})`}
+              </button>
             </div>
+            {nftsOf === p.id ? <PlayerNfts player={p} onChange={() => load()} /> : null}
             {open === p.id ? (
               <div className="admin-history">
                 <Ledger

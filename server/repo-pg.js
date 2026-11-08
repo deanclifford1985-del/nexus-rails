@@ -123,6 +123,10 @@ export async function pgRepo(url) {
       const r = await client.query('insert into nr_opened (nft_id, season, player_id, at) values ($1,$2,$3,$4) on conflict do nothing', [id, season, playerId, at]);
       return r.rowCount === 1;
     },
+    async deleteOpened(id) {
+      const r = await client.query('delete from nr_opened where nft_id = $1', [id]);
+      return r.rowCount > 0;
+    },
     async addLedger(x) {
       await client.query('insert into nr_ledger (at, kind, from_id, to_id, amount, note, tier, picked, nft_id) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [
         x.at,

@@ -431,3 +431,10 @@ The receipt shows a banner when a run earns a new licence.
 1 slot, 1,400 lb, 4,500 LT. Open the panels (J): they cost 10% of top speed and take in wind as you go, 0.4 a mile per mph, up to 100. Faster trains fill it faster, so it scales late game. Use it from 25 wind, 4 s cooldown, either way:
 - **Wind boost (K):** top speed +20% for 2 s plus 8 s per full tank (2–10 s).
 - **Wind gust (L):** every rival within 1.5 mi slows by 25% for the same time.
+
+## Test period: freeing up and returning NFTs (Dean, 7 Nov)
+- **Deleting a Captain** now sends that Captain's locomotives and conductors back to the owner's vault automatically, ready to send to another Captain.
+- **Admin → Players → NFTs:** every NFT a player holds, by crate, and whether it is in the vault or with a Captain.
+  - **Release:** an NFT stuck with a Captain (one deleted before this fix) goes back to the player's vault.
+  - **Return crate:** takes the crate's locomotive and conductor away from the player and puts the crate back in the season pool, so anyone can open it again. It asks to confirm. No Nexus are refunded (award them separately if needed); the treasury is not changed. Both actions show in the player's history.
+- Nexus Rail (NFT edition) only; Lite has no NFTs.

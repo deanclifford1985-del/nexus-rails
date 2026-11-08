@@ -32,6 +32,9 @@ export function memoryRepo() {
       opened.set(id, { id, season, playerId, at });
       return true;
     },
+    async deleteOpened(id) {
+      return opened.delete(id);
+    },
     async addLedger(row) {
       ledger.push({ tier: null, picked: false, nft_id: null, note: '', ...row, id: ledger.length + 1 });
     },

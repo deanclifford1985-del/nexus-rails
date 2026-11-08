@@ -772,8 +772,28 @@ h1 .hl-purple {
 .admin-act .admin-note {
   width: 180px;
 }
-.admin-history {
+.admin-history,
+.admin-nfts {
   grid-column: 1 / -1;
+}
+.admin-nft {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+}
+.admin-nft .row-xs {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .admin-nft {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 @media (max-width: 720px) {
   .admin-row {
