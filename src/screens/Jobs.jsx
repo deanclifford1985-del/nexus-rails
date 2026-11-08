@@ -6,7 +6,7 @@ import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import { activeLoco, avgFuelCost } from '../game/conductor.js';
 import { cargoFits, deriveStats } from '../game/locomotives.js';
-import { COMPANIES, companyById, companyRecord, jobPay, jobXp, nextStarAt, obstacleMix, sortByDistance, starsFor } from '../game/jobs.js';
+import { COMPANIES, companyById, companyRecord, entryFee, jobPay, jobXp, nextStarAt, obstacleMix, sortByDistance, starsFor } from '../game/jobs.js';
 import { makeCourse, themeFor } from '../game/course.js';
 import { depotPrice } from '../game/economy.js';
 import { planTrip } from '../game/race.js';
@@ -373,6 +373,7 @@ export default function Jobs() {
                         <Stat label="Distance" value={contract.distance} unit="mi" />
                         <Stat label="Rivals" value={contract.rivals.length} />
                         <Stat label="Prize" value={contract.award} unit="contracts" tone="brass" />
+                        <Stat label="Entry" value={contract.entryPaid ? 'Paid' : ltWhole(entryFee('contract', contract))} unit={contract.entryPaid ? '' : 'LT'} />
                         <Stat label="Takes" value={range(estimateRange(plan.realSeconds, band, `${contract.id}-time`), minutes)} />
                       </div>
                       <Load job={contract} stats={stats} owned={owned} />
@@ -397,7 +398,7 @@ export default function Jobs() {
 
       {main === 'races' ? (
         <section className="stack" role="tabpanel">
-          <p className="muted">Prize races: no freight, a field of rivals, and a purse for the top three. Free to enter; you pay for fuel and rounds. Each runs once a week, and the sponsor remembers a good finish.</p>
+          <p className="muted">Prize races: no freight, a field of rivals, and a purse for the top three. Entry costs {Math.round(B.JOBS.race.entryShare * 100)}% of the winner's purse, paid at the start line: 3rd place earns it back, 4th or worse loses it. You also pay for fuel and rounds. Each runs once a week, and the sponsor remembers a good finish.</p>
           <article className={`plate stack-sm ${fest.active ? 'festival-on' : ''}`}>
             <div className="spread">
               <h3>
@@ -429,6 +430,7 @@ export default function Jobs() {
                     <div className="stats">
                       <Stat label="Distance" value={race.distance} unit="mi" />
                       <Stat label="Rivals" value={race.rivals.length} />
+                      <Stat label="Entry" value={race.entryPaid ? 'Paid' : ltWhole(entryFee('race', race))} unit={race.entryPaid ? '' : 'LT'} />
                       <Stat label="Takes" value={range(estimateRange(plan.realSeconds, band, `${race.id}-time`), minutes)} />
                     </div>
                     <div className="purse">

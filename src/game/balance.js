@@ -367,6 +367,7 @@ export const B = {
       containerLb: [2000, 5000],
       rivals: [3, 6],
       award: [2, 7],
+      entryPerContract: 25, // entry fee: 25 LT for each contract on offer
       value: 600, // what one contract is worth, for the Business trait's upfront payment
       winXp: 500,
       xpPerContract: 100,
@@ -384,8 +385,10 @@ export const B = {
       xpPerContainer: 40,
       speedBonusChance: 0.3,
     },
-    // Prize races: weekly sprints against a field, sponsored by a company. No cargo, no entry fee.
+    // Prize races: weekly sprints against a field, sponsored by a company. No cargo. Entering
+    // costs a share of the winner's purse: 3rd place gets it back, 4th and below lose it.
     race: {
+      entryShare: 0.2, // entry fee = 20% of the winner's purse
       count: 3,
       miles: [15, 45],
       rivals: [2, 5],

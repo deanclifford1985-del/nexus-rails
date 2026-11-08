@@ -6,7 +6,7 @@ import { buildConductor, dealOffers, picksAllowed, picksUsed, rerollsAllowed, ro
 import { STARTER_MODELS, generateLoco, deriveStats, makeBenchmark, makePhoenix, makeMythic, cargoFits, priceOf, spellsOf, loadoutOf } from '../src/game/locomotives.js';
 import { bendKeep, gripFor, makeCourse } from '../src/game/course.js';
 import { createRace, startRace, stepRace, playerOf, planTrip, orderEmergencyFuel, setLever, forfeitRace, useAbility, playerCast, castBlocker, projectFinish, fireAll } from '../src/game/race.js';
-import { generateSimpleJob, generateBoard, starsFor, jobPay, jobXp } from '../src/game/jobs.js';
+import { generateSimpleJob, generateBoard, starsFor, jobPay, jobXp, entryFee } from '../src/game/jobs.js';
 import { containerPrice, fuelMarket, researchRates, weeklyDeal } from '../src/game/economy.js';
 import { dateOf, festivalInfo, runMinutes, weekOf } from '../src/game/calendar.js';
 import { armoryOffers, rollWeapon, standardWeapon, weaponStats } from '../src/game/weapons.js';
@@ -781,6 +781,31 @@ describe('jobs and economy', () => {
     expect(c.stats.runs).toBe(1);
     const full = jobXp(job, 1);
     expect(receipt.xp).toBe(Math.floor((result.reason === 'finished' ? full : Math.floor(full * 0.25)) * 1.15));
+  });
+
+  it('races cost an entry fee, paid once at the start line and shown on the receipt', () => {
+    const c = newConductor();
+    const race = c.board.races[0];
+    const ctx = { kind: 'race', raceId: race.id };
+    const fee = entryFee('race', race);
+    expect(fee).toBe(Math.round((race.purse[0] * 0.2) / 10) * 10);
+    expect(fee).toBeGreaterThan(0);
+    const before = c.lt;
+    expect(actions.payEntry(c, { ctx }).fee).toBe(fee);
+    expect(c.lt).toBeCloseTo(before - fee, 1);
+    // A second start (after a forfeit) is free.
+    expect(actions.payEntry(c, { ctx }).fee).toBe(0);
+    const result = { kind: 'race', reason: 'finished', finished: true, place: 4, field: race.rivals.length + 1, distance: race.distance, underLimitPct: 0, fuelLoaded: 60, fuelUsed: 50, fuelLeft: 10, emergencyGallons: 0, emergencyCost: 0 };
+    const receipt = actions.settleRun(c, { ctx, result, now: NOW });
+    expect(receipt.entryFee).toBe(fee);
+    expect(receipt.payout).toBe(0);
+    expect(receipt.profit).toBeCloseTo(-receipt.fuelCost - receipt.ammoCost - fee);
+    // Contract races: 25 LT per contract on offer. Not enough LT: no entry.
+    const contract = c.board.contracts[0];
+    expect(entryFee('contract', contract)).toBe(contract.award * 25);
+    c.lt = 10;
+    expect(() => actions.payEntry(c, { ctx: { kind: 'contract', contractId: contract.id } })).toThrow('entry fee');
+    expect(entryFee('delivery', c.board.simple[0])).toBe(0);
   });
 
   it('contract race: winning grants contracts, reputation and company jobs', () => {

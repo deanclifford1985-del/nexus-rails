@@ -206,6 +206,14 @@ export function generateContract(rng, companyId) {
 const RACE_NAMES = ['Sprint', 'Dash', 'Derby', 'Cup', 'Run', 'Challenge', 'Stakes'];
 const RACE_PLACES = ['Ridgeback', 'Cinder Flats', 'Iron Gap', 'Cobalt Bend', 'Hollow Pass', 'Ember Ridge', 'Silver Wash', 'Thunder Mesa', 'Gearwater', 'Copperline'];
 
+// What it costs to enter a race (prize races and contract races; deliveries and the festival are free).
+export function entryFee(kind, job) {
+  if (!job) return 0;
+  if (kind === 'race') return Math.round(((job.purse?.[0] ?? 0) * J.race.entryShare) / 10) * 10;
+  if (kind === 'contract') return (job.award ?? 0) * J.contract.entryPerContract;
+  return 0;
+}
+
 // A prize race: no freight, a field of rivals, a purse for the top three, sponsored by a company.
 export function generateRace(rng, companyId = pick(rng, COMPANIES).id) {
   const R = J.race;

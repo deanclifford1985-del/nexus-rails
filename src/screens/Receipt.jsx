@@ -144,6 +144,12 @@ export default function Receipt() {
               Fuel burned: {fmt(r.fuelUsed, 1)} gal{r.emergencyGallons ? `, ${fmt(r.emergencyGallons)} of it trucked in` : ''}
             </dt>
             <dd className="stop">-{lt(receipt.fuelCost)} LT</dd>
+            {receipt.entryFee ? (
+              <>
+                <dt>Entry fee (paid at the start line)</dt>
+                <dd className="stop">-{lt(receipt.entryFee)} LT</dd>
+              </>
+            ) : null}
             {receipt.ammoCost ? (
               <>
                 <dt>Ammo restocked: {r.roundsFired} units</dt>

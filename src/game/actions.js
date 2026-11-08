@@ -17,6 +17,7 @@ import {
   jobXp,
   starsFor,
   COMPANIES,
+  entryFee,
 } from './jobs.js';
 import { RESEARCH, containerPrice, depotPrice, depotStockLeft, fuelMarket, generateStationStock, mythicForSale, phoenixForSale, pumpPrice, repairMult, repairQuote, researchRates, stagesUnlocked, upgradeCost, weekNow, weeklyDeal } from './economy.js';
 import { festivalInfo, runMinutes, weekOf } from './calendar.js';
@@ -458,6 +459,18 @@ function settleFuel(conductor, result) {
  * The one place rewards are worked out and applied, for every kind of run.
  * Returns the receipt shown on the results screen.
  */
+// Pay to enter a race at the start line. Paid once: a forfeited race that stays on the board can be
+// run again without paying twice.
+export function payEntry(conductor, { ctx }) {
+  const job = findRun(conductor, ctx);
+  if (!job) fail('That race is no longer on the board.');
+  const fee = entryFee(ctx.kind, job);
+  if (!fee || job.entryPaid) return { fee: 0 };
+  spend(conductor, fee, 'the entry fee');
+  job.entryPaid = fee;
+  return { fee };
+}
+
 export function settleRun(conductor, { ctx, result, now }) {
   const J = B.JOBS;
   const receipt = {
@@ -467,6 +480,7 @@ export function settleRun(conductor, { ctx, result, now }) {
     lines: [], // money lines: { label, lt }
     payout: 0,
     fuelCost: 0,
+    entryFee: 0,
     profit: 0,
     xp: 0,
     levels: 0,
@@ -516,6 +530,9 @@ export function settleRun(conductor, { ctx, result, now }) {
 
   return withRng(conductor, (rng) => {
     receipt.fuelCost = settleFuel(conductor, result);
+    // The entry fee was paid at the start line; it shows on the receipt as a cost of the run.
+    const entered = findRun(conductor, ctx);
+    receipt.entryFee = ['race', 'contract'].includes(ctx.kind) && entered?.entryPaid ? entered.entryPaid : 0;
     const forfeit = result.reason === 'forfeit';
     const arrived = result.finished && result.reason === 'finished';
     const add = (label, lt) => {
@@ -712,7 +729,7 @@ export function settleRun(conductor, { ctx, result, now }) {
     xp = Math.floor(xp * (1 + B.XP.leader * traitPower(conductor, 'leader')) * (1 + talent(conductor, 'xp')));
     receipt.xp = xp;
     receipt.levels = addXp(conductor, xp);
-    receipt.profit = receipt.payout - receipt.fuelCost - receipt.ammoCost;
+    receipt.profit = receipt.payout - receipt.fuelCost - receipt.ammoCost - receipt.entryFee;
     // A fuel advance is a debt, settled out of pay. It is not a cost of this run.
     if (conductor.fuelAdvanceOwed > 0 && receipt.payout > 0) {
       receipt.advanceRepaid = Math.min(conductor.fuelAdvanceOwed, receipt.payout);

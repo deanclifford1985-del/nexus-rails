@@ -191,7 +191,7 @@ All **new** (Dean, 3 Nov), numbers are first guesses.
 |---|---|---|
 | Board | 7 deliveries, 3 contract races and 3 prize races, sorted by distance | #223, #244, #270 |
 | Dispatch tabs | Deliveries; Contracts (sub-tabs: Open contracts = jobs paid with contracts you hold, Compete for contracts = contract races); Races (prize races plus the festival); Reputation (every company you have met: reputation, stars, progress to the next star, contracts held, races won, jobs run, pay bonus). Back from a run returns to the tab it came from. | Dean, 3 Nov |
-| Prize races | 3 a week, 15 to 45 miles, no freight, 2 to 5 rivals, free entry. Purse 20-30 LT a mile to the winner; 2nd takes 45%, 3rd 20%. 300 XP for a win, 150 for 2nd or 3rd, 60 otherwise. Sponsor reputation +40 for a win, +10 otherwise. Each race runs once; new ones post with the week. | **new**, Dean, 3 Nov |
+| Prize races | 3 a week, 15 to 45 miles, no freight, 2 to 5 rivals, an entry fee (see below). Purse 20-30 LT a mile to the winner; 2nd takes 45%, 3rd 20%. 300 XP for a win, 150 for 2nd or 3rd, 60 otherwise. Sponsor reputation +40 for a win, +10 otherwise. Each race runs once; new ones post with the week. | **new**, Dean, 3 Nov |
 | Delivery distance | 50 to 250 miles, each extra 10 miles 5% less likely | #38 |
 | Delivery pay | A delivery fee (0.6-1.2 LT a mile) plus a rate for every container pulled (1.4-2.6 LT a mile each). A 50-mile steel job might pay 150 LT with 1 container and 350 LT with 3. The rates are not shown; the board shows the pay for what you can pull and the most the job pays. | Dean, 3 Nov |
 | Load | Up to 1-5 containers of 2,000 to 7,500 lb each. You pull up to as many as you own, and can choose fewer at the start line. | #62, Dean |
@@ -438,3 +438,14 @@ The receipt shows a banner when a run earns a new licence.
   - **Release:** an NFT stuck with a Captain (one deleted before this fix) goes back to the player's vault.
   - **Return crate:** takes the crate's locomotive and conductor away from the player and puts the crate back in the season pool, so anyone can open it again. It asks to confirm. No Nexus are refunded (award them separately if needed); the treasury is not changed. Both actions show in the player's history.
 - Nexus Rail (NFT edition) only; Lite has no NFTs.
+
+## Race entry fees (Dean, 7 Nov)
+Races now cost to enter, so there is risk against the reward. The fee is paid at the start line, is not refunded (a loss or a forfeit keeps it), and is paid once: a forfeited race left on the board can be run again free. It shows on the race card, the setup screen and the receipt, and counts against the run's profit. The fee goes back into the LT pool like any other spend.
+
+| Race | Entry fee | What it means |
+|---|---|---|
+| Prize race | 20% of the winner's purse (rounded to 10 LT) | 1st nets 4x the fee, 2nd about 1.25x, 3rd breaks even, 4th or worse loses it. A 15-mile race costs about 60-90 LT, a 45-mile one about 180-270 LT. |
+| Contract race | 25 LT per contract on offer (2-7 contracts: 50-175 LT) | |
+| Deliveries, company jobs, express legs, the festival, the first run | Free | |
+
+Without enough LT for the fee, the start button says so and stays locked.

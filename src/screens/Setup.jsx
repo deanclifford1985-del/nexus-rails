@@ -5,6 +5,7 @@ import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import { avgFuelCost } from '../game/conductor.js';
 import { pumpPrice } from '../game/economy.js';
+import { entryFee } from '../game/jobs.js';
 import { buildRaceConfig, describeRun } from '../game/setup.js';
 import { hasTrait } from '../game/traits.js';
 import { Meter, RarityTag, Stat } from '../ui/bits.jsx';
@@ -160,9 +161,17 @@ export default function Setup() {
   }
 
   function start() {
+    if (fee && !run.job.entryPaid) {
+      const paid = act('payEntry', { ctx });
+      if (!paid) return;
+      if (paid.fee) notify(`Entry fee paid: ${ltWhole(paid.fee)} LT.`, 'info');
+    }
     const runCtx = run.job && run.ctx.kind !== 'contract' && run.ctx.kind !== 'race' ? { ...ctx, haul: run.haul } : ctx;
     go('race', { ctx: runCtx, config: buildRaceConfig(conductor, run, load), run: { title: run.title, subtitle: run.subtitle } });
   }
+  const fee = run.job ? entryFee(ctx.kind, run.job) : 0;
+  const owesFee = fee > 0 && !run.job.entryPaid;
+  const cantPay = owesFee && conductor.lt < fee;
   const canHaul = run.job && run.ctx.kind !== 'contract' && run.ctx.kind !== 'race' && run.job.containers > 0;
   const quote = quoteLoad(stats, run.cargoLb, load);
   const snapshot = () => setBefore({ quote, gallons: plan.gallons });
@@ -364,9 +373,20 @@ export default function Setup() {
           ) : null}
 
           {run.blocked ? <p className="note warn">{run.blocked}</p> : null}
-          <button type="button" className="btn btn-ember btn-lg btn-block" disabled={!!run.blocked || (!free && load <= 0)} onClick={start}>
+          {fee > 0 ? (
+            <p className={`note small ${cantPay ? 'warn' : ''}`}>
+              {run.job.entryPaid
+                ? `Entry fee already paid (${ltWhole(run.job.entryPaid)} LT). Running it again is free.`
+                : cantPay
+                  ? `Entry fee: ${ltWhole(fee)} LT. You have ${ltWhole(conductor.lt)} LT.`
+                  : ctx.kind === 'race'
+                    ? `Entry fee: ${ltWhole(fee)} LT, paid at the start line and not refunded. 1st pays ${ltWhole(run.job.purse[0])}, 2nd ${ltWhole(run.job.purse[1])}, 3rd ${ltWhole(run.job.purse[2])}.`
+                    : `Entry fee: ${ltWhole(fee)} LT (${B.JOBS.contract.entryPerContract} LT for each of the ${run.job.award} contracts on offer), paid at the start line and not refunded.`}
+            </p>
+          ) : null}
+          <button type="button" className="btn btn-ember btn-lg btn-block" disabled={!!run.blocked || (!free && load <= 0) || cantPay} onClick={start}>
             <Flag aria-hidden="true" />
-            {!free && load <= 0 ? 'Load some fuel first' : 'Go to the start line'}
+            {!free && load <= 0 ? 'Load some fuel first' : cantPay ? 'Not enough LT for the entry fee' : owesFee ? `Pay ${ltWhole(fee)} LT and go to the start line` : 'Go to the start line'}
           </button>
         </section>
       </div>
