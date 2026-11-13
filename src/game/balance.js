@@ -581,7 +581,7 @@ export const B = {
     incomeScale: 1,
     tillDays: 14, // the till holds this many days of takings; collect it or the routes work for nothing
     // Empire Power Rating (Dean, #157): the locomotives' own ratings plus all of this.
-    rating: { level: 100, perLt: 0.02, ltCap: 20000, research: 300, upgrade: 60, star: 150, contract: 20, win: 15, job: 10, terminal: 400, terminalLevel: 250, route: 300, boss: 600, relic: 400, trophy: 500, licence: 500, medal: 120 },
+    rating: { level: 100, perLt: 0.005, ltCap: 5000, research: 300, upgrade: 60, star: 150, contract: 20, win: 15, job: 10, terminal: 400, terminalLevel: 250, route: 300, boss: 600, relic: 400, trophy: 500, licence: 500, medal: 120 },
     // Ranks by rating. Each adds to what every route brings in.
     ranks: [
       { id: 'yard', name: 'Yard Hand', rating: 0, income: 0 },

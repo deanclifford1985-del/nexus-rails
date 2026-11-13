@@ -73,16 +73,16 @@ export function empireRating(conductor) {
   const medals = sum(Object.values(conductor.trials ?? {}), (t) => ({ gold: 3, silver: 2, bronze: 1 }[t.medal] ?? 0));
   const parts = [
     { id: 'fleet', label: 'Locomotives', value: sum(conductor.locos ?? [], (loco) => locoRating(loco)) },
-    { id: 'conductor', label: 'Conductor level and licence', value: (conductor.level ?? 1) * R.level + licenceLevel(conductor) * R.licence },
+    { id: 'conductor', label: 'Conductor', value: (conductor.level ?? 1) * R.level + licenceLevel(conductor) * R.licence },
     { id: 'lt', label: 'LocoTokens', value: Math.round(Math.min(R.ltCap, (conductor.lt ?? 0) * R.perLt)) },
-    { id: 'works', label: 'Research and upgrades', value: research * R.research + upgrades * R.upgrade },
+    { id: 'works', label: 'Research, upgrades', value: research * R.research + upgrades * R.upgrade },
     {
       id: 'standing',
-      label: 'Reputation and contracts',
+      label: 'Reputation',
       value: sum(companies, (c) => starsFor(c.rep ?? 0) * R.star + (c.contracts ?? 0) * R.contract + (c.wins ?? 0) * R.win + (c.jobs ?? 0) * R.job),
     },
-    { id: 'network', label: 'Terminals and routes', value: sum(Object.values(conductor.empire?.terminals ?? {}), (level) => R.terminal + (level - 1) * R.terminalLevel) + routesOf(conductor).length * R.route },
-    { id: 'glory', label: 'Bosses, relics, trophies and medals', value: bossesDown * R.boss + relicCount(conductor) * R.relic + Object.keys(conductor.trophies ?? {}).length * R.trophy + medals * R.medal },
+    { id: 'network', label: 'Network', value: sum(Object.values(conductor.empire?.terminals ?? {}), (level) => R.terminal + (level - 1) * R.terminalLevel) + routesOf(conductor).length * R.route },
+    { id: 'glory', label: 'Glory', value: bossesDown * R.boss + relicCount(conductor) * R.relic + Object.keys(conductor.trophies ?? {}).length * R.trophy + medals * R.medal },
   ];
   return { total: Math.round(sum(parts, (part) => part.value)), parts };
 }

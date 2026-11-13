@@ -23,7 +23,7 @@ const CREW_STATS = [
   ['int', 'Intelligence', 'INT'],
   ['end', 'Endurance', 'END'],
 ];
-const ART = new Set(['tank', 'bullet', 'stable', 'longrun', 'scrappy', 'wizard', 'titan', 'dragon', 'phoenix', 'benchmark']);
+const ART = new Set(['tank', 'bullet', 'stable', 'longrun', 'scrappy', 'wizard', 'titan', 'dragon', 'phoenix', 'benchmark', 'marauder', 'glacier', 'sandshark', 'graviton']);
 const base = (import.meta.env?.BASE_URL ?? '/').replace(/\/?$/, '/');
 export const locoArtUrl = (model) => `${base}art/locos/${ART.has(model) ? model : 'benchmark'}.webp`;
 

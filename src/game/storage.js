@@ -54,11 +54,12 @@ export function storeSaves(saves) {
 // Version 1 saves (Iron Rails) predate cargo slots, wear and per-container pay.
 export function migrate(save) {
   if (!save || typeof save !== 'object') return null;
-  if (save.version === 6) return save;
-  if (save.version === 5) return toV6(save);
-  if (save.version === 4) return toV6(toV5(save));
-  if (save.version === 3) return toV6(toV5(toV4(save)));
-  if (save.version === 2) return toV6(toV5(toV4(toV3(save))));
+  if (save.version === 7) return save;
+  if (save.version === 6) return toV7(save);
+  if (save.version === 5) return toV7(toV6(save));
+  if (save.version === 4) return toV7(toV6(toV5(save)));
+  if (save.version === 3) return toV7(toV6(toV5(toV4(save))));
+  if (save.version === 2) return toV7(toV6(toV5(toV4(toV3(save)))));
   if (save.version !== 1) return null;
   const next = structuredClone(save);
   next.version = 2;
@@ -71,7 +72,7 @@ export function migrate(save) {
   }));
   // Jobs are paid differently now, so post a fresh board.
   next.board = null;
-  return toV6(toV5(toV4(toV3(next))));
+  return toV7(toV6(toV5(toV4(toV3(next)))));
 }
 
 // Version 3 added the calendar, weapon items and calendar research.
@@ -133,5 +134,21 @@ function toV6(save) {
     }
     return out;
   });
+  return next;
+}
+
+// Version 7 added the empire, bounties, tasks and the World Open, and two research lines. Nothing
+// an older save holds changes: it gains the empty records the new systems keep. A Captain's crew
+// traits, once plain ids, take the shape every other trait has.
+function toV7(save) {
+  const next = structuredClone(save);
+  next.version = 7;
+  next.research = next.research ?? { done: {}, active: null };
+  next.research.done = { engine: 0, efficiency: 0, structure: 0, logistics: 0, ordnance: 0, ...(next.research.done ?? {}) };
+  next.bounties = next.bounties ?? {};
+  next.relics = next.relics ?? {};
+  next.trophies = next.trophies ?? {};
+  next.trials = next.trials ?? {};
+  next.traits = (next.traits ?? []).map((trait) => (typeof trait === 'string' ? { id: trait, mult: 1, rarity: 'normal' } : trait));
   return next;
 }

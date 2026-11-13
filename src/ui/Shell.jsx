@@ -1,5 +1,6 @@
 import React from 'react';
-import { Landmark, Box, ClipboardList, Coins, Crown, FlaskConical, Fuel, Gem, Home, Shield, Store, TrainFront, Wrench } from 'lucide-react';
+import { Landmark, Box, Building2, ClipboardList, Coins, Crown, FlaskConical, Fuel, Gem, Home, Shield, Store, TrainFront, Wrench } from 'lucide-react';
+import { empireIncome, empireRank, tillCap } from '../game/empire.js';
 import { IS_NFT } from '../edition.js';
 import { pointsLeft } from '../game/captain.js';
 import { useGame } from '../state/store.jsx';
@@ -18,7 +19,13 @@ const NAV = [
       { id: 'station', label: 'Station', icon: Store },
     ],
   },
-  { group: 'Invest', items: [{ id: 'research', label: 'Lab', icon: FlaskConical }] },
+  {
+    group: 'Invest',
+    items: [
+      { id: 'research', label: 'Lab', icon: FlaskConical },
+      { id: 'empire', label: 'Empire', icon: Building2 },
+    ],
+  },
   ...(IS_NFT
     ? [
         {
@@ -46,9 +53,14 @@ function NavLink({ item, current, go, flag }) {
 
 export function Shell({ children }) {
   const { conductor, screen, go, vault } = useGame();
+  // The Empire tab asks for attention once three days of takings are waiting, or the till is full.
+  const till = conductor.empire?.till ?? 0;
+  const perDay = conductor.empire ? empireIncome(conductor) : 0;
+  const rank = empireRank(conductor);
   const flags = {
     yard: conductor.attributePoints > 0,
     research: false,
+    empire: perDay > 0 && (till >= perDay * 3 || till >= tillCap(conductor) - 1),
     talents: IS_NFT && pointsLeft(conductor) > 0,
   };
   return (
@@ -93,6 +105,10 @@ export function Shell({ children }) {
             <span className="chip hide-narrow" title="Conductor level">
               Lv {conductor.level}
             </span>
+            <button type="button" className="chip chip-empire hide-narrow" title={`Empire power rating: ${rank.name}`} onClick={() => go('empire')}>
+              <Crown aria-hidden="true" />
+              {rank.rating.toLocaleString()}
+            </button>
           </div>
         </div>
       </header>

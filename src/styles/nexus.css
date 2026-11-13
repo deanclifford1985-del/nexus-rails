@@ -1281,3 +1281,270 @@ h1 .hl-purple {
   filter: drop-shadow(0 0 10px rgba(165, 107, 255, 0.7));
   flex: none;
 }
+
+/* ---------- Empire ---------- */
+.chip-empire {
+  cursor: pointer;
+  color: #ffd98a;
+  border-color: rgba(255, 190, 70, 0.4);
+}
+.chip-empire svg {
+  color: #ffcf5a;
+}
+.chip-pick {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+}
+.chip-pick small {
+  color: var(--dim);
+  margin-left: 4px;
+}
+.chip-pick.on {
+  border-color: var(--orange);
+  color: #fff;
+  background: rgba(255, 157, 28, 0.14);
+  box-shadow: 0 0 14px rgba(255, 157, 28, 0.25);
+}
+.found {
+  border-color: rgba(255, 157, 28, 0.4);
+  background: linear-gradient(160deg, rgba(255, 157, 28, 0.08), rgba(13, 17, 23, 0.9) 60%);
+}
+.found-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: var(--gap);
+}
+@media (max-width: 760px) {
+  .found-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.empire-rank {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.empire-rating {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2rem, 6vw, 2.8rem);
+  line-height: 1;
+  color: #ffcf5a;
+  text-shadow: 0 0 22px rgba(255, 190, 70, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+.rank-badge {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  transform: rotate(45deg);
+  color: #1c1405;
+  background: linear-gradient(135deg, #8a93a0, #4c5562);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 18px rgba(255, 255, 255, 0.08);
+  margin: 6px;
+}
+.rank-badge > svg {
+  transform: rotate(-45deg) translateY(-12%);
+}
+.rank-badge > b {
+  position: absolute;
+  bottom: 12%;
+  left: 50%;
+  transform: translate(-50%, 0) rotate(-45deg);
+  transform-origin: center;
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  line-height: 1;
+}
+.rank-badge.rank-1 { background: linear-gradient(135deg, #d7a15a, #8a5a22); }
+.rank-badge.rank-2 { background: linear-gradient(135deg, #e6e9ef, #9aa3b0); }
+.rank-badge.rank-3 { background: linear-gradient(135deg, #ffe08a, #d79a1a); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 190, 70, 0.45); }
+.rank-badge.rank-4 { background: linear-gradient(135deg, #9ff3ff, #19a8d6); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 22px rgba(25, 195, 230, 0.55); }
+.rank-badge.rank-5 { background: linear-gradient(135deg, #ffd0ff, #a56bff 55%, #ff9d1c); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 26px rgba(165, 107, 255, 0.7); }
+.rating-parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 14px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.rating-parts > span {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.rating-parts .label {
+  letter-spacing: 0.04em;
+  font-size: 0.74rem;
+}
+.rating-parts .none {
+  opacity: 0.45;
+}
+.till {
+  border-color: rgba(255, 190, 70, 0.35);
+}
+.till.full {
+  border-color: var(--orange);
+  box-shadow: 0 0 24px rgba(255, 157, 28, 0.25);
+}
+.till-amount {
+  font-family: var(--font-label);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 7vw, 3.2rem);
+  line-height: 1;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.till-amount small {
+  font-size: 0.4em;
+  color: var(--ash);
+}
+.empire-how {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.empire-how li {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.empire-how svg {
+  width: 20px;
+  height: 20px;
+  color: var(--orange);
+  margin-top: 2px;
+}
+.emap-city {
+  cursor: pointer;
+}
+.emap-city text {
+  pointer-events: auto;
+}
+.emap-city.sel text {
+  fill: #6be4f7;
+}
+.emap-city.shut text {
+  fill: #7e8ea2;
+}
+.emap-level {
+  fill: #05090f !important;
+  stroke: none !important;
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 800;
+}
+.emap-panel {
+  border-color: rgba(25, 195, 230, 0.35);
+}
+.fleet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+.fleet-row .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 220px;
+}
+.fleet-row.working {
+  border-color: rgba(255, 190, 70, 0.45);
+  background: rgba(255, 190, 70, 0.05);
+}
+.fleet-row.active {
+  border-color: rgba(25, 195, 230, 0.35);
+}
+.fleet-offers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rank-ladder {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: 8px;
+}
+.rank-ladder li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  opacity: 0.6;
+}
+.rank-ladder li.earned {
+  opacity: 1;
+  border-color: rgba(255, 190, 70, 0.4);
+  background: rgba(255, 190, 70, 0.05);
+}
+
+/* ---------- Hall of Legends ---------- */
+.legend-roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+}
+.legend-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  color: var(--steam);
+}
+.legend-tab:hover {
+  border-color: rgba(255, 157, 28, 0.5);
+}
+.legend-tab.on {
+  border-color: var(--orange);
+  background: rgba(255, 157, 28, 0.1);
+  box-shadow: 0 0 18px rgba(255, 157, 28, 0.25);
+}
+.legend-tab.locked .legend-thumb {
+  filter: grayscale(0.85) brightness(0.75);
+}
+.legend-tab svg.lucide {
+  width: 13px;
+  height: 13px;
+  color: var(--dim);
+}
+.legend-thumb {
+  width: 100%;
+  height: auto;
+}
+.legend-tab-name {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+.legend-stage {
+  border-color: rgba(255, 157, 28, 0.35);
+}
+.legend-ability {
+  border-color: rgba(165, 107, 255, 0.5);
+  background: rgba(165, 107, 255, 0.08);
+}
+.legend-ability svg {
+  color: var(--purple);
+}

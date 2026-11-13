@@ -1017,7 +1017,7 @@ describe('long-range sightings', () => {
     expect(seen.miles).toBeGreaterThan(3);
     const old = { version: 3, arsenal: [{ item: 'weapon', base: 'cannon', range: 1.1 }], locos: [{ fit: ['fuel', { item: 'weapon', base: 'heavy', range: 1.5 }] }] };
     const next = migrate(old);
-    expect(next.version).toBe(6);
+    expect(next.version).toBe(7);
     expect(next.arsenal[0].range).toBeCloseTo(3.3);
     expect(next.locos[0].fit[1].range).toBeCloseTo(4.5);
   });

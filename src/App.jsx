@@ -14,6 +14,7 @@ import Research from './screens/Research.jsx';
 import Station from './screens/Station.jsx';
 import Armory from './screens/Armory.jsx';
 import Festival from './screens/Festival.jsx';
+import Empire from './screens/Empire.jsx';
 import Talents from './screens/Talents.jsx';
 import Crates, { AdminPanel } from './screens/Crates.jsx';
 import Treasury, { TreasuryAdmin } from './screens/Treasury.jsx';
@@ -22,7 +23,7 @@ import { IS_NFT } from './edition.js';
 
 // Screens that fill the window on their own, without the top bar and tabs.
 const FULL = { create: Create, setup: Setup, race: Race, receipt: Receipt };
-const TABS = { yard: Yard, jobs: Jobs, depot: Depot, armory: Armory, festival: Festival, workshop: Workshop, research: Research, station: Station, ...(IS_NFT ? { talents: Talents, crates: Crates, treasury: Treasury } : {}) };
+const TABS = { yard: Yard, jobs: Jobs, depot: Depot, armory: Armory, festival: Festival, workshop: Workshop, research: Research, station: Station, empire: Empire, ...(IS_NFT ? { talents: Talents, crates: Crates, treasury: Treasury } : {}) };
 
 // A Nexus Rail Captain with an empty garage can only reach the Crates and Talents until a crate
 // gives them a locomotive.
