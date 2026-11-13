@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { sfx } from './sfx.js';
 import { elevationAt } from '../game/course.js';
 import { B } from '../game/balance.js';
+import { BOSS_LIVERY, CREATURES, buildCreature } from './BossModels.js';
 
 const UNITS_PER_MILE = 110;
 const CH = 120; // terrain chunk length
@@ -42,9 +43,19 @@ export const LIVERY = {
   longrun: { body: 0x1f5a56, trim: 0x9fe3d4, wheel: 0x1a3e3b, lamp: 0xc8fff2, win: 0x9fe3d4, css: '#5fd3bd' },
   scrappy: { body: 0x6b4a2e, trim: 0xc9a27a, wheel: 0x4a3420, lamp: 0xffe2b0, win: 0xffd29a, css: '#d29a5f' },
   benchmark: { body: 0x5a616c, trim: 0xf2f2f2, wheel: 0x3a3f47, lamp: 0xffffff, win: 0xdfe8ff, css: '#e8edf5' },
+  // The newer legendary machines.
+  marauder: { body: 0x3b2a24, trim: 0xc8502a, wheel: 0x221814, lamp: 0xffb060, win: 0xff8a3a, css: '#e0703a' },
+  glacier: { body: 0xd7ecf7, trim: 0x6fc4ee, wheel: 0x7fa6bd, lamp: 0xe6fbff, win: 0x9fe6ff, css: '#8fd8ff' },
+  sandshark: { body: 0xb08a52, trim: 0x5e4526, wheel: 0x6e5532, lamp: 0xffe2a0, win: 0xffc860, css: '#e0b060' },
+  graviton: { body: 0x14101f, trim: 0x9b6bff, wheel: 0x0c0a14, lamp: 0xd7c2ff, win: 0xb48cff, css: '#b48cff' },
+  // Boss war-trains.
+  ...BOSS_LIVERY,
 };
-const OWN_LOOK = ['phoenix', 'dragon', 'wizard', 'titan'];
-export const liveryFor = (train) => (train.isPlayer && !OWN_LOOK.includes(train.model) ? LIVERY.player : LIVERY[train.model] ?? LIVERY.bullet);
+const OWN_LOOK = ['phoenix', 'dragon', 'wizard', 'titan', 'marauder', 'glacier', 'sandshark', 'graviton'];
+export const liveryFor = (train) => {
+  if (train.isBoss && CREATURES[train.model]) return { css: CREATURES[train.model].css };
+  return train.isPlayer && !OWN_LOOK.includes(train.model) ? LIVERY.player : LIVERY[train.model] ?? LIVERY.bullet;
+};
 
 // ---------- the path the line follows ----------
 // s runs along the centre line in world units; u is the sideways offset (positive to the right).
@@ -290,11 +301,15 @@ export class RailScene {
     this.v3 = new THREE.Vector3();
     this.path = new Path(race.course, race.distance);
 
-    const n = race.trains.length;
+    // One track per train, side by side. A boss creature flies (or burrows) beside the line instead.
+    const onRails = race.trains.map((t) => !(t.isBoss && CREATURES[t.model]));
+    const n = onRails.filter(Boolean).length;
     this.halfTracks = ((n - 1) / 2) * LANE;
     this.flat = Math.max(20, this.halfTracks + 12);
     this.keep = this.flat + 18;
-    this.laneX = race.trains.map((_, i) => (i - (n - 1) / 2) * LANE);
+    let lane = 0;
+    this.trainX = race.trains.map((t, i) => (onRails[i] ? (lane++ - (n - 1) / 2) * LANE : this.halfTracks + (CREATURES[t.model]?.side ?? 13)));
+    this.laneX = this.trainX.filter((_, i) => onRails[i]);
 
     // Terrain: plains, flooded plains, desert or a frozen pass.
     this.theme = LOOKS[race.course?.theme] ? race.course.theme : 'plains';
@@ -317,6 +332,8 @@ export class RailScene {
     this.trains = race.trains.map((train, i) => this.makeTrain(train, i));
     this.buildTags();
     this.rocks = race.obstacles.map((rock) => this.makeRock(rock));
+    this.falling = []; // rocks a boss has just thrown onto the line
+    this.bossVis = this.trains.find((t) => t.train.isBoss) ?? null;
     this.buildFinish();
     this.buildMap();
 
@@ -845,6 +862,7 @@ export class RailScene {
   // ---------- trains ----------
   // Built as three cars (engine, tender, coach) so the train bends round the curves.
   makeTrain(train, index) {
+    if (train.isBoss && CREATURES[train.model]) return this.makeCreature(train, index);
     const o = liveryFor(train);
     const cars = [new THREE.Group(), new THREE.Group(), new THREE.Group()];
     const centre = [0, -6.5, -14.2];
@@ -953,8 +971,34 @@ export class RailScene {
     barrier.visible = false;
     cars[1].add(barrier);
     if (model === 'titan') cars.forEach((car) => car.scale.set(1.3, 1.2, 1));
+    if (model === 'bastion') cars.forEach((car) => car.scale.set(1.45, 1.35, 1));
+    if (model === 'scrap') cars.forEach((car) => car.scale.set(1.2, 1.15, 1));
     cars.forEach((car) => this.scene.add(car));
-    return { id: train.id, train, x: this.laneX[index], s: 0, v: 0, crank: 0, smokeAcc: Math.random(), cars, centre, wheels, rods, barrier, tilt: 0, ...extras };
+    return { id: train.id, train, x: this.trainX[index], s: 0, v: 0, crank: 0, smokeAcc: Math.random(), cars, centre, wheels, rods, barrier, tilt: 0, ...extras };
+  }
+
+  // A boss creature: one body that rides beside the line at its own height.
+  makeCreature(train, index) {
+    const made = buildCreature(this, train.model);
+    const { group, look } = made;
+    const barrier = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 12, 8),
+      new THREE.MeshBasicMaterial({ color: 0xff8a6a, wireframe: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    barrier.scale.set(7, 5, 14);
+    barrier.visible = false;
+    group.add(barrier);
+    group.visible = false;
+    this.scene.add(group);
+    const alt = look.alt;
+    return {
+      id: train.id, train, x: this.trainX[index], s: 0, v: 0, crank: 0, smokeAcc: 0, cars: [group], centre: [0], wheels: [], rods: [], barrier, tilt: 0,
+      creature: { ...made, alt, fall: 0, dust: 0 },
+      // Where its shots leave from, where shots at it land, and how high its damage numbers float.
+      muzzleAt: [made.mouth[0], alt + made.mouth[1], made.mouth[2]],
+      aimAt: [0, alt + (look.kind === 'wurm' ? 4 : 0), look.kind === 'wurm' ? 6 : 1],
+      numY: alt + (look.kind === 'wurm' ? 9 : 4),
+    };
   }
 
   // The front: the cowcatcher, or one of the heavier fronts that crash through debris.
@@ -1051,6 +1095,104 @@ export class RailScene {
         fin.rotation.z = s * 0.6;
       }
     }
+    if (model === 'marauder' || model === 'scrap') {
+      // A pirate war-train: welded plate, spikes, a jagged prow and a black flag.
+      const rust = this.lam(model === 'scrap' ? 0x6a4630 : 0x54382a);
+      for (const s of [-1, 1]) {
+        P(new THREE.BoxGeometry(0.2, 1.3, 5.6), rust, s * 1.2, 2.3, 1.6, 0);
+        for (let i = 0; i < 4; i++) {
+          const spike = P(new THREE.ConeGeometry(0.16, 0.8, 4), mTrim, s * 1.45, 2.5, 0.2 + i * 1.2, 0);
+          spike.rotation.z = -s * Math.PI / 2;
+        }
+      }
+      for (let i = 0; i < 3; i++) {
+        const tooth = P(new THREE.ConeGeometry(0.3, 1.5, 4), mTrim, -0.8 + i * 0.8, 1.2, 6.5, 0);
+        tooth.rotation.x = Math.PI / 2;
+      }
+      P(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 4), mDark, 0.9, 5.4, -3.2, 0);
+      P(new THREE.BoxGeometry(0.05, 0.9, 1.4), this.lam(0x0e0e10, { side: THREE.DoubleSide }), 0.9, 6.1, -3.95, 0);
+      P(new THREE.BoxGeometry(0.07, 0.3, 0.3), this.glow(0xf2efe2), 0.9, 6.15, -3.9, 0);
+      P(new THREE.CylinderGeometry(0.3, 0.26, 1.2, 6), mDark, -0.7, 4.0, 3.4, 0);
+      if (model === 'scrap') {
+        // Rustjaw's own guns: a turret on the tender and a battery down the coach.
+        P(new THREE.CylinderGeometry(0.8, 0.9, 0.6, 8), rust, 0, 3.7, -6.5, 1);
+        P(new THREE.CylinderGeometry(0.28, 0.36, 3.0, 8).rotateX(Math.PI / 2), mDark, 0, 4.15, -5.1, 1);
+        for (const z of [-11.4, -14.2, -17]) {
+          P(new THREE.BoxGeometry(1.0, 0.7, 1.0), rust, 0, 4.25, z, 2);
+          for (const s of [-1, 1]) {
+            const gun = P(new THREE.CylinderGeometry(0.16, 0.2, 1.8, 6), mDark, s * 1.0, 4.3, z, 2);
+            gun.rotation.z = Math.PI / 2;
+          }
+        }
+        for (const s of [-1, 1]) P(new THREE.BoxGeometry(0.16, 0.14, 0.1), this.glow(0xff3b2a), s * 0.35, 3.1, 5.42, 0);
+      }
+    } else if (model === 'glacier') {
+      // Ice: crystal spines down the boiler, a frosted prow and a cold light inside.
+      const ice = new THREE.MeshLambertMaterial({ color: 0xbfeeff, flatShading: true, transparent: true, opacity: 0.85, emissive: 0x1d4a66 });
+      for (let i = 0; i < 6; i++) {
+        const shard = P(new THREE.ConeGeometry(0.28 + (i % 2) * 0.12, 1.3 + (i % 3) * 0.5, 5), ice, (i % 2 ? 0.35 : -0.35), 3.7, 4.0 - i * 1.0, 0);
+        shard.rotation.set(-0.35, 0, (i % 2 ? -0.3 : 0.3));
+      }
+      for (const s of [-1, 1]) {
+        const blade = P(new THREE.ConeGeometry(0.5, 2.6, 4), ice, s * 0.7, 1.3, 6.6, 0);
+        blade.rotation.set(Math.PI / 2, 0, s * 0.3);
+        P(new THREE.OctahedronGeometry(0.42, 0), this.glow(0x9fe6ff), s * 1.45, 3.4, -2.5, 0);
+      }
+      P(new THREE.OctahedronGeometry(0.7, 0), this.glow(0xd9f6ff), 0, 5.3, -6.5, 1);
+    } else if (model === 'sandshark') {
+      // The Devourer's jaws for a front, and a fin down its back.
+      const hide = this.lam(0x8a6a3c);
+      const tooth = this.lam(0xf2e6c8);
+      const upper = P(new THREE.BoxGeometry(2.5, 0.7, 2.6), hide, 0, 2.5, 6.4, 0);
+      upper.rotation.x = -0.22;
+      const lower = P(new THREE.BoxGeometry(2.3, 0.5, 2.4), mDark, 0, 1.15, 6.3, 0);
+      lower.rotation.x = 0.2;
+      for (let i = 0; i < 6; i++) {
+        const up = P(new THREE.ConeGeometry(0.16, 0.6, 4), tooth, -1.0 + i * 0.4, 2.05, 7.3, 0);
+        up.rotation.x = Math.PI;
+        P(new THREE.ConeGeometry(0.16, 0.6, 4), tooth, -1.0 + i * 0.4, 1.6, 7.2, 0);
+      }
+      P(new THREE.BoxGeometry(2.0, 0.5, 0.3), this.glow(0xff5a2a), 0, 1.85, 6.5, 0);
+      for (const s of [-1, 1]) P(new THREE.BoxGeometry(0.1, 0.24, 0.5), this.glow(0xffc040), s * 1.27, 2.75, 6.2, 0);
+      const fin = new THREE.Shape();
+      fin.moveTo(0, 0);
+      fin.lineTo(-3.4, 0);
+      fin.lineTo(-2.6, 2.6);
+      fin.lineTo(0, 0);
+      P(new THREE.ShapeGeometry(fin).rotateY(-Math.PI / 2), this.lam(0x6e5230, { side: THREE.DoubleSide }), 0, 3.35, 3.4, 0);
+      for (const s of [-1, 1]) P(new THREE.BoxGeometry(0.22, 1.5, 5.0), hide, s * 1.25, 2.3, 1.6, 0);
+    } else if (model === 'graviton') {
+      // A singularity engine: a dark core over the cab, ringed, and violet bands round the boiler.
+      for (const z of [0.2, 1.8, 3.4]) P(new THREE.TorusGeometry(1.24, 0.07, 4, 18), this.glow(0x9b6bff), 0, 2.3, z, 0);
+      const core = P(new THREE.SphereGeometry(0.75, 12, 10), new THREE.MeshBasicMaterial({ color: 0x05030a }), 0, 6.0, -2.5, 0);
+      core.userData.y = 6.0;
+      extras.orb = core;
+      const ring = P(new THREE.TorusGeometry(1.25, 0.09, 6, 24), this.glow(0xc7a8ff), 0, 6.0, -2.5, 0);
+      ring.rotation.x = Math.PI / 2 - 0.35;
+      extras.ring = ring;
+      const ring2 = P(new THREE.TorusGeometry(1.7, 0.05, 6, 24), this.glow(0x6b46d6), 0, 6.0, -2.5, 0);
+      ring2.rotation.x = Math.PI / 2 + 0.5;
+      extras.ring2 = ring2;
+      for (const s of [-1, 1]) P(new THREE.BoxGeometry(0.1, 0.5, 6.0), this.glow(0x7a4ce0), s * 1.12, 2.3, 1.6, 0);
+    } else if (model === 'bastion') {
+      // A fortress on rails: battlements, armor skirts, turrets and a great plow.
+      const plate = this.lam(0x39424c);
+      const stone = this.lam(0x6b7885);
+      for (const s of [-1, 1]) {
+        P(new THREE.BoxGeometry(0.3, 2.0, 6.0), plate, s * 1.3, 2.2, 1.6, 0);
+        P(new THREE.BoxGeometry(0.3, 2.2, 4.6), plate, s * 1.45, 2.1, -6.5, 1);
+        P(new THREE.BoxGeometry(0.3, 2.4, 9.0), plate, s * 1.5, 2.2, -14.2, 2);
+        for (let i = 0; i < 5; i++) P(new THREE.BoxGeometry(0.34, 0.5, 0.9), stone, s * 1.5, 3.65, -17.8 + i * 1.8, 2);
+      }
+      for (const [z, car] of [[-6.5, 1], [-11.6, 2], [-16.6, 2]]) {
+        P(new THREE.CylinderGeometry(0.95, 1.05, 0.8, 8), stone, 0, 4.2 + (car === 1 ? -0.5 : 0), z, car);
+        P(new THREE.CylinderGeometry(0.3, 0.38, 3.4, 8).rotateX(Math.PI / 2), mDark, 0, 4.5 + (car === 1 ? -0.5 : 0), z + 1.6, car);
+      }
+      const plow = P(new THREE.ConeGeometry(1.9, 1.9, 4), stone, 0, 1.0, 6.5, 0);
+      plow.rotation.set(Math.PI / 2, Math.PI / 4, 0);
+      for (const s of [-1, 1]) P(new THREE.BoxGeometry(0.18, 0.16, 0.1), this.glow(0xff3b2a), s * 0.35, 3.1, 5.42, 0);
+      P(new THREE.BoxGeometry(0.6, 0.6, 0.6), this.glow(0xff4a3a), 0, 4.2, 4.6, 0);
+    }
     void mBody;
     void mDark;
     void cars;
@@ -1101,7 +1243,7 @@ export class RailScene {
     }
   }
 
-  makeRock(rock) {
+  makeRock(rock, look = null) {
     const g = new THREE.Group();
     const r = mulberry(Math.floor(rock.at * 1000) + 3);
     if (rock.size === 'debris') {
@@ -1121,10 +1263,20 @@ export class RailScene {
       m.rotation.set(r() * 3, r() * 3, 0);
       g.add(m);
     }
+    // What a boss throws: ice, mines or burning rock.
+    if (look === 'ice' || look === 'mine' || look === 'meteor') {
+      const tint = look === 'ice' ? new THREE.MeshLambertMaterial({ color: 0xbfeeff, flatShading: true, transparent: true, opacity: 0.88, emissive: 0x1d4a66 }) : this.lam(look === 'mine' ? 0x23262c : 0x3a2018);
+      g.children.forEach((m) => {
+        m.material = tint;
+      });
+      const light = new THREE.Mesh(new THREE.OctahedronGeometry(look === 'mine' ? 0.5 : 0.9, 0), this.glow(look === 'ice' ? 0xd9f6ff : look === 'mine' ? 0xff3b2a : 0xff7a1a));
+      light.position.y = look === 'mine' ? 2.6 : 1.4;
+      g.add(light);
+    }
     g.scale.setScalar(rock.big ? 3.2 : { debris: 0.55, boulder: 1, large: 1.7, giant: 3.2 }[rock.size] ?? 1);
     this.place(g, this.laneX[0], rock.at * UNITS_PER_MILE, 0.4);
     this.scene.add(g);
-    return { id: rock.id, rock, x: this.laneX[0], s: rock.at * UNITS_PER_MILE, v: 0, g };
+    return { id: rock.id, rock, x: this.laneX[0], s: rock.at * UNITS_PER_MILE, v: 0, g, look };
   }
 
   // Anything a shot can come from or land on: a train or a boulder.
@@ -1142,7 +1294,7 @@ export class RailScene {
       c.width = 256;
       c.height = 96;
       const g = c.getContext('2d');
-      const label = mine ? 'YOU' : String(t.train.name ?? 'Rival').split(' ')[0].toUpperCase().slice(0, 10);
+      const label = mine ? 'YOU' : String(t.train.name ?? 'Rival').replace(/^The /, '').split(' ')[0].toUpperCase().slice(0, 10);
       g.font = '800 34px Rajdhani, Arial, sans-serif';
       const w = Math.min(236, g.measureText(label).width + 36);
       g.fillStyle = 'rgba(6,10,16,0.82)';
@@ -1271,8 +1423,17 @@ export class RailScene {
     return pts;
   }
 
+  // Where a shot lands on its target: the foot of a boulder, the middle of a train, a creature's body.
+  aimPoint(to, dy = 0, dz = 0) {
+    if (to.rock) return this.worldPos(to, 0, 1.2 + dy, 0);
+    if (to.aimAt) return this.worldPos(to, to.aimAt[0], to.aimAt[1] + dy, to.aimAt[2] + dz);
+    return this.worldPos(to, 0, 2.8 + dy, -3 + dz);
+  }
+
   // Where a shot leaves its train.
   muzzle(from, kind) {
+    if (from.muzzleAt) return this.worldPos(from, ...from.muzzleAt);
+    if (from.train?.isBoss) return this.worldPos(from, 0, 4.4, kind === 'bolt' ? -11 : -5.2);
     if (kind === 'fire') return from.mouth ? this.worldPos(from, ...from.mouth) : this.worldPos(from, 0, 3.6, 4);
     if (kind === 'cannon') return this.worldPos(from, 0, 4.05, -4.6);
     if (kind === 'heavy') return this.worldPos(from, 0, 4.6, -8.5);
@@ -1303,13 +1464,18 @@ export class RailScene {
       launcher: { tex: this.TEX.spark, size: 1.3, add: true, color: 0xffd08a },
       heat: { tex: this.TEX.fire, size: 3 + Math.min(4, (shot.power ?? 0) / 3), add: true, color: 0xffa040 },
       tesla: { tex: this.TEX.spark, size: 2.4 + Math.min(5, (shot.power ?? 0) / 70), add: true, color: 0xa8dcff },
+      // Boss attacks.
+      frost: { tex: this.TEX.spark, size: 3.4, add: true, color: 0xbfeeff },
+      acid: { tex: this.TEX.spark, size: 2.8, add: true, color: 0x9dff6a },
+      rock: { tex: this.TEX.ball, size: 3.2, add: false, color: 0xb8a58c },
     }[shot.kind] ?? { tex: this.TEX.spark, size: 1.4, add: true, color: 0xffffff };
     const core = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: look.tex, color: look.color, blending: look.add ? THREE.AdditiveBlending : THREE.NormalBlending, transparent: true, depthWrite: false, fog: false }),
     );
     core.scale.setScalar(look.size);
     this.scene.add(core);
-    const fx = { shot, core, look, arc: shot.kind === 'plasma' || shot.kind === 'tesla' ? 0.3 : shot.kind === 'heat' ? 1 : shot.kind === 'fire' ? rand(5, 8) : shot.kind === 'launcher' ? rand(2, 7) : rand(3, 5), trail: 0 };
+    const flat = from?.train?.isBoss && from.creature; // a creature's breath comes straight down the line
+    const fx = { shot, core, look, arc: flat ? 0.4 : shot.kind === 'plasma' || shot.kind === 'tesla' ? 0.3 : shot.kind === 'heat' ? 1 : shot.kind === 'fire' ? rand(5, 8) : shot.kind === 'launcher' ? rand(2, 7) : shot.kind === 'rock' ? rand(7, 10) : rand(3, 5), trail: 0 };
     if (from && shot.kind === 'heat') {
       const m = this.muzzle(from, 'heat');
       for (let i = 0; i < 8; i++) this.spawn(this.TEX.fire, m, { add: true, s0: rand(1.5, 3), s1: 0.4, life: rand(0.3, 0.5), vel: new THREE.Vector3(rand(-3, 3), rand(0, 3), rand(-3, 3)) });
@@ -1356,7 +1522,7 @@ export class RailScene {
       if (beam.t < 0.04) continue;
       beam.t = 0;
       const a = this.muzzle(from, 'arc');
-      const b = to.rock ? this.worldPos(to, 0, 1.5, 0) : this.worldPos(to, 0, 3, -3);
+      const b = this.aimPoint(to, 0.3);
       // brighter as the channel ramps up
       const power = Math.min(1, 0.35 + c.ticks / 12);
       beam.lines.forEach((line, i) => {
@@ -1428,7 +1594,7 @@ export class RailScene {
           }
         }
         const a = this.muzzle(from, fx.shot.kind);
-        const b = to.rock ? this.worldPos(to, 0, 1.2, 0) : this.worldPos(to, 0, 2.8, -3);
+        const b = this.aimPoint(to);
         const pos = a.lerp(b, k);
         pos.y += Math.sin(k * Math.PI) * fx.arc;
         fx.core.position.copy(pos);
@@ -1448,11 +1614,15 @@ export class RailScene {
         } else if (fx.shot.kind === 'tesla') {
           for (let j = 0; j < 3; j++) this.spawn(this.TEX.spark, pos, { add: true, s0: 1.6, s1: 0.2, life: 0.18, color: 0xbfe9ff, vel: new THREE.Vector3(rand(-5, 5), rand(-3, 3), rand(-5, 5)) });
           this.useLight(pos, 0x9fdcff, 3.5, 0.08);
+        } else if (fx.shot.kind === 'frost' || fx.shot.kind === 'acid') {
+          const color = fx.shot.kind === 'frost' ? 0xd9f6ff : 0x9dff6a;
+          for (let j = 0; j < 3; j++) this.spawn(fx.shot.kind === 'frost' ? this.TEX.smoke : this.TEX.spark, pos, { add: fx.shot.kind === 'acid', s0: rand(1.4, 2.4), s1: 0.4, life: rand(0.25, 0.45), a: 0.85, color, vel: new THREE.Vector3(rand(-2, 2), rand(-1, 1.5), rand(-2, 2)) });
+          this.useLight(pos, color, 2.5, 0.08);
         } else if (Math.random() < 0.6) {
           this.spawn(this.TEX.smoke, pos, { s0: 0.8, s1: 2.4, life: 0.5, a: 0.5, color: 0xcfcac2 });
         }
       } else {
-        const top = this.worldPos(to, 0, 26, -4);
+        const top = this.aimPoint(to).add(new THREE.Vector3(0, 23, 0));
         fx.cloud.position.copy(top).add(new THREE.Vector3(0, 2, 0));
         fx.cloud.material.opacity = Math.min(0.95, k * 1.6);
         if (Math.random() < 0.35) this.spawn(this.TEX.spark, top.clone().add(new THREE.Vector3(rand(-6, 6), rand(-1, 1), rand(-4, 4))), { add: true, s0: 1.5, s1: 0.2, life: 0.2 });
@@ -1463,8 +1633,8 @@ export class RailScene {
       const s = this.strikes[i];
       s.t += dt;
       const to = this.vis(s.to);
-      const top = this.worldPos(to, 0, 26, -4);
-      const bot = this.worldPos(to, 0, to.rock ? 1 : 3.4, to.rock ? 0 : -3);
+      const bot = this.aimPoint(to, to.rock ? -0.2 : 0.6);
+      const top = bot.clone().add(new THREE.Vector3(0, 23, 0));
       s.cloud.position.copy(top).add(new THREE.Vector3(0, 2, 0));
       s.cloud.material.opacity = Math.max(0, 0.95 - s.t * 1.5);
       if (s.lines) {
@@ -1521,7 +1691,7 @@ export class RailScene {
         continue;
       }
       const bounce = n.age < 0.25 ? Math.sin((n.age / 0.25) * Math.PI) * 1.5 : 0;
-      this.v3.copy(this.worldPos(n.t, n.dx, 6 + bounce + n.age * 1.2, n.t.rock ? 0 : -2)).project(this.camera);
+      this.v3.copy(this.worldPos(n.t, n.dx, (n.t.numY ?? 6) + bounce + n.age * 1.2, n.t.rock || n.t.creature ? 0 : -2)).project(this.camera);
       n.el.style.left = `${((this.v3.x + 1) / 2) * w}px`;
       n.el.style.top = `${((1 - this.v3.y) / 2) * h}px`;
       n.el.style.opacity = n.age > 0.85 ? (1.2 - n.age) / 0.35 : 1;
@@ -1547,7 +1717,7 @@ export class RailScene {
         if (!t) continue;
         const style = fx.kind === 'burn' ? 'burn' : fx.kind === 'poison' ? 'poison' : 'zap';
         this.popNum(t, String(fx.damage), style);
-        const at = t.rock ? this.worldPos(t, rand(-1, 1), 1.5, rand(-1, 1)) : this.worldPos(t, rand(-1, 1), 3, -3 + rand(-4, 4));
+        const at = t.rock ? this.worldPos(t, rand(-1, 1), 1.5, rand(-1, 1)) : t.creature ? this.aimPoint(t, rand(-1, 1), rand(-4, 4)) : this.worldPos(t, rand(-1, 1), 3, -3 + rand(-4, 4));
         const color = fx.kind === 'burn' ? 0xff8a2a : fx.kind === 'poison' ? 0x7dff6a : 0xaee6ff;
         for (let i = 0; i < (fx.kind === 'arc' ? 5 : 4); i++) {
           this.spawn(this.TEX.spark, at, { add: true, s0: fx.kind === 'arc' ? 1.6 : 1.2, s1: 0.2, life: 0.35, color, vel: new THREE.Vector3(rand(-4, 4), rand(1, fx.kind === 'poison' ? 3 : 6), rand(-4, 4)), g: fx.kind === 'poison' ? 2 : -6 });
@@ -1558,8 +1728,14 @@ export class RailScene {
         if (!t) continue;
         const near = Math.abs(t.s - me.s) < 400;
         this.popNum(t, String(fx.damage), fx.blocked ? 'block' : fx.crit ? 'crit' : '');
-        const at = t.rock ? this.worldPos(t, 0, 1.5, 0) : this.worldPos(t, 0, 3, -3 + rand(-3, 3));
-        if (fx.kind === 'plasma') {
+        const at = t.rock ? this.worldPos(t, 0, 1.5, 0) : t.creature ? this.aimPoint(t, 0, rand(-3, 3)) : this.worldPos(t, 0, 3, -3 + rand(-3, 3));
+        if (fx.kind === 'frost' || fx.kind === 'acid' || fx.kind === 'gravity') {
+          const color = fx.kind === 'frost' ? 0xd9f6ff : fx.kind === 'acid' ? 0x9dff6a : 0xb48cff;
+          for (let i = 0; i < 14; i++) this.spawn(this.TEX.spark, at, { add: true, s0: 2.6, s1: 0.3, life: 0.45, color, vel: new THREE.Vector3(rand(-8, 8), rand(1, 9), rand(-8, 8)), g: -8 });
+          this.useLight(at, color, 4, 0.25);
+          if (near) sfx.boom(false);
+          if (fx.to === 'player' && !this.reduceMotion) this.shake = 0.8;
+        } else if (fx.kind === 'plasma') {
           for (let i = 0; i < 14; i++) this.spawn(this.TEX.spark, at, { add: true, s0: 2.4, s1: 0.3, life: 0.4, color: 0xb48cff, vel: new THREE.Vector3(rand(-9, 9), rand(2, 10), rand(-9, 9)), g: -10 });
           this.useLight(at, 0xa070ff, 4, 0.25);
         } else this.explode(at, fx.kind === 'bolt' || fx.kind === 'heavy', fx.kind === 'bolt' ? 0xbfe0ff : 0xffffff);
@@ -1573,11 +1749,11 @@ export class RailScene {
             sfx.thunder();
           }
         }
-        if (near && fx.kind !== 'plasma') sfx.boom(fx.kind === 'bolt' || fx.kind === 'heavy');
-        if (fx.to === 'player' && !this.reduceMotion) this.shake = fx.kind === 'bolt' || fx.kind === 'heavy' ? 1.2 : 0.7;
+        if (near && !['plasma', 'frost', 'acid', 'gravity'].includes(fx.kind)) sfx.boom(fx.kind === 'bolt' || fx.kind === 'heavy');
+        if (fx.to === 'player' && !this.reduceMotion && !['frost', 'acid', 'gravity'].includes(fx.kind)) this.shake = fx.kind === 'bolt' || fx.kind === 'heavy' || fx.kind === 'rock' ? 1.2 : 0.7;
       } else if (fx.type === 'miss') {
         const t = this.vis(fx.to);
-        if (t) this.popNum(t, 'Miss', 'block');
+        if (t) this.popNum(t, fx.dodged ? 'Dodged!' : 'Miss', fx.dodged ? 'zap' : 'block');
       } else if (fx.type === 'crush') {
         const r = this.vis(fx.id);
         if (!r) continue;
@@ -1598,6 +1774,70 @@ export class RailScene {
       } else if (fx.type === 'derail') {
         const t = this.vis(fx.id);
         for (let i = 0; i < 3; i++) window.setTimeout(() => this.explode(this.worldPos(t, rand(-1, 1), 3, rand(-14, 3)), true), i * 260);
+      } else if (fx.type === 'bossEnter') {
+        sfx.alert?.();
+        sfx.rumble?.();
+        if (!this.reduceMotion) this.shake = 0.6;
+      } else if (fx.type === 'bossWarn') {
+        const t = this.vis(fx.id);
+        if (t) {
+          this.popNum(t, fx.name, 'crit');
+          const at = this.muzzle(t, 'warn');
+          for (let i = 0; i < 10; i++) this.spawn(this.TEX.spark, at, { add: true, s0: 2.2, s1: 0.3, life: 0.5, color: 0xffd24a, vel: new THREE.Vector3(rand(-5, 5), rand(1, 6), rand(-5, 5)) });
+          this.useLight(at, 0xffc24a, 4, 0.3);
+        }
+        sfx.alert?.();
+      } else if (fx.type === 'bossBreak') {
+        const t = this.vis(fx.id);
+        if (t) {
+          this.popNum(t, 'Broken!', 'zap');
+          const at = this.aimPoint(t);
+          for (let i = 0; i < 24; i++) this.spawn(this.TEX.spark, at, { add: true, s0: 2.4, s1: 0.2, life: 0.6, color: 0x9ff3ff, vel: new THREE.Vector3(rand(-12, 12), rand(2, 12), rand(-12, 12)), g: -12 });
+          this.useLight(at, 0x9ff3ff, 7, 0.35);
+        }
+        sfx.chime();
+      } else if (fx.type === 'bossEnrage') {
+        const t = this.vis(fx.id);
+        if (t) {
+          this.popNum(t, 'Enraged', 'crit');
+          const at = this.aimPoint(t);
+          for (let i = 0; i < 20; i++) this.spawn(this.TEX.fire, at, { add: true, s0: 2, s1: rand(5, 8), life: rand(0.5, 0.9), color: 0xff5a3a, vel: new THREE.Vector3(rand(-6, 6), rand(2, 9), rand(-6, 6)) });
+        }
+        this.flash = Math.max(this.flash, this.reduceMotion ? 0.1 : 0.3);
+        sfx.rumble?.();
+      } else if (fx.type === 'bossDown') {
+        const t = this.vis(fx.id);
+        if (t) {
+          for (let i = 0; i < 6; i++) window.setTimeout(() => this.explode(this.aimPoint(t, rand(-2, 3), rand(-10, 6)), true, i % 2 ? 0xffffff : 0xffc24a), i * 220);
+          this.popNum(t, 'Destroyed', 'crit');
+        }
+        this.flash = Math.max(this.flash, this.reduceMotion ? 0.15 : 0.5);
+        if (!this.reduceMotion) this.shake = 1.6;
+        sfx.boom(true);
+        sfx.win?.();
+      } else if (fx.type === 'bossFled') {
+        sfx.whoosh();
+      } else if (fx.type === 'drop') {
+        // Something the boss threw: build it now and let it fall onto the line.
+        const rock = this.race.obstacles.find((item) => item.id === fx.id);
+        if (rock && !this.rocks.some((r) => r.id === rock.id)) {
+          const vis = this.makeRock(rock, fx.look);
+          vis.fall = 0.55;
+          vis.baseY = vis.g.position.y;
+          vis.g.position.y += 60;
+          this.rocks.push(vis);
+          this.falling.push(vis);
+        }
+      } else if (fx.type === 'rebirth') {
+        const t = this.vis(fx.id);
+        if (t) {
+          for (let i = 0; i < 5; i++) window.setTimeout(() => this.explode(this.worldPos(t, rand(-1, 1), 3, rand(-10, 4)), true, 0xffc24a), i * 110);
+          this.popNum(t, 'Reborn', 'crit');
+        }
+        this.flash = Math.max(this.flash, this.reduceMotion ? 0.15 : 0.5);
+        sfx.rumble?.();
+      } else if (fx.type === 'ability') {
+        this.abilityFx(fx);
       } else if (fx.type === 'vented') {
         const t = this.vis(fx.id ?? 'player');
         if (!t) continue;
@@ -1630,8 +1870,73 @@ export class RailScene {
         sfx.chime();
       } else if (fx.type === 'siphon') {
         this.siphonFrom = fx.from;
+        this.siphonTo = fx.to ?? 'player';
         sfx.siphon();
       }
+    }
+  }
+
+  // The signature abilities of the legendary machines.
+  abilityFx(fx) {
+    const from = this.vis(fx.from);
+    if (!from) return;
+    const name = B.ABILITIES[fx.id]?.name ?? fx.id;
+    const targets = (fx.to ?? []).map((id) => this.vis(id)).filter(Boolean);
+    const near = Math.abs(from.s - this.player().s) < 500;
+    this.popNum(from, name, 'crit');
+    if (fx.id === 'blackhole') {
+      // Everything in reach is pulled in on itself.
+      for (const t of targets) {
+        const at = this.aimPoint(t, 1.5);
+        for (let i = 0; i < 22; i++) {
+          const off = new THREE.Vector3(rand(-9, 9), rand(-2, 9), rand(-9, 9));
+          this.spawn(this.TEX.spark, at.clone().add(off), { add: true, s0: 2.4, s1: 0.2, life: 0.7, color: 0x9b6bff, vel: off.multiplyScalar(-1.5), drag: 1 });
+        }
+        this.spawn(this.TEX.ball, at, { s0: 1, s1: 9, life: 0.9, a: 0.9, color: 0x0a0612 });
+        this.useLight(at, 0x9b6bff, 6, 0.6);
+        if (!t.rock) this.popNum(t, '+250,000 lb', 'block');
+      }
+      this.flash = Math.max(this.flash, this.reduceMotion ? 0.08 : 0.25);
+      if (near) sfx.rumble?.();
+    } else if (fx.id === 'tempest') {
+      if (near) sfx.thunder?.();
+    } else if (fx.id === 'inferno') {
+      const at = this.muzzle(from, 'fire');
+      for (let i = 0; i < 26; i++) this.spawn(this.TEX.fire, at, { add: true, s0: rand(2, 4), s1: rand(6, 10), life: rand(0.4, 0.8), vel: this.forward(from.s).multiplyScalar(rand(10, 30)).add(new THREE.Vector3(rand(-6, 6), rand(0, 6), rand(-6, 6))) });
+      this.useLight(at, 0xff8a30, 8, 0.5);
+      if (near) sfx.whoosh();
+    } else if (fx.id === 'bulwark') {
+      const at = this.worldPos(from, 0, 3, -4);
+      for (let i = 0; i < 20; i++) this.spawn(this.TEX.spark, at, { add: true, s0: 2, s1: 0.3, life: 0.6, color: 0xffd24a, vel: new THREE.Vector3(rand(-9, 9), rand(1, 8), rand(-9, 9)) });
+      this.useLight(at, 0xffd24a, 6, 0.4);
+    } else if (fx.id === 'plunder') {
+      for (const t of targets) {
+        const a = this.aimPoint(t);
+        const b = this.worldPos(from, 0, 3, -2);
+        for (let i = 0; i < 18; i++) {
+          const k = i / 18;
+          this.spawn(this.TEX.spark, a.clone().lerp(b, k), { add: true, s0: 1.6, s1: 0.3, life: 0.35 + k * 0.3, color: 0xffb060, vel: b.clone().sub(a).multiplyScalar(1.2) });
+        }
+        this.popNum(t, 'Jammed', 'block');
+      }
+      if (fx.gallons) this.popNum(from, `+${fx.gallons} gal`, 'zap');
+      if (near) sfx.siphon?.();
+    } else if (fx.id === 'zero') {
+      const at = this.worldPos(from, 0, 3, -4);
+      for (let i = 0; i < 30; i++) this.spawn(this.TEX.smoke, at, { s0: 1.5, s1: rand(7, 12), life: rand(0.6, 1.1), a: 0.8, color: 0xd9f6ff, vel: new THREE.Vector3(rand(-22, 22), rand(0, 5), rand(-22, 22)) });
+      for (const t of targets) {
+        const p = this.aimPoint(t);
+        for (let i = 0; i < 12; i++) this.spawn(this.TEX.spark, p, { add: true, s0: 2.2, s1: 0.3, life: 0.7, color: 0xbfeeff, vel: new THREE.Vector3(rand(-5, 5), rand(0, 6), rand(-5, 5)) });
+        this.popNum(t, 'Frozen', 'zap');
+      }
+      this.flash = Math.max(this.flash, this.reduceMotion ? 0.08 : 0.3);
+      if (near) sfx.chime();
+    } else if (fx.id === 'maw') {
+      for (const t of targets) {
+        this.rubble(this.aimPoint(t));
+        if (fx.eaten) this.popNum(t, 'Devoured', 'crit');
+      }
+      if (near) sfx.boom(false);
     }
   }
 
@@ -1646,6 +1951,19 @@ export class RailScene {
     const ds = s - t.s;
     t.s = s;
     t.v = dt > 0 ? ds / dt : 0;
+    if (t.creature) return this.stepCreature(t, dt);
+    // A boss war-train is not on the line until it arrives, and gone once it has fled.
+    if (train.isBoss) {
+      const shown = !train.hidden;
+      t.cars.forEach((car) => {
+        car.visible = shown;
+      });
+      if (!shown) return;
+    }
+    if (t.ring) {
+      t.ring.rotation.z += dt * 2.2;
+      t.ring2.rotation.z -= dt * 1.4;
+    }
     const k = this.path.sample(s).k;
     if (train.out) t.tilt = Math.min(0.18, t.tilt + dt * 0.1);
     // Lean into the bend a little at speed.
@@ -1708,10 +2026,41 @@ export class RailScene {
       for (const side of [-1, 1]) this.spawn(this.TEX.smoke, this.worldPos(t, side * 1.6, 0.8, 3.6), { s0: 0.8, s1: 3.5, life: 0.6, a: 0.7, vel: new THREE.Vector3(side * 5, 1, -2) });
   }
 
+  // A boss creature: place it beside the line at its height, and let it move.
+  stepCreature(t, dt) {
+    const train = t.train;
+    const c = t.creature;
+    const g = t.cars[0];
+    if (train.out) c.fall += dt;
+    g.visible = !train.hidden && c.fall < 2.4;
+    t.barrier.visible = train.barrier > 0;
+    if (!g.visible) return;
+    const drop = c.burrows ? c.fall * 4 : c.fall * c.fall * 7;
+    this.place(g, t.x, t.s, 0.7 + c.alt - drop);
+    g.rotation.order = 'YXZ';
+    g.rotation.z = c.burrows ? 0 : Math.min(1.3, c.fall * 0.9);
+    g.rotation.x = c.burrows ? 0 : Math.min(0.8, c.fall * 0.5);
+    c.anim(this.time, { windup: !!train.boss?.windup, enraged: !!train.boss?.enraged });
+    const me = this.player();
+    if (Math.abs(t.s - me.s) > 400) return;
+    // The wurm throws up sand where it breaks the ground; a wyrm trails its breath.
+    c.dust += dt;
+    if (c.burrows && c.dust > 0.08) {
+      c.dust = 0;
+      for (const z of [-8, 2, 8])
+        this.spawn(this.TEX.smoke, this.worldPos(t, rand(-2, 2), 0.2, z + rand(-2, 2)), { s0: 1.5, s1: rand(4, 7), life: rand(0.6, 1), a: 0.6, color: 0xd9b98a, vel: new THREE.Vector3(rand(-3, 3), rand(2, 5), rand(-3, 3)) });
+    } else if (!c.burrows && c.dust > 0.12) {
+      c.dust = 0;
+      const frost = c.look.shot === 'frost';
+      this.spawn(frost ? this.TEX.smoke : this.TEX.fire, this.worldPos(t, ...t.muzzleAt), { add: !frost, s0: 0.9, s1: frost ? 3 : 0.3, life: 0.4, a: 0.7, color: frost ? 0xd9f6ff : 0xffffff, vel: this.forward(t.s).multiplyScalar(t.v + 5) });
+    }
+  }
+
   siphonStream() {
     const ability = this.race.ability;
-    if (!ability || !(ability.activeFor > 0) || !this.siphonFrom) return;
+    if (!ability || !(ability.activeFor > 0) || !this.siphonFrom || ability.id !== 'siphon') return;
     const from = this.vis(this.siphonFrom);
+    if (!from) return;
     const me = this.player();
     if (Math.random() < 0.7) {
       const a = this.worldPos(from, rand(-1, 1), rand(2, 4), rand(-10, 4));
@@ -1738,6 +2087,12 @@ export class RailScene {
       if (mode === 'chase') {
         off = new THREE.Vector3(-3 * lean, 15, -30);
         look = new THREE.Vector3(Math.min(this.halfTracks, 4.5) * lean * 0.6, 2, 18);
+        // A boss creature rides off to one side and above: pull back and look its way.
+        const boss = this.bossVis;
+        if (boss?.creature && !boss.train.hidden && !boss.train.out) {
+          off.set(-7, 17, -36);
+          look.set(4.5, 3 + boss.creature.alt * 0.35, 20);
+        }
       } else if (mode === 'helicopter') {
         return this.updateHelicopter(dt);
       } else if (mode === 'birdseye') {
@@ -1952,6 +2307,7 @@ export class RailScene {
     this.time += dt;
     if (dt > 0) {
       this.trains.forEach((t) => this.stepTrain(t, dt));
+      this.updateFalling(dt);
       this.updateShots(dt); // first, so a bolt that just landed has its cloud ready for the strike
       this.updateBeams(dt);
       this.drainFx();
@@ -1999,6 +2355,25 @@ export class RailScene {
     if (this.flashEl) this.flashEl.style.opacity = this.flash;
     this.updateNums(dt);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // Rocks thrown onto the line drop out of the sky and land with a thump.
+  updateFalling(dt) {
+    for (let i = this.falling.length - 1; i >= 0; i--) {
+      const vis = this.falling[i];
+      vis.fall -= dt;
+      const k = Math.max(0, vis.fall / 0.55);
+      vis.g.position.y = vis.baseY + 60 * k * k;
+      if (vis.fall > 0) continue;
+      this.falling.splice(i, 1);
+      const at = this.worldPos(vis, 0, 1, 0);
+      this.rubble(at);
+      if (vis.look === 'meteor') this.explode(at, false, 0xff9a40);
+      if (Math.abs(vis.s - this.player().s) < 500) {
+        sfx.boom(false);
+        if (!this.reduceMotion) this.shake = Math.max(this.shake, 0.5);
+      }
+    }
   }
 
   // ---------- the course map ----------
@@ -2094,7 +2469,23 @@ export class RailScene {
     // Rivals first so the player's dot sits on top.
     for (let i = this.trains.length - 1; i >= 0; i--) {
       const t = this.trains[i];
+      if (t.train.hidden) continue;
       const [x, y] = this.mapPoint(t.train.distance * UNITS_PER_MILE, W, H);
+      if (t.train.isBoss) {
+        // The boss: a red diamond.
+        ctx.fillStyle = t.train.out ? '#555' : '#ff4a3a';
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 10);
+        ctx.lineTo(x + 9, y);
+        ctx.lineTo(x, y + 10);
+        ctx.lineTo(x - 9, y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        continue;
+      }
       ctx.fillStyle = t.train.out ? '#555' : liveryFor(t.train).css;
       ctx.beginPath();
       ctx.arc(x, y, t.train.isPlayer ? 9 : 7, 0, 7);

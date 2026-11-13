@@ -1,13 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { Award, Clock, FileSignature, Flag, Lock, Map as MapIcon, Mountain, Package, PartyPopper, TrainFront, Trophy, Truck } from 'lucide-react';
+import { Award, Clock, FileSignature, Flag, Lock, Map as MapIcon, Mountain, Package, PartyPopper, Swords, TrainFront, Trophy, Truck } from 'lucide-react';
 import RouteMap from '../ui/RouteMap.jsx';
+import BountyBoard from './Bounties.jsx';
+import { BOSS_IDS, bossState } from '../game/bosses.js';
+import { Terrain } from '../ui/Terrain.jsx';
 import { expressById, lineById } from '../game/routemap.js';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import { activeLoco, avgFuelCost } from '../game/conductor.js';
 import { cargoFits, deriveStats } from '../game/locomotives.js';
 import { COMPANIES, companyById, companyRecord, entryFee, jobPay, jobXp, nextStarAt, obstacleMix, sortByDistance, starsFor } from '../game/jobs.js';
-import { makeCourse, themeFor } from '../game/course.js';
+import { makeCourse } from '../game/course.js';
 import { depotPrice } from '../game/economy.js';
 import { planTrip } from '../game/race.js';
 import { hasTrait } from '../game/traits.js';
@@ -21,6 +24,7 @@ const TABS = [
   { id: 'deliveries', label: 'Deliveries', icon: Truck },
   { id: 'contracts', label: 'Contracts', icon: FileSignature },
   { id: 'races', label: 'Races', icon: Trophy },
+  { id: 'bounties', label: 'Bounties', icon: Swords },
   { id: 'reputation', label: 'Reputation', icon: Award },
 ];
 
@@ -67,17 +71,7 @@ function Hazard({ job }) {
 }
 
 const MIX_NAME = { debris: 'debris', boulder: 'boulder', large: 'large', giant: 'GIANT' };
-// The terrain a job runs through: plains, flooded, desert or a frozen pass.
-const TERRAIN_TONE = { plains: '', flooded: 'water', desert: 'sand', snow: 'ice' };
-export function Terrain({ id, theme }) {
-  const t = theme ?? themeFor(id);
-  const info = B.TRACK.themes[t];
-  return (
-    <span className={`terrain-chip ${TERRAIN_TONE[t]}`} title={info.text}>
-      {info.name}
-    </span>
-  );
-}
+export { Terrain };
 
 export function MixLine({ job }) {
   const mix = obstacleMix(job);
@@ -149,7 +143,7 @@ export default function Jobs() {
   const [tab, setTab] = useState(screen.tab ?? 'deliveries');
   const [main, subPick] = tab.split(':');
   const sub = subPick ?? (companyJobs.length ? 'open' : 'compete');
-  const counts = { deliveries: simple.length, contracts: contracts.length + companyJobs.reduce((n, [, jobs]) => n + jobs.length, 0), races: races.length, reputation: known.length };
+  const counts = { deliveries: simple.length, contracts: contracts.length + companyJobs.reduce((n, [, jobs]) => n + jobs.length, 0), races: races.length, bounties: BOSS_IDS.filter((id) => bossState(conductor, id).state === 'open').length, reputation: known.length };
   const daysToTurn = B.WEEK.days - (Math.floor((conductor.clock ?? 0) / 1440) % B.WEEK.days);
 
   const perks = [];
@@ -454,6 +448,8 @@ export default function Jobs() {
           )}
         </section>
       ) : null}
+
+      {main === 'bounties' ? <BountyBoard /> : null}
 
       {main === 'reputation' ? (
         <section className="stack" role="tabpanel">

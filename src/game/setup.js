@@ -9,6 +9,7 @@ import { planTrip } from './race.js';
 import { traitPower } from './traits.js';
 import { estimateBand } from './estimate.js';
 import { expressJob } from './routemap.js';
+import { bossById, bossState, bountyJob } from './bosses.js';
 
 // A "run" is anything that ends on the race screen. Its context is a small object:
 //   { kind: 'test' }                              the first run against Benchmark
@@ -17,6 +18,8 @@ import { expressJob } from './routemap.js';
 //   { kind: 'contract', contractId }              a race for a company's contracts
 //   { kind: 'race', raceId }                      a prize race from the board
 //   { kind: 'demo' }                              Phoenix test drive
+//   { kind: 'express' }                           the current leg of an express run
+//   { kind: 'bounty', bossId }                    a boss hunt from the bounty board
 // Deliveries and contract jobs also carry `haul`: how many containers the player pulls.
 
 export function findRun(conductor, ctx) {
@@ -26,6 +29,7 @@ export function findRun(conductor, ctx) {
   if (ctx.kind === 'contract') return board?.contracts.find((contract) => contract.id === ctx.contractId) ?? null;
   if (ctx.kind === 'race') return board?.races?.find((race) => race.id === ctx.raceId) ?? null;
   if (ctx.kind === 'express') return expressJob(conductor);
+  if (ctx.kind === 'bounty') return bountyJob(conductor, ctx.bossId);
   return null;
 }
 
@@ -128,6 +132,7 @@ export function describeRun(conductor, ctx) {
   let pay = null;
   let xp = null;
   let tutorial = null;
+  let boss = null;
   const owned = conductor.containers ?? 0;
 
   if (ctx.kind === 'test') {
@@ -161,7 +166,14 @@ export function describeRun(conductor, ctx) {
     courseSeed = job.id;
     theme = job.theme ?? null;
     boulders = job.boulders ?? [];
-    if (ctx.kind !== 'contract' && ctx.kind !== 'race') {
+    if (ctx.kind === 'bounty') {
+      // A boss hunt: no freight, no rivals, no clock but the boss's own.
+      boss = bossById(ctx.bossId);
+      subtitle = `${job.from} – ${job.to} line`;
+      const state = bossState(conductor, ctx.bossId);
+      if (state.state === 'locked') blocked = `${state.why}.`;
+      if (state.state === 'slain') blocked = `${boss.name} is down. It will be back on its line in ${state.backIn} day${state.backIn === 1 ? '' : 's'}.`;
+    } else if (ctx.kind !== 'contract' && ctx.kind !== 'race') {
       // Pull up to as many of the job's containers as you own.
       haul = job.containers === 0 ? 0 : Math.max(1, Math.min(job.containers, owned, ctx.haul ?? owned));
       weight = haul * (job.each ?? 0);
@@ -207,6 +219,7 @@ export function describeRun(conductor, ctx) {
     cargoLb,
     plan,
     rivals,
+    boss,
     blocked,
     tutorial,
     freeFuel: ctx.kind === 'demo',
@@ -219,7 +232,8 @@ export function buildRaceConfig(conductor, run, fuelGallons) {
     kind: run.ctx.kind,
     title: run.title,
     // Spells are in play wherever there are rivals to race, except the test drive.
-    combat: (run.rivals.length > 0 && run.ctx.kind !== 'demo') || run.boulders.length > 0,
+    combat: (run.rivals.length > 0 && run.ctx.kind !== 'demo') || run.boulders.length > 0 || !!run.boss,
+    boss: run.boss ?? null,
     // The first run is a guided lesson: weapons are ready from the flag.
     guide: run.ctx.kind === 'test',
     bootInstant: run.ctx.kind === 'test',

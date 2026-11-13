@@ -1,6 +1,7 @@
 import { LicenceBadge } from '../ui/Licence.jsx';
 import React from 'react';
-import { ArrowRight, Plus } from 'lucide-react';
+import { ArrowRight, Gem, Plus } from 'lucide-react';
+import { MODELS } from '../game/locomotives.js';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import { ATTRIBUTES, xpForLevel } from '../game/conductor.js';
@@ -18,6 +19,7 @@ const STAMPS = {
   late: ['Late', ''],
   forfeit: ['Forfeit', ''],
   demo: ['Test drive', 'gold'],
+  escaped: ['Got away', ''],
 };
 
 function place(n) {
@@ -28,6 +30,13 @@ function place(n) {
 
 function headline(receipt) {
   const r = receipt.result;
+  if (receipt.kind === 'bounty' && r.boss && receipt.outcome !== 'forfeit') {
+    const left = Math.round((r.boss.hull / r.boss.hullMax) * 100);
+    if (r.boss.slain) return `${r.boss.name} is brought down after ${fmt(r.boss.seconds)} seconds of fighting.${receipt.firstKill ? ' The bounty is yours in full.' : ''}`;
+    if (!r.boss.met) return `The run ended before ${r.boss.name} showed itself.`;
+    if (r.derailed) return `${r.boss.name} knocked you off the rails with ${left}% of its hull left.`;
+    return `${r.boss.name} got away with ${left}% of its hull left. No bounty for a boss still on the line.`;
+  }
   if (receipt.contest) {
     if (receipt.outcome === 'forfeit') return 'You stepped out of the contest.';
     if (receipt.contest === 'wall') return r.reason === 'smashed' ? `The wall came down in ${fmt(r.realSeconds, 1)} seconds.` : 'The judges called time with the wall still standing.';
@@ -105,6 +114,17 @@ export default function Receipt() {
           </div>
         ) : null}
         {receipt.expressDone ? <p className="note">The {receipt.expressDone} is complete. Bonus paid below.</p> : null}
+        {receipt.relic ? (
+          <div className="licence-up relic-up">
+            <Gem aria-hidden="true" />
+            <div>
+              <b>Relic won: {receipt.relic.name}</b>
+              <span className="small">
+                It forges {MODELS[receipt.relic.forges].name} for {ltWhole(B.MYTHIC[receipt.relic.forges].forge.price)} LT in the Hall of Legends at the Station.
+              </span>
+            </div>
+          </div>
+        ) : null}
         {receipt.prizeWeapon ? (
           <div className="note stack-sm">
             <b>Prize: a weapon for your shelf.</b>
@@ -136,7 +156,7 @@ export default function Receipt() {
             ))}
             {receipt.lines.length === 0 ? (
               <>
-                <dt>{receipt.kind === 'contract' ? 'Purse (the prize is contracts)' : receipt.kind === 'race' ? 'Purse (top three only)' : 'Pay'}</dt>
+                <dt>{receipt.kind === 'contract' ? 'Purse (the prize is contracts)' : receipt.kind === 'race' ? 'Purse (top three only)' : receipt.kind === 'bounty' ? 'Bounty (only for a boss brought down)' : 'Pay'}</dt>
                 <dd>0 LT</dd>
               </>
             ) : null}
@@ -229,6 +249,21 @@ export default function Receipt() {
                 </div>
               ) : null}
             </>
+          ) : null}
+          {r.boss?.met ? (
+            <div className="stat">
+              <span className="label">{r.boss.name}</span>
+              <b className={r.boss.slain ? 'go' : 'stop'}>
+                {r.boss.slain ? 'Down' : `${Math.round((r.boss.hull / r.boss.hullMax) * 100)}% left`}
+                {r.boss.broken ? <small>{r.boss.broken} broken</small> : null}
+              </b>
+            </div>
+          ) : null}
+          {r.dodges ? (
+            <div className="stat">
+              <span className="label">Dodged</span>
+              <b>{r.dodges}</b>
+            </div>
           ) : null}
           {r.boulders ? (
             <div className="stat">

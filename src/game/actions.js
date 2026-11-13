@@ -26,6 +26,8 @@ import { applyCrew, assignCrew } from './crates.js';
 import { armoryOffers, baseOf, isWeaponItem, rollWeapon, standardWeapon, weaponPrice, WEAPON_BASES } from './weapons.js';
 import { CONTESTS, PRIZES, medalFor } from './festival.js';
 import { findRun } from './setup.js';
+import { bossById, bossRecord, bountyReward, legendOffer } from './bosses.js';
+import { dayIndex } from './calendar.js';
 
 // Every change to a save goes through one of these functions.
 // Each takes the conductor (already a private copy, safe to mutate) and returns
@@ -368,13 +370,17 @@ export function buyLoco(conductor, { id }) {
   if (!loco) fail('That locomotive is no longer for sale.');
   if (special && conductor.locos.some((owned) => owned.model === loco.model)) fail(`You already own ${loco.name}.`);
   const isPhoenix = special;
-  spend(conductor, loco.price, loco.name);
+  // A legendary machine may be forged with its boss's relic for less; some can only be forged.
+  const offer = id !== 'phoenix' && special ? legendOffer(conductor, id) : null;
+  if (offer?.locked) fail(offer.locked);
+  const price = offer?.price ?? loco.price;
+  spend(conductor, price, loco.name);
   return withRng(conductor, (rng) => {
     const owned = structuredClone(loco);
     owned.id = `loco-${Math.floor(rng() * 2176782336).toString(36)}`;
     conductor.locos.push(owned);
     if (!isPhoenix) conductor.station.stock = conductor.station.stock.filter((item) => item.id !== id);
-    return { loco: owned };
+    return { loco: owned, price, forged: !!offer?.forged };
   });
 }
 
@@ -445,7 +451,8 @@ function gainReputation(conductor, companyId, points) {
 function settleFuel(conductor, result) {
   const average = avgFuelCost(conductor);
   const loadedBasis = result.fuelLoaded * average;
-  const totalIn = result.fuelLoaded + result.emergencyGallons;
+  // Fuel taken from another train (Plunder, Maw) came in for nothing.
+  const totalIn = result.fuelLoaded + result.emergencyGallons + (result.fuelStolen ?? 0);
   const totalBasis = loadedBasis + result.emergencyCost;
   const fuelCost = totalIn > 0 ? totalBasis * (result.fuelUsed / totalIn) : 0;
   conductor.fuel.gallons = Math.max(0, conductor.fuel.gallons - result.fuelLoaded + result.fuelLeft);
@@ -666,6 +673,37 @@ export function settleRun(conductor, { ctx, result, now }) {
         receipt.reputation = gainReputation(conductor, job.companyId, place === 1 ? R.repWin : R.repPlace);
         // Each prize race runs once; the board posts the next batch with the new week.
         conductor.board.races = conductor.board.races.filter((item) => item.id !== job.id);
+      }
+    }
+
+    // Bounties: bring the boss down for the purse, a weapon and (the first time) its relic.
+    if (ctx.kind === 'bounty' && job) {
+      const boss = bossById(ctx.bossId);
+      const slain = !!result.boss?.slain;
+      receipt.title = job.title;
+      receipt.company = 'The Railway Wardens';
+      receipt.bossId = ctx.bossId;
+      receipt.outcome = forfeit ? 'forfeit' : slain ? 'won' : result.derailed ? 'lost' : 'escaped';
+      if (slain) {
+        const reward = bountyReward(conductor, ctx.bossId);
+        add(reward.first ? `Bounty on ${boss.name}` : `Repeat bounty on ${boss.name}`, reward.lt);
+        xp = reward.xp;
+        const weapon = rollWeapon(rng, WEAPON_BASES[Math.floor(rng() * WEAPON_BASES.length)], reward.weapon);
+        conductor.arsenal = [...(conductor.arsenal ?? []), weapon];
+        receipt.prizeWeapon = weapon;
+        if (reward.first) {
+          conductor.relics = { ...(conductor.relics ?? {}), [ctx.bossId]: { at: conductor.clock ?? 0 } };
+          receipt.relic = { bossId: ctx.bossId, name: boss.relic, forges: boss.forges };
+        }
+        const record = { ...bossRecord(conductor, ctx.bossId) };
+        record.kills = (record.kills ?? 0) + 1;
+        record.best = record.best === null || record.best === undefined ? result.boss.seconds : Math.min(record.best, result.boss.seconds);
+        record.slainDay = dayIndex(conductor.clock ?? 0);
+        conductor.bounties = { ...(conductor.bounties ?? {}), [ctx.bossId]: record };
+        receipt.firstKill = reward.first;
+      } else if (!forfeit && result.boss?.met) {
+        // No purse for a boss that got away, but the fight was worth something.
+        xp = Math.round(boss.xp * 0.25 * (1 - result.boss.hull / result.boss.hullMax));
       }
     }
 

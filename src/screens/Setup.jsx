@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { themeOf } from '../game/course.js';
-import { ArrowLeft, Flag, Fuel, Minus, Mountain, Package, Plus } from 'lucide-react';
+import { ArrowLeft, Crosshair, Flag, Fuel, Minus, Mountain, Package, Plus, Sparkles } from 'lucide-react';
+import { BossAttacks, BossCrest } from './Bounties.jsx';
+import { bountyReward } from '../game/bosses.js';
+import { clock } from '../ui/format.js';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import { avgFuelCost } from '../game/conductor.js';
@@ -25,9 +28,11 @@ const KIND_LABEL = {
   contract: 'Contract race',
   race: 'Prize race',
   demo: 'Test drive',
+  express: 'Express leg',
+  bounty: 'Bounty hunt',
 };
 
-const ARM_NAMES = { launcher: 'a missile launcher', cannon: 'a cannon', heavy: 'a heavy cannon', plasma: 'a plasma gun', arc: 'a lightning cannon', fire: 'Fire', bolt: 'Bolt', barrier: 'Barrier', shield: 'Shield', frost: 'Frost Breath', vent: 'a coolant vent' };
+const ARM_NAMES = { launcher: 'a missile launcher', cannon: 'a cannon', heavy: 'a heavy cannon', plasma: 'a plasma gun', arc: 'a lightning cannon', heat: 'a heat cannon', tesla: 'a Tesla coil', fire: 'Fire', bolt: 'Bolt', barrier: 'Barrier', shield: 'a shield', frost: 'Frost Breath', vent: 'a coolant vent' };
 
 // The first run: your train against Benchmark's, before and after the conductors.
 function TaleOfTheTape({ conductor, run }) {
@@ -120,7 +125,8 @@ export default function Setup() {
   const band = estimateBand(conductor);
   const fuelEst = run ? estimateRange(run.plan.gallons, band, `${run.courseSeed}-fuel`) : null;
   const timeEst = run ? estimateRange(run.plan.realSeconds, band, `${run.courseSeed}-time`) : null;
-  const suggested = run ? Math.min(run.stats.tank, Math.ceil(fuelEst.hi * 1.05)) : 0;
+  // A boss fight is as long as it takes, and missiles burn fuel: a hunt starts on a full tank.
+  const suggested = run ? (run.boss ? run.stats.tank : Math.min(run.stats.tank, Math.ceil(fuelEst.hi * 1.05))) : 0;
   const [fuel, setFuel] = useState(() => (run ? Math.min(run.maxLoad, suggested) : 0));
 
   if (!run) {
@@ -220,7 +226,7 @@ export default function Setup() {
             <Stat label="Kit" value={lb(stats.moduleWeight)} unit="lb" />
             <Stat label="Horsepower" value={fmt(stats.hp)} />
             <Stat label="Torque" value={fmt(stats.tq)} />
-            {run.rivals.length && ctx.kind !== 'demo' ? <Stat label="Hull" value={fmt(stats.hull)} unit="HP" /> : null}
+            {(run.rivals.length && ctx.kind !== 'demo') || run.boss ? <Stat label="Hull" value={fmt(stats.hull)} unit="HP" /> : null}
             <Stat label="Top speed loaded" value={fmt(plan.topMph)} unit="mph" />
             <Stat label="Takes" value={range(timeEst, minutes)} tone={willBeLate ? 'stop' : mayBeLate ? 'brass' : ''} />
             <Stat label="On the line" value={fmtSpan(plan.gameSeconds / 60)} />
@@ -276,6 +282,42 @@ export default function Setup() {
             <p className="small muted">Engine, kit, cargo and fuel together. Heavier loads are slower, thirstier and wear the engine faster; the closer to the towing limit, the faster the wear.</p>
           </div>
 
+          {run.boss ? (
+            <div className="plate riveted stack bounty-brief">
+              <div className="bounty-head">
+                <BossCrest id={run.boss.id} size={56} />
+                <div className="grow">
+                  <span className="label">Tier {run.boss.tier} boss</span>
+                  <h3>{run.boss.name}</h3>
+                  <span className="muted small">{run.boss.title}</span>
+                </div>
+              </div>
+              <div className="stats">
+                <Stat label="Hull" value={fmt(run.boss.hull)} unit="HP" />
+                <Stat label="Armor" value={`${Math.round(run.boss.armor * 100)}%`} />
+                <Stat label="Stays for" value={clock(run.boss.seconds)} />
+                <Stat label="Bounty" value={ltWhole(bountyReward(conductor, run.boss.id).lt)} unit="LT" tone="brass" />
+              </div>
+              <p className="small muted">
+                It joins you about {B.BOSS.enterAt} miles in and rides beside you. Bring its hull to zero before its time runs out or the end of the line, and stay on the rails. Every attack is announced:
+              </p>
+              <BossAttacks boss={run.boss} />
+              <p className="note small">
+                <Crosshair aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> {run.boss.tip}
+              </p>
+              <p className="small">
+                You bring: {stats.arms.length ? stats.arms.map((a) => ARM_NAMES[a.split('#')[0]] ?? a).join(', ') : 'no weapons at all (visit the Engineering Bay)'}
+                {stats.ability ? (
+                  <>
+                    {' '}
+                    and <Sparkles aria-hidden="true" style={{ width: 13, height: 13, verticalAlign: '-2px' }} /> <b>{B.ABILITIES[stats.ability].name}</b>
+                  </>
+                ) : null}
+                . {stats.arms.some((a) => a.startsWith('launcher')) ? 'Missiles burn 2 gallons each: load extra fuel for a long fight.' : ''}
+              </p>
+            </div>
+          ) : null}
+
           {run.boulders.length ? (
             <p className="note warn">
               <Mountain aria-hidden="true" style={{ width: 16, height: 16, verticalAlign: '-3px' }} /> Rockfall: {run.boulders.length} obstacle{run.boulders.length === 1 ? '' : 's'} on the line. <MixLine job={run.job} />. Shoot them before you reach them or crash through with a strong front; a crash costs HP and speed. Your lookout sees {fmt(stats.sight, 1)} mi ahead; you carry {Math.floor(stats.ammo / 3)} cannonballs{stats.arms?.some((a) => a.startsWith('launcher')) ? ', and every missile burns 2 gallons of your fuel' : ''}
@@ -317,13 +359,18 @@ export default function Setup() {
                 Fuel is heavy: {B.LOCO.fuelLbPerGallon} lb a gallon. A full tank is a slower, thirstier train, so load what the run needs. The plan assumes the lever at 100%; 110% burns about a quarter more.
               </p>
               <div className="row">
-                <button type="button" className="btn btn-sm" onClick={() => { snapshot(); setFuel(Math.min(run.maxLoad, suggested)); }}>
-                  Top of estimate ({fmt(Math.min(run.maxLoad, suggested))})
+                <button type="button" className="btn btn-sm" onClick={() => { snapshot(); setFuel(Math.min(run.maxLoad, run.boss ? Math.ceil(fuelEst.hi * 1.05) : suggested)); }}>
+                  {run.boss ? `Just the run (${fmt(Math.min(run.maxLoad, Math.ceil(fuelEst.hi * 1.05)))})` : `Top of estimate (${fmt(Math.min(run.maxLoad, suggested))})`}
                 </button>
                 <button type="button" className="btn btn-sm" onClick={() => { snapshot(); setFuel(run.maxLoad); }}>
                   Fill
                 </button>
               </div>
+              {run.boss ? (
+                <p className="small muted">
+                  A hunt starts on a full tank: the run itself needs {range(fuelEst)} gallons, and the fight is as long as it takes.{stats.arms.some((a) => a.startsWith('launcher')) ? ' Every missile burst burns fuel on top of that.' : ''} What you do not burn goes back to your reserve.
+                </p>
+              ) : null}
               {short ? (
                 <p className="note warn">
                   {fmt(load)} gallons may not cover this run: your estimate is {range(fuelEst)} gallons. Less fuel is a lighter, faster train, but an empty tank stops you.

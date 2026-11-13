@@ -24,6 +24,8 @@ import {
   stepRace,
   clearPrompt,
   useAbility as fireAbility,
+  abilityBlocker,
+  rivalsOf,
   setCapacitors,
   setPanels,
   useWind as spendWindRule,
@@ -90,6 +92,14 @@ const costText = (key, train) => {
   return arm.use === 'ammo' ? (arm.burst ? `${arm.burst}×` : '1 ball') : arm.use === 'charge' ? `${arm.cost}⚡` : `${arm.cost}`;
 };
 const AIMS = { auto: 'Aim: auto', track: 'Aim: track', rivals: 'Aim: rivals' };
+// What to do about a boss attack, said in a few words.
+function warnTip(atk, boss) {
+  if (atk.type === 'drop') return 'Incoming on your line: shoot it or brace';
+  if (atk.type === 'guard') return 'Its guard is going up: Burn and Poison still bite';
+  if (atk.break) return `Break it: ${Math.ceil(atk.break * boss.hullMax)} damage before it fires`;
+  if (atk.dodge) return `Aimed: shift your lever ${Math.round(B.BOSS.dodgeLever * 100)}% to dodge`;
+  return 'Cannot be dodged: raise a shield';
+}
 const SIZE_NAME = { debris: 'Debris', boulder: 'Boulder', large: 'Large boulder', giant: 'Giant boulder' };
 
 function gapText(miles) {
@@ -210,10 +220,12 @@ export default function Race() {
     else if (result.reason === 'derailed') text = 'Knocked off the line';
     else if (result.reason === 'smashed') text = `Wall down in ${fmt(result.realSeconds, 1)} s!`;
     else if (race.kind === 'wall') text = "Time's up";
-    else if (race.trains.length > 1) text = result.place === 1 ? (result.rivalsDerailed ? 'Victory!' : 'First across!') : `Finished ${result.place} of ${race.trains.length}`;
+    else if (result.reason === 'slain') text = 'Bounty claimed!';
+    else if (result.boss && !result.boss.slain) text = `${result.boss.name} got away`;
+    else if (rivalsOf(race).length > 0) text = result.place === 1 ? (result.rivalsDerailed ? 'Victory!' : 'First across!') : `Finished ${result.place} of ${result.field}`;
     else if (result.reason === 'late') text = 'Out of time';
     setToast({ text, until: Date.now() + 2300 });
-    if (result.reason !== 'forfeit') (result.place === 1 && !result.derailed ? sfx.win : sfx.lose)();
+    if (result.reason !== 'forfeit') (result.place === 1 && !result.derailed && !(result.boss && !result.boss.slain) ? sfx.win : sfx.lose)();
     // No cleanup on purpose: the HUD redraws ten times a second and this timer must survive that.
     window.setTimeout(
       () => {
@@ -282,10 +294,13 @@ export default function Race() {
     [race, player, say, redraw],
   );
 
+  // The locomotive's signature ability (Q).
   const siphon = useCallback(() => {
     if (!race.ability || race.ability.auto) return;
-    if (race.ability.used) return say('Siphon Speed is used up');
-    if (!fireAbility(race)) return say('No rival to drain');
+    sfx.init();
+    const why = abilityBlocker(race);
+    if (why) return say(why === 'Used up' ? `${B.ABILITIES[race.ability.id].name} is used up` : why);
+    fireAbility(race);
     redraw();
     return undefined;
   }, [race, say, redraw]);
@@ -365,8 +380,13 @@ export default function Race() {
   }, [race]);
 
   // ---------- derived numbers ----------
-  const rivals = race.trains.slice(1);
+  const rivals = rivalsOf(race);
   const hasRivals = rivals.length > 0;
+  const boss = race.boss && !race.boss.hidden ? race.boss : null;
+  const bossState = boss?.boss ?? null;
+  const ability = race.ability && !race.ability.auto ? race.ability : null;
+  const abilityInfo = ability ? B.ABILITIES[ability.id] : null;
+  const abilityWhy = ability ? abilityBlocker(race) : null;
   const comp = race.competitive;
   const nearest = rivals.find((train) => train.id === race.nearestId);
   // The next boulder still standing on your line, if one is within two miles.
@@ -444,7 +464,7 @@ export default function Race() {
               <div className="r3-row">
                 <span className="r3-lbl">Place</span>
                 <span>
-                  {race.place} of {race.trains.length}
+                  {race.place} of {rivals.length + 1}
                 </span>
               </div>
             </>
@@ -491,8 +511,44 @@ export default function Race() {
       </div>
 
       {/* Top centre: what the line is doing right now */}
-      {hillNow || matters(bend) || bendAhead || floodNow || floodAhead ? (
-        <div className="r3-banners" aria-live="polite">
+      {boss || hillNow || matters(bend) || bendAhead || floodNow || floodAhead ? (
+        <div className={`r3-banners ${boss ? 'has-boss' : ''}`} aria-live="polite">
+          {boss ? (
+            <div className={`r3-boss ${bossState.enraged ? 'enraged' : ''} ${boss.out ? 'down' : ''}`}>
+              <div className="r3-boss-head">
+                <span className="r3-boss-name">{boss.name}</span>
+                <span className="r3-boss-title">{boss.locoName}</span>
+                <span className="r3-boss-timer">{boss.out ? 'Destroyed' : bossState.state === 'fighting' ? `Escapes in ${clock(bossState.left)}` : 'Closing in'}</span>
+              </div>
+              <div className="r3-boss-bar" role="progressbar" aria-label={`${boss.name} hull`} aria-valuemin={0} aria-valuemax={boss.hullMax} aria-valuenow={Math.ceil(boss.hull)}>
+                <i style={{ width: `${Math.max(0, (boss.hull / boss.hullMax) * 100)}%` }} />
+                <b style={{ left: `${B.BOSS.enrage.at * 100}%` }} />
+              </div>
+              <div className="r3-boss-sub">
+                <span>
+                  {fmt(Math.ceil(boss.hull))} / {fmt(boss.hullMax)}
+                </span>
+                {boss.armor > 0 ? <span>Armor {Math.round(boss.armor * 100)}%</span> : null}
+                {boss.barrier > 0 ? <span className="r3-barrier">Guard {boss.barrier.toFixed(1)}s</span> : null}
+                {boss.frozenFor > 0 ? <span className="r3-barrier">Frozen {boss.frozenFor.toFixed(1)}s</span> : null}
+                {bossState.enraged && !boss.out ? <span className="r3-danger">Enraged</span> : null}
+                <Afflictions train={boss} />
+              </div>
+              {bossState.windup ? (
+                <div className={`r3-boss-warn ${bossState.windup.atk.break ? 'break' : bossState.windup.atk.dodge ? 'dodge' : ''}`}>
+                  <b>{bossState.windup.atk.name}</b>
+                  <span>{warnTip(bossState.windup.atk, boss)}</span>
+                  <i className="r3-boss-fuse" style={{ transform: `scaleX(${Math.max(0, bossState.windup.left / bossState.windup.total)})` }} />
+                  {bossState.windup.atk.break ? <i className="r3-boss-break" style={{ transform: `scaleX(${Math.min(1, bossState.windup.dealt / (bossState.windup.atk.break * boss.hullMax))})` }} /> : null}
+                </div>
+              ) : bossState.reel > 0 ? (
+                <div className="r3-boss-warn reel">
+                  <b>Reeling</b>
+                  <span>Its attack is broken: hit it now</span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {floodNow || floodAhead ? (
             <div className="r3-bend flood">
               <b>{floodNow ? 'Floodwater' : `Floodwater in ${(floodAhead.start - player.distance).toFixed(1)} mi`}</b>
@@ -634,7 +690,7 @@ export default function Race() {
                 return (
                   <div key={item.id} className="r3-obstacle">
                     <div className="r3-row r3-spread r3-small">
-                      <span className={inRange ? 'r3-ahead' : ''}>{SIZE_NAME[item.size] ?? 'Boulder'}</span>
+                      <span className={inRange ? 'r3-ahead' : ''}>{item.label ?? SIZE_NAME[item.size] ?? 'Boulder'}</span>
                       <span>
                         {d.toFixed(2)} mi{inRange ? ' · in range' : ''}
                       </span>
@@ -675,7 +731,7 @@ export default function Race() {
 
       {/* Bottom left: commands and your train */}
       <div className="r3-hud r3-bl">
-        {(race.combat && arms.length) || (race.ability && !race.ability.auto) || player.windMax > 0 ? (
+        {(race.combat && arms.length) || ability || player.windMax > 0 ? (
           <div className="r3-win r3-cmds" role="group" aria-label="Commands">
             {race.combat
               ? arms.map((key, index) => {
@@ -749,17 +805,13 @@ export default function Race() {
                 <span className="r3-volt-dmg">≈{Math.round(teslaDamage(teslaOf(player), player.volts))} dmg</span>
               </button>
             ) : null}
-            {race.ability && !race.ability.auto ? (
-              <button
-                type="button"
-                className={`r3-cmd ${race.ability.used || !nearest || race.status !== 'running' ? 'off' : ''}`}
-                onClick={siphon}
-                aria-disabled={race.ability.used ? 'true' : 'false'}
-              >
+            {ability ? (
+              <button type="button" className={`r3-cmd r3-ability ${abilityWhy ? 'off' : 'ready'}`} onClick={siphon} aria-disabled={abilityWhy ? 'true' : 'false'} title={`${abilityInfo.name}: ${abilityInfo.text}${abilityWhy ? ` (${abilityWhy})` : ''}`}>
                 <span className="r3-cur">▶</span>
-                Siphon
-                <span className="r3-key">{arms.length + 1}</span>
-                <span className="r3-cost">{race.ability.activeFor > 0 ? `${fmt(race.ability.activeFor)}s` : race.ability.used ? 'used' : '1×'}</span>
+                {abilityInfo.name}
+                <span className="r3-key">Q</span>
+                <span className="r3-cost">{ability.activeFor > 0 ? `${fmt(ability.activeFor)}s` : ability.used ? 'used' : ability.cd > 0 ? `${Math.ceil(ability.cd)}s` : ability.uses !== null ? `${ability.uses}×` : 'ready'}</span>
+                {abilityInfo.cooldown ? <i className="r3-cd" style={{ transform: `scaleX(${ability.cd / abilityInfo.cooldown})` }} /> : null}
               </button>
             ) : null}
           </div>
@@ -770,7 +822,9 @@ export default function Race() {
               {player.locoName || player.name}
             </span>
             {player.barrier > 0 ? <span className="r3-barrier r3-small">Barrier {player.barrier.toFixed(1)}s</span> : null}
-            {race.ability?.activeFor > 0 ? <span className="r3-siphon r3-small">Siphon {fmt(race.ability.activeFor)}s</span> : null}
+            {ability?.activeFor > 0 ? <span className="r3-siphon r3-small">{abilityInfo.name} {fmt(ability.activeFor)}s</span> : null}
+            {player.gravFor > 0 ? <span className="r3-danger r3-small">Black Hole {fmt(player.gravFor)}s</span> : null}
+            {player.frozenFor > 0 ? <span className="r3-barrier r3-small">Frozen {fmt(player.frozenFor)}s</span> : null}
           </div>
           <div className="r3-meters">
             {race.combat ? (

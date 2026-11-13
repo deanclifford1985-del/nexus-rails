@@ -2,7 +2,7 @@ import { talent } from './captain.js';
 import { B } from './balance.js';
 import { makeRng, pick, round1 } from './rng.js';
 import { traitPower } from './traits.js';
-import { MYTHIC_MODELS, STARTER_MODELS, generateLoco, makeMythic, makePhoenix } from './locomotives.js';
+import { LEGEND_MODELS, STARTER_MODELS, generateLoco, makeMythic, makePhoenix } from './locomotives.js';
 import { weekOf } from './calendar.js';
 
 // ---------- Fuel ----------
@@ -102,10 +102,11 @@ export const phoenixForSale = (() => {
   };
 })();
 
-// The Storm Magus, the Iron Titan and the Ember Wyrm, always for sale (at a price).
+// The legendary machines in the Hall of Legends. Some are always for sale (at a price); the rest
+// are forged from a boss relic (see legendOffer in bosses.js).
 const mythicCache = {};
 export function mythicForSale(model) {
-  if (!MYTHIC_MODELS.includes(model)) return null;
+  if (!LEGEND_MODELS.includes(model)) return null;
   if (!mythicCache[model]) mythicCache[model] = { ...makeMythic(makeRng(hashText(model)), model), id: model };
   return mythicCache[model];
 }

@@ -4,6 +4,20 @@ import { makeRng } from '../src/game/rng.js';
 import { LEGEND_MODELS, MODELS, abilityOf, deriveStats, generateLoco, makeMythic, makePhoenix, spellsOf } from '../src/game/locomotives.js';
 import { makeCourse } from '../src/game/course.js';
 import { abilityBlocker, createRace, fireAll, playerCast, playerOf, setLever, startRace, stepRace, useAbility } from '../src/game/race.js';
+import { buildConductor } from '../src/game/conductor.js';
+import * as actions from '../src/game/actions.js';
+import { buildRaceConfig, describeRun } from '../src/game/setup.js';
+import { BOSS_IDS, bossRecord, bossState, bountyReward, legendOffer, raiderOn } from '../src/game/bosses.js';
+import { resaleValue } from '../src/game/locomotives.js';
+
+const NOW = 1791480000000;
+function newConductor(seed = 42) {
+  const rng = makeRng(seed);
+  const loco = generateLoco(rng, 'stable', { rarity: 'uncommon', power: 4, efficiency: 4, durability: 4, hpBase: 1750, tqBase: 3875, growth: 1.095 });
+  const c = buildConductor({ name: 'Test Conductor', chosen: [], attributes: { str: 12, agi: 10, int: 8, end: 8 }, rerollsLeft: 0, loco, seed, now: NOW });
+  actions.refreshWorld(c, { now: NOW });
+  return c;
+}
 
 // Signature abilities and boss fights (the race engine's side of both).
 
@@ -367,5 +381,107 @@ describe('boss fights', () => {
     expect(r.rustjaw).toBe(1);
     expect(r.frostmaw).toBeGreaterThan(0.2);
     expect(r.bastion).toBe(0);
+  });
+});
+
+describe('the bounty board', () => {
+  it('posts bosses in order: licence first, then the boss before', () => {
+    const c = newConductor();
+    expect(bossState(c, 'rustjaw').state).toBe('open');
+    expect(bossState(c, 'frostmaw')).toMatchObject({ state: 'locked' });
+    expect(bossState(c, 'frostmaw').why).toMatch(/Fireman/);
+    c.stats.miles = 600;
+    expect(bossState(c, 'frostmaw').why).toMatch(/Rustjaw/);
+    c.bounties = { rustjaw: { kills: 1, best: 60, slainDay: -100 } };
+    expect(bossState(c, 'frostmaw').state).toBe('open');
+    expect(bossState(c, 'devourer').state).toBe('locked');
+    expect(BOSS_IDS[0]).toBe('rustjaw');
+  });
+
+  it('a bounty is a run like any other: set up, fought, settled', () => {
+    const c = newConductor();
+    const ctx = { kind: 'bounty', bossId: 'rustjaw' };
+    const run = describeRun(c, ctx);
+    expect(run.blocked).toBeNull();
+    expect(run.boss.id).toBe('rustjaw');
+    expect(run.distance).toBe(B.BOSSES.rustjaw.miles);
+    expect(run.rivals).toHaveLength(0);
+    expect(run.course.theme).toBe('plains');
+    const config = buildRaceConfig(c, run, 190);
+    expect(config.combat).toBe(true);
+    const race = createRace({ ...config, seed: 4 });
+    startRace(race);
+    const result = fightOn(race);
+    expect(result.reason).toBe('slain');
+    const lt = c.lt;
+    const fuel = c.fuel.gallons;
+    const receipt = actions.settleRun(c, { ctx, result, now: NOW });
+    expect(receipt.outcome).toBe('won');
+    expect(receipt.firstKill).toBe(true);
+    expect(receipt.lines[0].lt).toBe(B.BOSSES.rustjaw.bounty);
+    expect(receipt.xp).toBeGreaterThanOrEqual(B.BOSSES.rustjaw.xp);
+    expect(receipt.prizeWeapon.rarity).toBe('rare');
+    expect(receipt.relic).toMatchObject({ bossId: 'rustjaw', forges: 'marauder' });
+    expect(c.relics.rustjaw).toBeTruthy();
+    expect(c.arsenal).toHaveLength(1);
+    expect(c.lt).toBe(lt + B.BOSSES.rustjaw.bounty);
+    // The fuel not burned went back to the reserve.
+    expect(c.fuel.gallons).toBeCloseTo(fuel - result.fuelUsed, 3);
+    expect(bossRecord(c, 'rustjaw')).toMatchObject({ kills: 1 });
+    expect(c.stats.wins).toBe(1);
+    // Down for a week of game days; then it is back for a smaller purse and a lesser weapon.
+    const down = bossState(c, 'rustjaw');
+    expect(down.state).toBe('slain');
+    expect(down.backIn).toBeGreaterThan(3);
+    expect(describeRun(c, ctx).blocked).toMatch(/is down/);
+    expect(raiderOn(c, 'kansascity-dallas')).toBeNull();
+    actions.rest(c, { hours: 24 * 8 });
+    expect(bossState(c, 'rustjaw').state).toBe('open');
+    expect(raiderOn(c, 'kansascity-dallas')).toBe('rustjaw');
+    expect(bountyReward(c, 'rustjaw')).toMatchObject({ first: false, lt: Math.round(1500 * B.BOSS.repeat.pay), weapon: 'uncommon', relic: null });
+  });
+
+  it('a boss that gets away pays nothing but a little experience', () => {
+    const c = newConductor();
+    const ctx = { kind: 'bounty', bossId: 'rustjaw' };
+    const run = describeRun(c, ctx);
+    const race = createRace({ ...buildRaceConfig(c, run, 150), seed: 4 });
+    startRace(race);
+    // Hurt it, then let its time run out.
+    let guard = 0;
+    while (race.boss.boss.state !== 'fighting' && guard++ < 2000) stepRace(race, 0.5);
+    race.boss.hull = race.boss.hullMax * 0.5;
+    playerOf(race).hull = playerOf(race).hullMax = 1e6;
+    while (race.status === 'running' && guard++ < 20000) stepRace(race, 0.5);
+    expect(race.result.reason).toBe('escaped');
+    const lt = c.lt;
+    const receipt = actions.settleRun(c, { ctx, result: race.result, now: NOW });
+    expect(receipt.outcome).toBe('escaped');
+    expect(receipt.payout).toBe(0);
+    expect(c.lt).toBeLessThanOrEqual(lt);
+    expect(receipt.xp).toBeGreaterThan(50);
+    expect(receipt.xp).toBeLessThan(B.BOSSES.rustjaw.xp * 0.3);
+    expect(c.relics).toBeUndefined();
+    expect(bossState(c, 'rustjaw').state).toBe('open');
+  });
+
+  it('a relic forges its legendary machine for half its worth', () => {
+    const c = newConductor();
+    c.lt = 2000000;
+    expect(legendOffer(c, 'marauder').locked).toMatch(/Rustjaw/);
+    expect(() => actions.buyLoco(c, { id: 'marauder' })).toThrow(/Rustjaw/);
+    // The Iron Titan can be bought outright, or forged for half with the Bastion Core.
+    expect(legendOffer(c, 'titan')).toMatchObject({ price: 450000, forged: false });
+    c.relics = { rustjaw: { at: 0 }, bastion: { at: 0 } };
+    expect(legendOffer(c, 'titan')).toMatchObject({ price: 225000, forged: true });
+    const got = actions.buyLoco(c, { id: 'marauder' });
+    expect(got.price).toBe(45000);
+    expect(c.lt).toBe(2000000 - 45000);
+    expect(got.loco.model).toBe('marauder');
+    expect(resaleValue(got.loco)).toBe(45000);
+    expect(() => actions.buyLoco(c, { id: 'marauder' })).toThrow(/already own/);
+    // The Graviton needs no relic, only money.
+    expect(legendOffer(c, 'graviton')).toMatchObject({ price: 1500000, locked: null });
+    expect(deriveStats(got.loco, c).ability).toBe('plunder');
   });
 });
