@@ -538,6 +538,8 @@ export const B = {
     costs: [1500, 2500, 5000],
     days: [10, 25, 60], // game days at Intelligence 0
     genius: 0.15,
+    logistics: 0.1, // Logistics: each tier adds this to what every freight route brings in
+    ordnance: 0.06, // Ordnance: each tier adds this to the damage of every fitted weapon
   },
 
   STATION: { stock: 9, phoenixPrice: 2000000 }, // the lot turns over every game week
@@ -555,6 +557,40 @@ export const B = {
     glacier: { price: 280000, rarity: 'epic', power: 9, efficiency: 8, durability: 8, endurance: 14, hpBase: 1800, tqBase: 4500, growth: 1.1, capacity: 6, spells: ['frost', 'barrier'], ability: 'zero', forge: { relic: 'frostmaw', price: 140000 }, forgeOnly: true },
     sandshark: { price: 760000, rarity: 'legendary', power: 12, efficiency: 9, durability: 11, endurance: 11, hpBase: 1900, tqBase: 5000, growth: 1.1, capacity: 7, spells: ['fire', 'frost', 'barrier'], ability: 'maw', smash: 1, forge: { relic: 'devourer', price: 380000 }, forgeOnly: true },
     graviton: { price: 1500000, rarity: 'legendary', power: 14, efficiency: 10, durability: 14, endurance: 12, hpBase: 1800, tqBase: 5600, growth: 1.1, capacity: 8, spells: ['bolt', 'frost', 'barrier'], ability: 'blackhole', extraWeight: 4000 },
+  },
+
+  // The empire: a railway company with terminals in real cities and locomotives working freight
+  // routes between them while the conductor is out on the line (or away from the game).
+  EMPIRE: {
+    // Founding the company. Dean's first figure (#265) was 100,000 LT on the old economy; this is
+    // what a few hours of work earns now. Leader and Business conductors get 75% off (#265).
+    charter: 5000,
+    charterDiscount: 0.75,
+    // A terminal costs base + perLine x the number of lines that meet at that city. The headquarters
+    // terminal comes with the charter. Levels 2 and 3 cost `upgrade` x the terminal's price, and
+    // each level above the first adds `boost` to what routes touching it bring in.
+    terminal: { base: 3000, perLine: 1500, levels: 3, upgrade: [0, 2, 4], boost: 0.15 },
+    baysPerTerminal: 1, // every terminal adds a garage bay...
+    baysMax: 14, // ...up to this many in all
+    // A route: one locomotive working one line between two of your terminals. What it brings in a day:
+    //   one-way trips a day x miles x tons hauled x ratePerTonMile x fuel economy x bonuses
+    // It hauls `loadShare` of its towing capacity at `cruise` of its loaded top speed, and spends
+    // `turnaroundHours` at each end. The rate is after fuel and wages. `incomeScale` scales it all
+    // (the NFT edition pays LT out of the treasury pool: lower this there if routes pay too much).
+    route: { loadShare: 0.6, cruise: 0.8, turnaroundHours: 12, ratePerTonMile: 0.25, ecoRef: 16, ecoRange: [0.6, 1.6], terrain: { plains: 1, flooded: 0.8, desert: 0.9, snow: 0.85 }, business: 0.1 },
+    incomeScale: 1,
+    tillDays: 14, // the till holds this many days of takings; collect it or the routes work for nothing
+    // Empire Power Rating (Dean, #157): the locomotives' own ratings plus all of this.
+    rating: { level: 100, perLt: 0.02, ltCap: 20000, research: 300, upgrade: 60, star: 150, contract: 20, win: 15, job: 10, terminal: 400, terminalLevel: 250, route: 300, boss: 600, relic: 400, trophy: 500, licence: 500, medal: 120 },
+    // Ranks by rating. Each adds to what every route brings in.
+    ranks: [
+      { id: 'yard', name: 'Yard Hand', rating: 0, income: 0 },
+      { id: 'runner', name: 'Line Runner', rating: 2500, income: 0.05 },
+      { id: 'boss', name: 'Rail Boss', rating: 6000, income: 0.1 },
+      { id: 'baron', name: 'Regional Baron', rating: 15000, income: 0.15 },
+      { id: 'tycoon', name: 'Rail Tycoon', rating: 40000, income: 0.2 },
+      { id: 'emperor', name: 'Iron Emperor', rating: 100000, income: 0.3 },
+    ],
   },
 
   // Boss fights. A boss is not raced: it keeps station beside the player's train and the two fight

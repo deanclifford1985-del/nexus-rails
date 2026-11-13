@@ -27,6 +27,8 @@ import { armoryOffers, baseOf, isWeaponItem, rollWeapon, standardWeapon, weaponP
 import { CONTESTS, PRIZES, medalFor } from './festival.js';
 import { findRun } from './setup.js';
 import { bossById, bossRecord, bountyReward, legendOffer } from './bosses.js';
+import { CITIES, lineById } from './routemap.js';
+import { charterPrice, cityOpen, garageSlots, routeBlocker, routeOfLoco, terminalLevel, terminalPrice, terminalUpgradePrice, tickEmpire } from './empire.js';
 import { dayIndex } from './calendar.js';
 
 // Every change to a save goes through one of these functions.
@@ -68,6 +70,8 @@ function advanceClock(conductor, rng, minutes) {
       conductor.research.justDone = { category: active.category, tier: active.tier + 1 };
     }
   }
+  // The empire's freight routes earn for every minute that passes.
+  tickEmpire(conductor, minutes);
   if (weekOf(before) !== weekOf(conductor.clock)) turnWeek(conductor, rng);
 }
 
@@ -327,7 +331,7 @@ export function repairLoco(conductor, { pct }) {
 // Pausing keeps the progress; resuming costs nothing more.
 export function startResearch(conductor, { category }) {
   if (!RESEARCH[category]) fail('Unknown research.');
-  const tier = conductor.research.done[category];
+  const tier = conductor.research.done[category] ?? 0;
   if (tier >= B.RESEARCH.costs.length) fail(`${RESEARCH[category].name} is complete.`);
   const active = conductor.research.active;
   if (active) fail(`Pause ${RESEARCH[active.category].name} first. One project runs at a time.`);
@@ -364,7 +368,7 @@ export function rest(conductor, { hours }) {
 // ---------- Station and garage ----------
 
 export function buyLoco(conductor, { id }) {
-  if (conductor.locos.length >= B.LOCO.garageSlots) fail(`Your garage holds ${B.LOCO.garageSlots} locomotives. Sell one first.`);
+  if (conductor.locos.length >= garageSlots(conductor)) fail(`Your garage holds ${garageSlots(conductor)} locomotives. Sell one, or open a terminal for another bay.`);
   const special = id === 'phoenix' || B.MYTHIC[id]?.price;
   const loco = id === 'phoenix' ? phoenixForSale() : special ? mythicForSale(id) : conductor.station.stock.find((item) => item.id === id);
   if (!loco) fail('That locomotive is no longer for sale.');
@@ -390,6 +394,7 @@ export function sellLoco(conductor, { id }) {
   if (id === conductor.activeLocoId) fail('Switch to another locomotive before selling this one.');
   const loco = conductor.locos.find((item) => item.id === id);
   if (!loco) fail('Locomotive not found.');
+  if (routeOfLoco(conductor, id)) fail(`${loco.name} is working a freight route. Recall it first.`);
   const value = resaleValue(loco);
   // Whatever was fitted goes back on the shelf.
   for (const item of fitOf(loco)) {
@@ -403,9 +408,78 @@ export function sellLoco(conductor, { id }) {
 
 export function setActiveLoco(conductor, { id }) {
   if (!conductor.locos.some((loco) => loco.id === id)) fail('Locomotive not found.');
+  // A locomotive taken onto the main line comes off its freight route.
+  const route = routeOfLoco(conductor, id);
+  if (route) conductor.empire.routes = conductor.empire.routes.filter((item) => item.locoId !== id);
   conductor.activeLocoId = id;
   applyCrew(conductor);
-  return {};
+  return { recalled: route ? lineById(route.lineId)?.name ?? null : null };
+}
+
+// ---------- The empire ----------
+
+export function foundCompany(conductor, { name, hq }) {
+  if (conductor.empire) fail('You already have a company.');
+  const clean = String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  if (clean.length < 3) fail('Give your company a name of at least 3 letters.');
+  if (!CITIES[hq]) fail('Choose a city for your headquarters.');
+  if (!cityOpen(conductor, hq)) fail(`Your licence does not reach ${CITIES[hq].name} yet.`);
+  const price = charterPrice(conductor);
+  spend(conductor, price, 'the company charter');
+  // The charter comes with the headquarters terminal.
+  conductor.empire = { name: clean, hq, foundedAt: conductor.clock ?? 0, terminals: { [hq]: 1 }, routes: [], till: 0, earned: 0 };
+  return { name: clean, hq, price };
+}
+
+export function buyTerminal(conductor, { city }) {
+  if (!conductor.empire) fail('Found your company first.');
+  if (!CITIES[city]) fail('No such city.');
+  if (terminalLevel(conductor, city) > 0) fail(`You already have a terminal in ${CITIES[city].name}.`);
+  if (!cityOpen(conductor, city)) fail(`Your licence does not reach ${CITIES[city].name} yet.`);
+  const price = terminalPrice(city);
+  spend(conductor, price, `a terminal in ${CITIES[city].name}`);
+  conductor.empire.terminals = { ...conductor.empire.terminals, [city]: 1 };
+  return { city, price };
+}
+
+export function upgradeTerminal(conductor, { city }) {
+  if (!conductor.empire) fail('Found your company first.');
+  const level = terminalLevel(conductor, city);
+  if (level <= 0) fail('You have no terminal there.');
+  const price = terminalUpgradePrice(conductor, city);
+  if (price === null) fail(`The ${CITIES[city].name} terminal is as big as a terminal gets.`);
+  spend(conductor, price, `the ${CITIES[city].name} terminal upgrade`);
+  conductor.empire.terminals = { ...conductor.empire.terminals, [city]: level + 1 };
+  return { city, level: level + 1, price };
+}
+
+// Put a locomotive from the garage to work on a line between two of the company's terminals.
+export function assignRoute(conductor, { locoId, lineId }) {
+  const why = routeBlocker(conductor, locoId, lineId);
+  if (why) fail(why);
+  const routes = conductor.empire.routes.filter((route) => route.locoId !== locoId);
+  routes.push({ locoId, lineId, since: conductor.clock ?? 0 });
+  conductor.empire.routes = routes;
+  return { locoId, lineId };
+}
+
+export function recallRoute(conductor, { locoId }) {
+  if (!routeOfLoco(conductor, locoId)) fail('That locomotive is not on a route.');
+  conductor.empire.routes = conductor.empire.routes.filter((route) => route.locoId !== locoId);
+  return { locoId };
+}
+
+// Bank what the routes have brought in.
+export function collectTill(conductor) {
+  const empire = conductor.empire;
+  if (!empire) fail('Found your company first.');
+  const amount = Math.floor(empire.till ?? 0);
+  if (amount <= 0) fail('Nothing in the till yet.');
+  empire.till = Math.round((empire.till - amount) * 100) / 100;
+  empire.earned = (empire.earned ?? 0) + amount;
+  conductor.lt = Math.round((conductor.lt + amount) * 10) / 10;
+  conductor.stats.earned += amount;
+  return { amount };
 }
 
 // ---------- Captain (NFT edition) ----------

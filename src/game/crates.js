@@ -196,7 +196,9 @@ export function applyCrew(save) {
   save.agi = crew?.agi ?? 0;
   save.int = crew?.int ?? 0;
   save.end = crew?.end ?? 0;
-  save.traits = crew?.traits ?? [];
+  // Crate conductors hold their traits as plain ids; the save keeps them the way every screen and
+  // rule reads them.
+  save.traits = (crew?.traits ?? []).map((trait) => (typeof trait === 'string' ? { id: trait, mult: 1, rarity: 'normal' } : trait));
   return save;
 }
 

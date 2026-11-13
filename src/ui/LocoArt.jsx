@@ -17,6 +17,11 @@ const LOOKS = {
   dragon: { body: '#6e1414', dark: '#3a0a0a', boilerTop: 38, domes: [], stack: 10, tender: false, nose: true, trim: '#e0a030', mythic: 'dragon' },
   wizard: { body: '#2b1f5c', dark: '#1c1440', boilerTop: 40, domes: [196], stack: 0, tender: false, nose: false, trim: '#9ad7ff', mythic: 'wizard' },
   titan: { body: '#5d5a52', dark: '#3a3833', boilerTop: 26, domes: [184, 222], stack: 22, tender: true, nose: false, trim: '#c08a3e', mythic: 'titan' },
+  // The newer legendary machines.
+  marauder: { body: '#3b2a24', dark: '#1e1512', boilerTop: 36, domes: [184], stack: 28, tender: true, nose: false, trim: '#c8502a', mythic: 'marauder' },
+  glacier: { body: '#9fc8e0', dark: '#4f7f9f', boilerTop: 40, domes: [], stack: 14, tender: false, nose: true, trim: '#e6fbff', mythic: 'glacier' },
+  sandshark: { body: '#b08a52', dark: '#6e5230', boilerTop: 38, domes: [], stack: 10, tender: false, nose: true, trim: '#f2e6c8', mythic: 'sandshark' },
+  graviton: { body: '#17122a', dark: '#0b0814', boilerTop: 40, domes: [], stack: 0, tender: true, nose: true, trim: '#9b6bff', mythic: 'graviton' },
 };
 
 const DEFAULT_TRIM = '#c99a3f';
@@ -122,6 +127,60 @@ export function LocoArt({ model = 'stable', spin = false, className = 'loco-art'
           ))}
           <rect x="58" y="8" width="68" height="12" rx="3" fill={BRASS} stroke={STEEL} strokeWidth="1.5" />
           <rect x="270" y={top + 14} width="12" height="10" fill="#ffc060" />
+        </g>
+      ) : null}
+
+      {look.mythic === 'marauder' ? (
+        <g>
+          {[128, 150, 172, 194, 216, 238].map((x) => (
+            <path key={x} d={`M${x} ${top} L${x + 6} ${top - 13} L${x + 12} ${top} Z`} fill={BRASS} stroke={STEEL} strokeWidth="1" />
+          ))}
+          <line x1="70" y1="14" x2="70" y2="-20" stroke={STEEL} strokeWidth="2.5" />
+          <path d="M70 -20 L104 -14 L96 -6 L104 2 L70 -2 Z" fill="#0e0e10" stroke={STEEL} strokeWidth="1" />
+          <circle cx="84" cy="-9" r="4.5" fill="#f2efe2" />
+          <path d="M80 -3 L88 -3 M82 -5 L82 -1 M86 -5 L86 -1" stroke="#0e0e10" strokeWidth="1" />
+          <path d="M284 60 L308 66 L286 70 L310 76 L286 80 Z" fill={BRASS} stroke={STEEL} strokeWidth="1" />
+          <rect x="124" y={top + 12} width="130" height="14" rx="2" fill="#54382a" stroke={STEEL} strokeWidth="1" />
+          {[136, 160, 184, 208, 232].map((x) => (
+            <circle key={x} cx={x} cy={top + 19} r="2.4" fill={BRASS} />
+          ))}
+        </g>
+      ) : null}
+      {look.mythic === 'glacier' ? (
+        <g>
+          {[[150, 26], [174, 38], [198, 22], [222, 34], [244, 20]].map(([x, h]) => (
+            <path key={x} d={`M${x - 8} ${top} L${x} ${top - h} L${x + 8} ${top} Z`} fill="#dff6ff" stroke="#6fc4ee" strokeWidth="1.2" opacity="0.92" />
+          ))}
+          <path d={`M296 ${top + 16} L324 ${top + 30} L300 ${top + 38} Z`} fill="#dff6ff" stroke="#6fc4ee" strokeWidth="1.2" />
+          {[150, 190, 230].map((x) => (
+            <rect key={x} x={x - 1} y={top} width="6" height={80 - top} fill="#e6fbff" opacity="0.85" />
+          ))}
+          <circle cx="92" cy="4" r="8" fill="#9fe6ff" opacity="0.9" />
+          <circle cx="92" cy="4" r="14" fill="#9fe6ff" opacity="0.22" />
+        </g>
+      ) : null}
+      {look.mythic === 'sandshark' ? (
+        <g>
+          <path d={`M150 ${top} L214 ${top - 44} L226 ${top} Z`} fill="#6e5230" stroke={STEEL} strokeWidth="1.5" />
+          <path d={`M262 ${top + 20} L318 ${top + 18} L304 ${top + 30} L262 ${top + 32} Z`} fill="#8a6a3c" stroke={STEEL} strokeWidth="1.5" />
+          <path d={`M262 ${top + 36} L312 ${top + 40} L262 ${top + 46} Z`} fill={STEEL} />
+          {[270, 280, 290, 300].map((x) => (
+            <path key={x} d={`M${x} ${top + 31} L${x + 4} ${top + 38} L${x + 8} ${top + 31} Z`} fill={BRASS} />
+          ))}
+          <circle cx="282" cy={top + 12} r="4" fill="#ffc040" stroke={STEEL} strokeWidth="1" />
+          <rect x="124" y={top + 8} width="130" height="18" rx="3" fill="#8a6a3c" stroke={STEEL} strokeWidth="1" />
+        </g>
+      ) : null}
+      {look.mythic === 'graviton' ? (
+        <g>
+          {[150, 190, 230].map((x) => (
+            <rect key={x} x={x - 1} y={top} width="6" height={80 - top} fill="#9b6bff" opacity="0.9" />
+          ))}
+          <ellipse cx="200" cy={top - 26} rx="34" ry="9" fill="none" stroke="#c7a8ff" strokeWidth="2.5" opacity="0.9" />
+          <ellipse cx="200" cy={top - 26} rx="24" ry="17" fill="none" stroke="#6b46d6" strokeWidth="1.6" opacity="0.8" />
+          <circle cx="200" cy={top - 26} r="13" fill="#05030a" stroke="#9b6bff" strokeWidth="1.5" />
+          <circle cx="200" cy={top - 26} r="22" fill="#9b6bff" opacity="0.14" />
+          <rect x="116" y={top + 30} width="150" height="3" fill="#7a4ce0" opacity="0.9" />
         </g>
       ) : null}
 

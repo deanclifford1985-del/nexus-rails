@@ -351,6 +351,8 @@ export function deriveStats(loco, conductor = null) {
     secondWind: conductor ? traitPower(conductor, 'secondwind') : 0,
     journey: !!loco.journey,
     // Intelligence sharpens spells.
+    // Ordnance research: every fitted weapon hits harder.
+    weaponPower: 1 + B.RESEARCH.ordnance * (conductor?.research?.done?.ordnance ?? 0),
     spellPower: (1 + (conductor?.int ?? 0) * B.COMBAT.spellPerInt * (1 + (conductor ? traitPower(conductor, 'influencer') : 0))) * (1 + talent(conductor, 'spell')),
     accel: (1 + (conductor?.agi ?? 0) * L.accelPerAgi * (1 + (conductor ? traitPower(conductor, 'influencer') : 0))) * (1 + talent(conductor, 'accel')),
     topSpeed: topSpeedFor(hp, lightWeight),

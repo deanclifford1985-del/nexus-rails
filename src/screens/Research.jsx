@@ -43,7 +43,7 @@ export default function Research() {
 
       <div className="grid">
         {Object.entries(RESEARCH).map(([category, info]) => {
-          const done = conductor.research.done[category];
+          const done = conductor.research.done[category] ?? 0;
           const complete = done >= TIERS;
           const running = active?.category === category;
           const paused = conductor.research.paused?.[category];
@@ -61,10 +61,10 @@ export default function Research() {
                   Tier {done} of {TIERS}
                 </span>
               </div>
-              <span className="muted">Unlocks {info.unlocks}, two stages per tier.</span>
+              <span className="muted">{info.bonus ?? `Unlocks ${info.unlocks}, two stages per tier.`}</span>
               {complete ? (
                 <p className="note small">
-                  <Check aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Complete. All six stages are open.
+                  <Check aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Complete. {info.bonus ? 'Every tier is in force.' : 'All six stages are open.'}
                 </p>
               ) : (
                 <>

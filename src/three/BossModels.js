@@ -7,9 +7,9 @@ import * as THREE from 'three';
 
 // Which boss looks are creatures (they have no track of their own) and how they ride.
 export const CREATURES = {
-  frostwyrm: { kind: 'wyrm', alt: 9, side: 13, scale: 1, shot: 'frost', body: 0xcfe6f5, belly: 0x9fc4dc, wing: 0x86b9de, horn: 0xf4fbff, eye: 0x7fe9ff, glow: 0xbfeeff, css: '#9fdcff' },
-  dreadwyrm: { kind: 'wyrm', alt: 11, side: 14, scale: 1.4, shot: 'fire', body: 0x2c0b0b, belly: 0x6e1a12, wing: 0x8a1a10, horn: 0xe0a030, eye: 0xffb020, glow: 0xff6a1a, css: '#ff5a3a', crown: true },
-  wurm: { kind: 'wurm', alt: 0, side: 12, scale: 1, shot: 'acid', body: 0x9c7a4a, plate: 0x6e5230, maw: 0xb03a2a, tooth: 0xf2e6c8, glow: 0x9dff6a, css: '#d9b36a' },
+  frostwyrm: { kind: 'wyrm', alt: 8.5, side: 12, scale: 1.6, shot: 'frost', body: 0x5f9fd4, belly: 0xd9f0ff, wing: 0x2f6fae, horn: 0xf4fbff, eye: 0x9ff3ff, glow: 0xbfeeff, css: '#7fc8ff' },
+  dreadwyrm: { kind: 'wyrm', alt: 10.5, side: 14, scale: 2.1, shot: 'fire', body: 0x2c0b0b, belly: 0x7a1d12, wing: 0x8a1a10, horn: 0xe0a030, eye: 0xffb020, glow: 0xff6a1a, css: '#ff5a3a', crown: true },
+  wurm: { kind: 'wurm', alt: 0, side: 13, scale: 1.25, shot: 'acid', body: 0x8a6a3c, plate: 0x5a4022, maw: 0xb03a2a, tooth: 0xf2e6c8, glow: 0x9dff6a, css: '#d9b36a' },
 };
 
 // The colours of the boss war-trains, in the same shape as RailScene's LIVERY.
@@ -137,6 +137,11 @@ export function buildWyrm(scene, look) {
     group.add(pivot);
     wings.push(pivot);
   }
+  // A shadow on the ground under it, so its height above the line reads at a glance.
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.26, depthWrite: false }));
+  shadow.scale.set(5.5, 1, 11);
+  shadow.position.set(0, -(look.alt + 0.25) / (look.scale ?? 1), -2);
+  group.add(shadow);
   group.scale.setScalar(look.scale ?? 1);
 
   const anim = (time, state = {}) => {

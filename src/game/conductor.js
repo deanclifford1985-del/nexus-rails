@@ -98,7 +98,7 @@ export function buildConductor({ name, chosen, attributes, rerollsLeft, loco, se
   // A Captain in Nexus Rail starts with no locomotive: their first one comes from a crate.
   loco = loco ? { ...loco, fit: [...B.ARMORY.startKit], condition: 1 } : null;
   const conductor = {
-    version: 6,
+    version: 7,
     clock: B.CALENDAR.startMinute, // game minutes since Day 1, Month 1, Year 1
     lastSeen: now,
     arsenal: [], // weapons on the shelf, not fitted
@@ -118,7 +118,7 @@ export function buildConductor({ name, chosen, attributes, rerollsLeft, loco, se
     gear: {}, // modules bought but not fitted: { moduleId: count }
     locos: loco ? [loco] : [],
     activeLocoId: loco?.id ?? null,
-    research: { done: { engine: 0, efficiency: 0, structure: 0 }, active: null },
+    research: { done: { engine: 0, efficiency: 0, structure: 0, logistics: 0, ordnance: 0 }, active: null },
     companies: {},
     board: null,
     depot: { bucket: -1, bought: 0 },

@@ -64,10 +64,13 @@ export const stagesUnlocked = (conductor, researchKey) => (conductor.research.do
 
 // ---------- Research ----------
 
+// The first three open workshop stages, two a tier. The others pay out directly, a step a tier.
 export const RESEARCH = {
   engine: { name: 'Engine advancements', unlocks: 'Engine upgrades' },
   efficiency: { name: 'Efficiency advancements', unlocks: 'Aerodynamics upgrades' },
   structure: { name: 'Structural improvements', unlocks: 'Body and fuel storage upgrades' },
+  logistics: { name: 'Logistics', bonus: `Every freight route in your empire brings in ${Math.round(B.RESEARCH.logistics * 100)}% more per tier.` },
+  ordnance: { name: 'Ordnance', bonus: `Every weapon fitted to your locomotives hits ${Math.round(B.RESEARCH.ordnance * 100)}% harder per tier.` },
 };
 
 // Research is paid up front (Intelligence stretches each LT) and then takes game days.

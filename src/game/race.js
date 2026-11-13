@@ -102,6 +102,7 @@ function makeTrain(spec, isPlayer) {
     dealt: 0,
     taken: 0,
     spellPower: spec.stats.spellPower ?? 1,
+    weaponPower: spec.stats.weaponPower ?? 1,
     burn: 0,
     burnT: 0,
     poison: 0,
@@ -1103,8 +1104,9 @@ function land(race, shot) {
   let damage = arm.damage[0] + race.rng() * (arm.damage[1] - arm.damage[0]);
   if (shot.kind === 'heat') damage += (shot.power ?? 0) * arm.perHeat;
   if (shot.kind === 'tesla') damage = teslaDamage(arm, shot.power ?? 0);
-  // Spells grow with the conductor's Intelligence.
+  // Spells grow with the conductor's Intelligence; weapons with Ordnance research.
   if (arm.use === 'mp' && from) damage *= from.spellPower ?? 1;
+  else if (from) damage *= from.weaponPower ?? 1;
   if (shot.dragon) damage *= C.dragonFire;
   damage = Math.round(damage);
   const crit = race.rng() < (arm.crit ?? C.crit);
@@ -1156,7 +1158,7 @@ function updateChannels(race, h) {
     }
     c.t += h;
     while (c.ticks < total && c.t >= (c.ticks + 1) * c.tick) {
-      const damage = c.base + c.amp * c.ticks;
+      const damage = Math.round((c.base + c.amp * c.ticks) * (from?.weaponPower ?? 1));
       c.ticks += 1;
       if (from) from.hits += 1;
       if (!hurt(race, from, c.to, damage, { kind: 'arc', pen: c.pen })) break;

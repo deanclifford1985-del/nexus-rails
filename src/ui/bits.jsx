@@ -64,10 +64,11 @@ export function TraitRarityTag({ rarity }) {
 
 // Trait names as held by a conductor, e.g. "Leader", "Profound Competitive".
 export function TraitChips({ traits }) {
-  if (!traits?.length) return <span className="muted">No traits</span>;
+  const list = (traits ?? []).map((trait) => (typeof trait === 'string' ? { id: trait } : trait)).filter((trait) => TRAITS[trait?.id]);
+  if (!list.length) return <span className="muted">No traits</span>;
   return (
     <div className="row" style={{ gap: 6 }}>
-      {traits.map((trait, index) => (
+      {list.map((trait, index) => (
         <span key={`${trait.id}-${index}`} className={`tag ${trait.rarity === 'profound' ? 'tag-rare' : trait.rarity === 'infused' ? 'tag-epic' : 'tag-uncommon'}`} title={TRAITS[trait.id].text}>
           {trait.rarity === 'profound' ? 'Profound ' : trait.rarity === 'infused' ? 'Half ' : ''}
           {TRAITS[trait.id].name}

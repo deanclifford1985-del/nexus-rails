@@ -163,8 +163,11 @@ export function traitPower(conductor, id) {
   let own = 0;
   let amplify = 0;
   for (const trait of traits) {
-    if (trait.id === id) own += trait.mult ?? 1;
-    if (trait.id === 'amplify') amplify += trait.mult ?? 1;
+    // A crate conductor's traits are plain ids; a rolled conductor's are { id, mult, rarity }.
+    const traitId = typeof trait === 'string' ? trait : trait?.id;
+    const mult = typeof trait === 'string' ? 1 : trait?.mult ?? 1;
+    if (traitId === id) own += mult;
+    if (traitId === 'amplify') amplify += mult;
   }
   if (own === 0 || id === 'amplify') return own;
   if (!TRAITS[id]?.scales) return own;
