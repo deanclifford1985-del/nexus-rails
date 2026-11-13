@@ -59,9 +59,37 @@ export const MODELS = {
   },
   phoenix: {
     name: 'The Iron Phoenix',
-    blurb: 'A mythical engine reborn from embers. It drains the speed of whatever runs beside it.',
+    blurb: 'A mythical engine reborn from embers. It drains the speed of whatever runs beside it, and once a run it rises again from its own wreck.',
     bonus: {},
-    perk: 'Siphon Speed',
+    perk: 'Siphon Speed, and Rebirth once a run',
+  },
+  marauder: {
+    name: 'The Marauder',
+    blurb: 'The Scrap Baron\'s own war-train, rebuilt under your flag. Grappling hooks, no manners, and guns that wake up early.',
+    bonus: {},
+    perk: 'Plunder, and weapons boot up 30% sooner',
+    mythic: true,
+  },
+  glacier: {
+    name: 'The Glacier',
+    blurb: 'Frostmaw\'s frozen heart beats in its boiler. It runs colder than any engine alive and can stop a whole field dead.',
+    bonus: {},
+    perk: 'Absolute Zero, Frost Breath and Barrier',
+    mythic: true,
+  },
+  sandshark: {
+    name: 'The Sandshark',
+    blurb: 'A plated hull with the Devourer\'s jaws for a front. It eats what other engines crash into.',
+    bonus: {},
+    perk: 'Maw, and its jaws crush debris and boulders for free',
+    mythic: true,
+  },
+  graviton: {
+    name: 'The Graviton',
+    blurb: 'A singularity engine. Space itself leans towards it, and whatever races beside it suddenly weighs a mountain.',
+    bonus: {},
+    perk: 'Black Hole',
+    mythic: true,
   },
 };
 
@@ -160,6 +188,11 @@ export function makeMythic(rng, modelId) {
   return generateLoco(rng, modelId, { rarity: m.rarity, power: m.power, efficiency: m.efficiency, durability: m.durability, endurance: m.endurance ?? 10, hpBase: m.hpBase, tqBase: m.tqBase, growth: m.growth });
 }
 export const MYTHIC_MODELS = ['wizard', 'titan', 'dragon'];
+// Every legendary machine a conductor can build or buy besides the Phoenix, in the order the
+// Hall of Legends shows them.
+export const LEGEND_MODELS = ['marauder', 'glacier', 'wizard', 'titan', 'sandshark', 'dragon', 'graviton'];
+// The signature ability a locomotive carries: its own (the Phoenix), or its model's.
+export const abilityOf = (loco) => loco.ability ?? B.MYTHIC[loco.model]?.ability ?? null;
 
 // The fixed opponent of the first run: Power, Efficiency and Durability all 5, 20,000 lb.
 export function makeBenchmark() {
@@ -309,7 +342,7 @@ export function deriveStats(loco, conductor = null) {
       (1 - 0.2 * (conductor ? traitPower(conductor, 'marathoner') : 0)) *
       (1 - Math.min(0.5, talent(conductor, 'cool'))),
     overHeatMult: 1 - talent(conductor, 'overHeat'),
-    bootMult: 1 / (1 + talent(conductor, 'boot')),
+    bootMult: (B.MYTHIC[loco.model]?.bootMult ?? 1) / (1 + talent(conductor, 'boot')),
     dotMult: 1 + talent(conductor, 'dot'),
     spellCdMult: 1 - Math.min(0.4, talent(conductor, 'spellCd')),
     mpCostMult: 1 - talent(conductor, 'breakthrough'),
@@ -326,7 +359,9 @@ export function deriveStats(loco, conductor = null) {
     hull: Math.round(
       (B.COMBAT.hullBase + B.COMBAT.hullPerDurability * loco.durability + (B.MYTHIC[loco.model]?.hullBonus ?? 0)) * (L.wearHullFloor + (1 - L.wearHullFloor) * condition) * (1 + talent(conductor, 'hull')),
     ),
-    ability: loco.ability,
+    ability: abilityOf(loco),
+    rebirth: B.MYTHIC[loco.model]?.rebirth ?? 0,
+    smash: B.MYTHIC[loco.model]?.smash ?? -1,
     condition,
     capacity: capacityOf(loco),
     slotsUsed: slotsUsed(fit),

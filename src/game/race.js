@@ -1,6 +1,6 @@
 import { B } from './balance.js';
 import { accelSecondsFor, topSpeedFor } from './locomotives.js';
-import { makeRng, newSeed } from './rng.js';
+import { makeRng, newSeed, weightedPick } from './rng.js';
 import { cornerCap, gradeAt, hillEffect, makeCourse, themeOf, waterAt, waterDrag } from './course.js';
 
 // The race engine. It knows nothing about React, saves or money.
@@ -125,7 +125,33 @@ function makeTrain(spec, isPlayer) {
     online: {},
     hitOnce: false,
     think: 1.5,
+    // Legendary machines: the signature ability, Rebirth, and jaws that crush what they meet.
+    ability: spec.ability ? makeAbility(spec.ability) : null,
+    rebirth: spec.stats.rebirth ?? 0,
+    reborn: false,
+    smash: spec.stats.smash ?? -1,
+    team: spec.team ?? null, // trains on the same team leave each other alone
+    gravFor: 0, // Black Hole: seconds of extra weight
+    gravLb: 0,
+    frozenFor: 0, // Absolute Zero: slowed and unable to fire
+    frozenSlow: 0,
+    unstoppable: 0, // Bulwark: nothing staggers or slows it, and it crushes obstacles
+    fuelStolen: 0,
   };
+}
+
+const makeAbility = (id) => ({ id, used: false, uses: B.ABILITIES[id]?.uses ?? null, cd: 0, activeFor: 0 });
+
+// A boss: it keeps station beside the player's train instead of racing, has a hull and armor like
+// any train, and fights with its own telegraphed attacks (see bossThink).
+function makeBoss(def) {
+  const stats = { hp: 1, tq: 1, weight: 1, tmpg: 1, tank: 0, hull: def.hull, armor: def.armor ?? 0, arms: [] };
+  const train = makeTrain({ id: 'boss', name: def.name, locoName: def.title ?? '', model: def.look ?? 'boss', stats, fuel: 0, team: 'boss' }, false);
+  train.isBoss = true;
+  train.hidden = true; // not on the line yet: cannot be seen or hit
+  train.boss = { id: def.id, def, state: 'waiting', t: 0, clock: 0, next: 0, windup: null, reel: 0, enraged: false, cd: {}, left: def.seconds ?? B.BOSS.seconds, fought: 0 };
+  train.distance = B.BOSS.offset.far;
+  return train;
 }
 
 // How a weapon or spell on this train comes online: its boot rule, rarity and traits applied.
@@ -195,6 +221,7 @@ const COOLERS = ['frost', 'vent'];
 export function createRace(config) {
   const player = makeTrain({ ...config.player, id: 'player' }, true);
   const rivals = (config.rivals ?? []).map((spec, index) => makeTrain({ ...spec, id: spec.id ?? `rival-${index + 1}` }, false));
+  const boss = config.boss ? makeBoss(config.boss) : null;
   const H = B.HAZARD;
   const rng = makeRng(config.seed ?? newSeed());
   const course = config.course ?? (config.courseSeed !== undefined ? makeCourse(config.courseSeed, config.distance) : null);
@@ -216,7 +243,9 @@ export function createRace(config) {
     status: 'ready', // ready -> running -> finished
     real: 0,
     game: 0,
-    trains: [player, ...rivals],
+    trains: [player, ...rivals, ...(boss ? [boss] : [])],
+    boss, // the boss train, or null
+    bossDownAt: null,
     competitive: { power: config.player.competitive ?? 0, inRange: 0, boost: 0 },
     gap: null, // miles ahead (+) or behind (-) the nearest rival
     gapToLeader: null,
@@ -227,11 +256,10 @@ export function createRace(config) {
     emergency: null,
     emergencyGallons: 0,
     emergencyCost: 0,
-    ability: config.player.ability
-      ? { id: config.player.ability, used: false, activeFor: 0, auto: config.kind === 'demo', armedAt: null }
-      : null,
+    // The player's signature ability (the same object as player.ability).
+    ability: player.ability ? Object.assign(player.ability, { auto: config.kind === 'demo', armedAt: null }) : null,
     events: [],
-    combat: !!config.combat && (rivals.length > 0 || obstacles.length > 0),
+    combat: !!config.combat && (rivals.length > 0 || obstacles.length > 0 || !!boss),
     course,
     obstacles,
     aim: 'auto', // the player's aim: 'auto' (obstacles first), 'rivals' or 'track'
@@ -240,6 +268,7 @@ export function createRace(config) {
     fx: [], // things for the screen to show: { type: 'cast' | 'hit' | 'derail' | 'smash' | 'crash', ... }
     shotSeq: 0,
     bootInstant: !!config.bootInstant, // the Damage Wall: everything is online from the start
+    bossEndsRun: !!boss && config.bossEndsRun !== false, // a bounty hunt ends when the boss falls or flees
     // The guided first run (see updateGuide). `prompt` pauses the race until the screen clears it.
     guide: config.guide ? { stage: 'launch', prompt: null, seen: [], bend: (course?.bends ?? [])[0] ?? null } : null,
     rng,
@@ -253,6 +282,7 @@ export const startRace = (race) => {
 };
 
 function advanceTrain(race, train, h) {
+  if (train.isBoss) return advanceBoss(race, train, h);
   const gh = h * B.TIME_SCALE;
   // Rivals ease off to let a hot engine cool, then open up again.
   if (!train.isPlayer) {
@@ -262,7 +292,9 @@ function advanceTrain(race, train, h) {
     train.lever = train.cooling ? Math.min(train.baseLever, 0.8) : train.baseLever;
   }
   const boost = train.isPlayer ? race.competitive.boost : 0;
-  const weight = train.baseWeight + train.cargo + train.fuel * LB_PER_GAL;
+  // Black Hole: a rival's gravity well piles weight on for a few seconds.
+  if (train.gravFor > 0) train.gravFor -= h;
+  const weight = train.baseWeight + train.cargo + train.fuel * LB_PER_GAL + (train.gravFor > 0 ? train.gravLb : 0);
   const power = train.lever * (1 + boost) * (train.guidePower ?? 1);
   let vmax = topSpeedFor(train.hp * power, weight);
   if (train.crippled) vmax *= B.RACE.testRace.guide.crippledSpeed;
@@ -276,15 +308,20 @@ function advanceTrain(race, train, h) {
   }
   // A rival's Wind Gust: resistance that holds the train back for a few seconds.
   if (train.windSlowFor > 0) {
-    vmax *= 1 - train.windSlow;
+    if (!(train.unstoppable > 0)) vmax *= 1 - train.windSlow;
     train.windSlowFor -= h;
+  }
+  // Absolute Zero: frozen wheels.
+  if (train.frozenFor > 0) {
+    if (!(train.unstoppable > 0)) vmax *= 1 - train.frozenSlow;
+    train.frozenFor -= h;
   }
   if (train.windCd > 0) train.windCd -= h;
   // Wind Jet panels out: drag now, wind for later.
   if (train.panels && train.windMax > 0) vmax *= 1 - B.WIND.drag;
   // Damage drags top speed down, and a fresh hit staggers the train.
   vmax *= C.hullSpeedFloor + (1 - C.hullSpeedFloor) * (train.hull / train.hullMax);
-  if (train.stagger > 0) vmax *= C.staggerSpeed;
+  if (train.stagger > 0 && !(train.unstoppable > 0)) vmax *= C.staggerSpeed;
   // Hills: a climb drags top speed down (Strength fights it), a descent lets it run.
   const grade = gradeAt(race.course, train.distance);
   const hill = hillEffect(grade, train.hillGrip);
@@ -391,7 +428,7 @@ function advanceTrain(race, train, h) {
 
 function updateField(race, h) {
   const player = playerOf(race);
-  const rivals = race.trains.slice(1);
+  const rivals = rivalsOf(race);
   if (rivals.length === 0) return;
 
   let nearest = null;
@@ -429,7 +466,6 @@ function updateField(race, h) {
     if (ability.armedAt === null && ((nearest.vmax > 0 && nearest.speed >= nearest.vmax * 0.6) || race.real > 10)) ability.armedAt = race.real;
     if (ability.armedAt !== null && race.real - ability.armedAt >= R.siphon.demoDelay) useAbility(race);
   }
-  if (ability && ability.activeFor > 0) ability.activeFor -= h;
 }
 
 function updateEmergency(race, h) {
@@ -477,8 +513,13 @@ function substep(race, h) {
   if (race.combat) updateCombat(race, h);
   if (race.status !== 'running') return;
   const player = playerOf(race);
+  const boss = race.boss;
+  if (boss?.out && race.bossDownAt === null) race.bossDownAt = race.real;
   if (race.kind === 'wall' && race.obstacles.every((rock) => rock.destroyed)) finishRace(race, 'smashed');
+  // The boss is down: the bounty is won, whatever happens in the moments after.
+  else if (boss?.out && race.bossEndsRun && (player.out || race.real - race.bossDownAt >= B.BOSS.slainDelay)) finishRace(race, 'slain');
   else if (player.out) finishRace(race, 'derailed');
+  else if (boss && boss.boss.state === 'fled' && race.bossEndsRun) finishRace(race, 'escaped');
   else if (player.finished) finishRace(race, 'finished');
   else if (race.timeLimit && race.game >= race.timeLimit) finishRace(race, 'late');
 }
@@ -526,20 +567,198 @@ export function orderEmergencyFuel(race, gallons) {
   return true;
 }
 
-// Siphon Speed: the nearest rival loses 10% of its speed and the player gains what it lost.
-export function useAbility(race) {
-  const ability = race.ability;
-  if (!ability || ability.used || race.status !== 'running') return false;
-  const target = race.trains.find((train) => train.id === race.nearestId);
-  if (!target) return false;
-  const player = playerOf(race);
-  ability.used = true;
-  ability.activeFor = R.siphon.seconds;
-  target.slowFor = R.siphon.seconds;
-  player.surgeFor = R.siphon.seconds;
-  player.surgeMph = target.speed * R.siphon.steal;
-  race.events.push({ at: race.real, text: `Siphon Speed drains ${target.name}` });
-  race.fx.push({ type: 'siphon', from: target.id });
+// ---------- Signature abilities (the legendary machines) ----------
+
+// The trains racing the player: everyone but the player and a boss.
+export const rivalsOf = (race) => race.trains.filter((train) => !train.isPlayer && !train.isBoss);
+const foes = (a, b) => a !== b && !(a.team && a.team === b.team);
+// Live enemies of `from` within `range` miles, nearest first.
+function enemiesOf(race, from, range = Infinity) {
+  return race.trains
+    .filter((train) => foes(from, train) && live(train) && Math.abs(train.distance - from.distance) <= range)
+    .sort((a, b) => Math.abs(a.distance - from.distance) - Math.abs(b.distance - from.distance));
+}
+// Obstacles the player has spotted on the line ahead, within `range` miles. Only the player's line has any.
+function rocksAhead(race, from, range) {
+  if (!from.isPlayer) return [];
+  return race.obstacles.filter((rock) => rock.seen && !rock.destroyed && !rock.struck && rock.at >= from.distance && rock.at - from.distance <= range);
+}
+
+// A shot that carries its own numbers (an ability's, or a boss attack's) instead of a weapon's.
+function customShot(race, from, toId, kind, seconds, custom, delay = 0) {
+  const shot = { id: ++race.shotSeq, kind, key: kind, from: from.id, to: toId, left: seconds + delay, total: seconds + delay, delay, dragon: !!custom.dragon, custom };
+  race.shots.push(shot);
+  race.fx.push({ type: 'cast', shot });
+  return shot;
+}
+
+// What each ability does. Returns false if there was nothing for it to do.
+const ABILITY = {
+  // Siphon Speed: the nearest rival loses 10% of its speed and the user gains what it lost.
+  siphon: {
+    need: (race, from) => (siphonTarget(race, from) ? null : 'No rival to drain'),
+    use(race, from) {
+      const target = siphonTarget(race, from);
+      from.ability.activeFor = R.siphon.seconds;
+      target.slowFor = R.siphon.seconds;
+      from.surgeFor = R.siphon.seconds;
+      from.surgeMph = target.speed * R.siphon.steal;
+      race.events.push({ at: race.real, text: `Siphon Speed drains ${target.name}` });
+      race.fx.push({ type: 'siphon', from: target.id, to: from.id });
+    },
+  },
+  // Black Hole: rivals in reach suddenly weigh a mountain; bosses and obstacles are crushed.
+  blackhole: {
+    need: (race, from, A) => (enemiesOf(race, from, A.range).length || rocksAhead(race, from, A.range).length ? null : 'Nothing in reach'),
+    use(race, from, A) {
+      const hit = [];
+      const crush = () => Math.round((A.crush[0] + race.rng() * (A.crush[1] - A.crush[0])) * (from.spellPower ?? 1));
+      for (const train of enemiesOf(race, from, A.range)) {
+        hit.push(train.id);
+        if (train.isBoss) hurt(race, from, train.id, crush(), { kind: 'gravity', pen: 1 });
+        else if (!(train.unstoppable > 0)) {
+          train.gravFor = A.seconds;
+          train.gravLb = A.weight;
+        }
+      }
+      for (const rock of rocksAhead(race, from, A.range)) {
+        hit.push(rock.id);
+        hurt(race, from, rock.id, crush(), { kind: 'gravity', pen: 1 });
+      }
+      from.ability.activeFor = A.seconds;
+      race.events.push({ at: race.real, text: `${from.isPlayer ? 'Black Hole' : `${from.name}'s Black Hole`} drags the field down` });
+      race.fx.push({ type: 'ability', id: 'blackhole', from: from.id, to: hit, seconds: A.seconds });
+    },
+  },
+  // Tempest: a bolt for every enemy and every spotted obstacle in reach.
+  tempest: {
+    need: (race, from, A) => (enemiesOf(race, from, A.range).length || rocksAhead(race, from, A.range).length ? null : 'Nothing in range'),
+    use(race, from, A) {
+      const targets = [...enemiesOf(race, from, A.range), ...rocksAhead(race, from, A.range)];
+      targets.forEach((target, i) => customShot(race, from, target.id, 'bolt', A.strike, { damage: A.damage, spell: true }, i * 0.12));
+      race.fx.push({ type: 'ability', id: 'tempest', from: from.id, to: targets.map((t) => t.id) });
+    },
+  },
+  // Bulwark: a fortress for a few seconds.
+  bulwark: {
+    need: () => null,
+    use(race, from, A) {
+      from.barrier = A.seconds;
+      from.barrierCut = A.cut;
+      from.unstoppable = A.seconds;
+      from.stagger = 0;
+      from.ability.activeFor = A.seconds;
+      race.fx.push({ type: 'barrier', id: from.id, kind: 'bulwark' });
+      race.fx.push({ type: 'ability', id: 'bulwark', from: from.id, seconds: A.seconds });
+    },
+  },
+  // Inferno: dragonfire over everything ahead and beside, and the engine breathes its heat out.
+  inferno: {
+    need: (race, from, A) => (enemiesOf(race, from, A.range).length || rocksAhead(race, from, A.range).length ? null : 'Nothing in range'),
+    use(race, from, A) {
+      const targets = [...enemiesOf(race, from, A.range), ...rocksAhead(race, from, A.range)];
+      targets.forEach((target, i) => customShot(race, from, target.id, 'fire', 0.7, { damage: A.damage, burn: A.burn, spell: true, dragon: true }, i * 0.08));
+      const before = from.heat;
+      from.heat = Math.max(0, from.heat - A.vent);
+      if (before - from.heat >= 1) race.fx.push({ type: 'vented', id: from.id, amount: Math.round(before - from.heat) });
+      race.fx.push({ type: 'ability', id: 'inferno', from: from.id, to: targets.map((t) => t.id) });
+    },
+  },
+  // Plunder: hooks on the nearest enemy. Fuel, MP and charge change hands; its weapons jam.
+  plunder: {
+    need: (race, from, A) => (enemiesOf(race, from, A.range).length ? null : 'No enemy in reach'),
+    use(race, from, A) {
+      const target = enemiesOf(race, from, A.range)[0];
+      const gallons = target.isBoss ? A.fuel : Math.min(A.fuel, target.fuel);
+      if (!target.isBoss) target.fuel -= gallons;
+      const room = Math.max(0, from.tank - from.fuel);
+      const taken = Math.min(gallons, room);
+      from.fuel += taken;
+      from.fuelStolen += taken;
+      const mp = target.mp * A.drain;
+      target.mp -= mp;
+      from.mp = Math.min(C.mpMax, from.mp + mp);
+      if (from.chargeMax > 0) {
+        const charge = target.isBoss ? from.chargeMax * A.drain : target.charge * A.drain;
+        if (!target.isBoss) target.charge -= charge;
+        from.charge = Math.min(from.chargeMax, from.charge + charge);
+      }
+      if (target.isBoss) jamBoss(target, A.jam);
+      else for (const key of target.arms) target.cooldown[key] = (target.cooldown[key] ?? 0) + A.jam;
+      race.events.push({ at: race.real, text: `${from.isPlayer ? 'You plunder' : `${from.name} plunders`} ${target.isPlayer ? 'you' : target.name}: ${Math.round(taken)} gal` });
+      race.fx.push({ type: 'ability', id: 'plunder', from: from.id, to: [target.id], gallons: Math.round(taken) });
+    },
+  },
+  // Absolute Zero: everything in reach freezes; the engine's own heat drops to nothing.
+  zero: {
+    need: () => null,
+    use(race, from, A) {
+      const hit = enemiesOf(race, from, A.range);
+      for (const train of hit) {
+        if (train.unstoppable > 0) continue;
+        train.frozenFor = A.seconds;
+        train.frozenSlow = A.slow;
+        if (train.isBoss) jamBoss(train, 0);
+      }
+      const before = from.heat;
+      from.heat = 0;
+      if (before >= 1) race.fx.push({ type: 'vented', id: from.id, amount: Math.round(before) });
+      race.fx.push({ type: 'ability', id: 'zero', from: from.id, to: hit.map((t) => t.id), seconds: A.seconds });
+    },
+  },
+  // Maw: bite the next obstacle (or the nearest enemy close by). Eat what it kills.
+  maw: {
+    need: (race, from, A) => (rocksAhead(race, from, A.range).length || enemiesOf(race, from, 0.5).length ? null : 'Nothing to bite'),
+    use(race, from, A) {
+      const rock = rocksAhead(race, from, A.range)[0];
+      const enemy = rock ? null : enemiesOf(race, from, 0.5)[0];
+      const bite = Math.round((A.bite[0] + race.rng() * (A.bite[1] - A.bite[0])) * (rock ? 1 : 0.5));
+      const id = (rock ?? enemy).id;
+      hurt(race, from, id, bite, { kind: 'bite', pen: 1 });
+      const eaten = rock ? rock.destroyed : enemy.out;
+      if (eaten) {
+        from.hull = Math.min(from.hullMax, from.hull + Math.round(from.hullMax * A.heal));
+        const taken = Math.min(A.fuel, Math.max(0, from.tank - from.fuel));
+        from.fuel += taken;
+        from.fuelStolen += taken;
+      }
+      race.fx.push({ type: 'ability', id: 'maw', from: from.id, to: [id], eaten });
+    },
+  },
+};
+
+// Siphon drains the nearest rival still racing; in a boss fight, the boss.
+function siphonTarget(race, from) {
+  if (from.isPlayer) {
+    const nearest = race.trains.find((train) => train.id === race.nearestId);
+    if (nearest && live(nearest)) return nearest;
+  }
+  return enemiesOf(race, from)[0] ?? null;
+}
+
+// Why `train` cannot use its ability right now, or null if it can.
+export function abilityBlocker(race, train = playerOf(race)) {
+  const ab = train.ability;
+  const A = ab ? B.ABILITIES[ab.id] : null;
+  if (!A || !ABILITY[ab.id]) return 'No ability';
+  if (race.status !== 'running' || !live(train)) return 'Not now';
+  if (ab.used) return 'Used up';
+  if (ab.cd > 0) return `Recharging ${Math.ceil(ab.cd)}s`;
+  if (train.frozenFor > 0) return 'Frozen';
+  return ABILITY[ab.id].need(race, train, A);
+}
+
+// Use a train's signature ability (the player's, unless another train is given).
+export function useAbility(race, train = playerOf(race)) {
+  if (abilityBlocker(race, train)) return false;
+  const ab = train.ability;
+  const A = B.ABILITIES[ab.id];
+  ABILITY[ab.id].use(race, train, A);
+  if (ab.uses !== null) {
+    ab.uses -= 1;
+    ab.used = ab.uses <= 0;
+  }
+  ab.cd = A.cooldown ?? 0;
   return true;
 }
 
@@ -552,8 +771,8 @@ function strikeBoulders(race, train, before) {
     if (rock.destroyed || rock.struck || rock.at <= before || rock.at > train.distance) continue;
     rock.struck = true;
     const S = H.sizes[rock.size] ?? H.sizes.boulder;
-    // A strong enough front bursts straight through.
-    if (S.rank <= front.smash) {
+    // A strong enough front bursts straight through (and so does a Bulwark, or the Sandshark's jaws).
+    if (S.rank <= Math.max(front.smash, train.smash ?? -1) || train.unstoppable > 0) {
       train.speed *= Math.max(0.9, front.keep);
       train.crushed = (train.crushed ?? 0) + 1;
       race.fx.push({ type: 'crush', id: rock.id });
@@ -635,7 +854,7 @@ export function useWind(race, use) {
 // The Tesla Coil's damage for this many volts: exponential, so a full pack hits far harder than two halves.
 export const teslaDamage = (arm, volts) => arm.damage[0] * (Math.exp(volts / arm.voltScale) - 1);
 export const isSpell = (key) => C[kindOf(key)]?.use === 'mp';
-const live = (train) => !train.out && !train.finished;
+const live = (train) => !train.out && !train.finished && !train.hidden;
 
 // What `from` can hit within `range` miles. Rivals fight each other as well as you. For the player,
 // obstacles ahead count too once spotted; the aim setting picks between them and rivals.
@@ -643,7 +862,7 @@ function targetFor(race, from, range) {
   let rival = null;
   let rivalD = Infinity;
   for (const train of race.trains) {
-    if (train === from || !live(train)) continue;
+    if (!foes(from, train) || !live(train)) continue;
     const d = Math.abs(train.distance - from.distance);
     if (d <= range && d < rivalD) {
       rival = train;
@@ -692,6 +911,7 @@ export function castBlocker(race, from, kind) {
   if (race.status !== 'running') return 'Nothing to fight';
   if (!race.combat && !cooler) return 'Nothing to fight';
   if (!live(from)) return 'Off the line';
+  if (from.frozenFor > 0 && !cooler) return 'Frozen';
   // The guided first run keeps your guns quiet until the weapons lesson.
   if (race.guide && from.isPlayer && !cooler && !['weapons', 'done', 'free'].includes(race.guide.stage)) return 'Hold fire: weapons lesson coming';
   const booting = bootStatus(race, from, kind);
@@ -783,7 +1003,25 @@ export function fireAll(race) {
 
 function knockOff(race, train) {
   if (train.out) return;
+  // Rebirth (the Iron Phoenix): once a run, it rises again from its own wreck.
+  if (train.rebirth > 0 && !train.reborn) {
+    train.reborn = true;
+    train.hull = Math.round(train.hullMax * train.rebirth);
+    train.burn = 0;
+    train.poison = 0;
+    train.stagger = 0;
+    race.fx.push({ type: 'rebirth', id: train.id });
+    race.events.push({ at: race.real, text: `${train.isPlayer ? 'Your engine' : train.name} rises from the flames` });
+    return;
+  }
   train.out = true;
+  if (train.isBoss) {
+    train.boss.state = 'dead';
+    train.boss.windup = null;
+    race.fx.push({ type: 'bossDown', id: train.id });
+    race.events.push({ at: race.real, text: `${train.name} is destroyed` });
+    return;
+  }
   race.fx.push({ type: 'derail', id: train.id });
   race.events.push({ at: race.real, text: `${train.isPlayer ? 'You were' : `${train.name} was`} knocked off the rails` });
 }
@@ -824,10 +1062,11 @@ function hurt(race, from, targetId, damage, { kind, crit = false, pen = 0, dot =
     damage = afterArmor(damage, target.armor ?? 0, pen);
     blocked = target.barrier > 0;
     if (blocked) damage = Math.round(damage * (1 - target.barrierCut));
-    target.stagger = Math.max(target.stagger, blocked ? C.staggerBlocked : kind === 'arc' ? C.staggerBlocked : C.stagger);
+    if (!(target.unstoppable > 0)) target.stagger = Math.max(target.stagger, blocked ? C.staggerBlocked : kind === 'arc' ? C.staggerBlocked : C.stagger);
   }
   target.hull = Math.max(0, target.hull - damage);
   target.taken += damage;
+  if (target.isBoss) breakWindup(race, target, damage);
   if (!dot && damage > 0) target.hitOnce = true;
   if (kind === 'fire') target.heat = Math.min(B.HEAT.max, target.heat + C.fireHeat);
   if (from) from.dealt += damage;
@@ -850,6 +1089,7 @@ function afflict(race, targetId, burn, poison, from = null) {
 
 function land(race, shot) {
   const from = race.trains.find((train) => train.id === shot.from);
+  if (shot.custom) return landCustom(race, shot, from);
   const arm = from ? armOf(from, shot.key ?? shot.kind) : C[shot.kind];
   const rock = race.obstacles.find((item) => item.id === shot.to);
   // Accuracy: a still obstacle is easier to hit.
@@ -870,6 +1110,33 @@ function land(race, shot) {
   const crit = race.rng() < (arm.crit ?? C.crit);
   if (crit) damage = Math.round(damage * (arm.critMult ?? C.critMult));
   if (hurt(race, from, shot.to, damage, { kind: shot.kind, crit, pen: arm.pen ?? 0 })) afflict(race, shot.to, arm.burn ?? 0, arm.poison ?? 0, from);
+}
+
+// A shot from an ability or a boss attack: its numbers travel with it.
+function landCustom(race, shot, from) {
+  const c = shot.custom;
+  const target = race.trains.find((train) => train.id === shot.to) ?? null;
+  // An aimed attack was laid on the speed the train was making: move the lever and it lands wide.
+  if (c.dodge && target && Math.abs(target.lever - c.leverAt) >= B.BOSS.dodgeLever - 1e-9) {
+    race.fx.push({ type: 'miss', kind: shot.kind, to: shot.to, dodged: true });
+    if (target.isPlayer) race.dodges = (race.dodges ?? 0) + 1;
+    return;
+  }
+  if (race.rng() > (c.accuracy ?? 1)) {
+    race.fx.push({ type: 'miss', kind: shot.kind, to: shot.to });
+    return;
+  }
+  let damage = c.damage[0] + race.rng() * (c.damage[1] - c.damage[0]);
+  if (c.spell && from) damage *= from.spellPower ?? 1;
+  damage = Math.round(damage * (c.mult ?? 1));
+  if (!hurt(race, from, shot.to, damage, { kind: shot.kind, pen: c.pen ?? 0 })) return;
+  afflict(race, shot.to, c.burn ?? 0, c.poison ?? 0, from);
+  if (!target || !live(target)) return;
+  if (c.heat) target.heat = Math.min(B.HEAT.max, target.heat + c.heat);
+  if (c.slow && !(target.unstoppable > 0)) {
+    target.windSlow = c.slow;
+    target.windSlowFor = Math.max(target.windSlowFor, c.seconds ?? 3);
+  }
 }
 
 // Lightning channels tick: base + amp x ticks so far, every quarter second, while the target holds.
@@ -926,7 +1193,7 @@ function updateAfflictions(race, h) {
 // Rivals: raise a shield when hurt and something is incoming, otherwise every attack that is ready.
 function think(race, rival, h) {
   rival.think -= h;
-  if (rival.think > 0 || !live(rival)) return;
+  if (rival.think > 0 || !live(rival) || rival.frozenFor > 0) return;
   // On the guided first run Benchmark holds its fire until the lesson is over.
   if (race.guide && !['done', 'free'].includes(race.guide.stage)) return;
   const alive = race.trains.slice(1).filter(live).length || 1;
@@ -935,6 +1202,8 @@ function think(race, rival, h) {
   if (incoming && rival.barrier <= 0 && rival.hull < rival.hullMax * C.ai.barrierBelow && race.rng() < C.ai.barrierChance) {
     if (castSpell(race, rival, 'barrier') || castSpell(race, rival, 'shield')) return;
   }
+  // A champion in a legendary machine uses its signature ability when it has something to use it on.
+  if (rival.ability && aiWantsAbility(race, rival, incoming) && useAbility(race, rival)) return;
   // Rivals vent heat once it starts to bite.
   if (rival.heat > 65) for (const key of rival.arms) if (COOLERS.includes(kindOf(key)) && castSpell(race, rival, key)) return;
   const attacks = rival.arms.filter((key) => !SHIELDS.includes(kindOf(key)) && !COOLERS.includes(kindOf(key)));
@@ -944,6 +1213,26 @@ function think(race, rival, h) {
   for (const key of attacks) if (castSpell(race, rival, key)) return;
 }
 
+function aiWantsAbility(race, rival, incoming) {
+  const A = B.ABILITIES[rival.ability.id];
+  if (abilityBlocker(race, rival)) return false;
+  const near = enemiesOf(race, rival, A.range ?? 2);
+  switch (rival.ability.id) {
+    case 'siphon':
+      return enemiesOf(race, rival, 2).some((t) => t.distance > rival.distance);
+    case 'blackhole':
+      return near.some((t) => t.distance > rival.distance - 0.5);
+    case 'bulwark':
+      return incoming && rival.hull < rival.hullMax * 0.75;
+    case 'zero':
+      return near.length > 0 && (rival.heat > 50 || race.rng() < 0.5);
+    case 'maw':
+      return enemiesOf(race, rival, 0.5).length > 0;
+    default:
+      return near.length > 0;
+  }
+}
+
 // MP, charge and cooldowns tick in every race, so coolers work even without a fight.
 function updateResources(race, h) {
   for (const train of race.trains) {
@@ -951,6 +1240,11 @@ function updateResources(race, h) {
     if (train.chargeMax > 0) train.charge = Math.min(train.chargeMax, train.charge + C.chargeRegen * train.chargeRegenMult * h);
     for (const kind of Object.keys(train.cooldown)) train.cooldown[kind] = Math.max(0, train.cooldown[kind] - h);
     train.barrier = Math.max(0, train.barrier - h);
+    train.unstoppable = Math.max(0, train.unstoppable - h);
+    if (train.ability) {
+      train.ability.cd = Math.max(0, train.ability.cd - h);
+      train.ability.activeFor = Math.max(0, train.ability.activeFor - h);
+    }
   }
 }
 
@@ -965,7 +1259,179 @@ function updateCombat(race, h) {
       land(race, shot);
     }
   }
-  for (const rival of race.trains.slice(1)) think(race, rival, h);
+  for (const rival of race.trains.slice(1)) {
+    if (rival.isBoss) bossThink(race, rival, h);
+    else think(race, rival, h);
+  }
+}
+
+// ---------- Bosses ----------
+
+const TAU = Math.PI * 2;
+const smooth = (k) => {
+  const x = Math.min(1, Math.max(0, k));
+  return x * x * (3 - 2 * x);
+};
+// Where a boss rides: a little ahead of the player's train, weaving in and out.
+const stationOffset = (clock) => B.BOSS.offset.base + B.BOSS.offset.swing * Math.sin((clock / B.BOSS.offset.period) * TAU);
+
+function advanceBoss(race, train, h) {
+  const b = train.boss;
+  const player = playerOf(race);
+  const O = B.BOSS.offset;
+  const before = train.distance;
+  if (train.out) {
+    // A wreck falls behind.
+    train.speed = Math.max(0, train.speed - R.brakeDecel * 6 * h * B.TIME_SCALE);
+    train.distance += (train.speed * h * B.TIME_SCALE) / 3600;
+    return;
+  }
+  b.clock += h;
+  if (train.frozenFor > 0) train.frozenFor -= h;
+  let offset = O.far;
+  if (b.state === 'entering') offset = O.far + (stationOffset(b.clock) - O.far) * smooth(b.t / B.BOSS.enterSeconds);
+  else if (b.state === 'fighting') offset = stationOffset(b.clock);
+  else if (b.state === 'fled') offset = stationOffset(b.clock) + (b.t / 2) * O.far;
+  train.distance = Math.max(0, player.distance + offset);
+  train.speed = h > 0 ? Math.max(0, ((train.distance - before) / (h * B.TIME_SCALE)) * 3600) : 0;
+  train.vmax = player.vmax;
+}
+
+// Delay a boss's next attack and call off the one it is winding up.
+function jamBoss(train, seconds) {
+  const b = train.boss;
+  if (b.windup) {
+    b.cd[b.windup.atk.id] = 0;
+    b.windup = null;
+  }
+  b.next = Math.max(b.next, seconds);
+}
+
+// Enough damage during the warning breaks a charged attack and leaves the boss reeling.
+function breakWindup(race, train, damage) {
+  const b = train.boss;
+  const w = b.windup;
+  if (!w || !w.atk.break) return;
+  w.dealt += damage;
+  if (w.dealt < w.atk.break * train.hullMax) return;
+  b.windup = null;
+  b.reel = B.BOSS.breakStagger;
+  b.broken = (b.broken ?? 0) + 1;
+  race.fx.push({ type: 'bossBreak', id: train.id, attack: w.atk.id, name: w.atk.name });
+  race.events.push({ at: race.real, text: `${w.atk.name} broken` });
+}
+
+// The boss's turn: wait, warn, strike. Each attack has its own cooldown; below 30% HP a boss is
+// enraged and everything comes faster and harder.
+function bossThink(race, train, h) {
+  const b = train.boss;
+  const def = b.def;
+  const player = playerOf(race);
+  if (train.out || race.status !== 'running') return;
+  if (b.state === 'waiting') {
+    if (player.distance >= (def.enterAt ?? B.BOSS.enterAt)) {
+      b.state = 'entering';
+      b.t = 0;
+      train.hidden = false;
+      race.fx.push({ type: 'bossEnter', id: train.id, boss: def.id });
+      race.events.push({ at: race.real, text: `${def.name} is on the line` });
+    }
+    return;
+  }
+  if (b.state === 'entering') {
+    b.t += h;
+    if (b.t >= B.BOSS.enterSeconds) {
+      b.state = 'fighting';
+      b.next = B.BOSS.opening;
+    }
+    return;
+  }
+  if (b.state === 'fled') {
+    b.t += h;
+    return;
+  }
+  if (b.state !== 'fighting') return;
+  b.fought += h;
+  b.left -= h;
+  if (b.left <= 0) {
+    b.state = 'fled';
+    b.t = 0;
+    b.windup = null;
+    train.hidden = true;
+    race.fx.push({ type: 'bossFled', id: train.id });
+    race.events.push({ at: race.real, text: `${def.name} breaks off and escapes` });
+    return;
+  }
+  const E = B.BOSS.enrage;
+  if (!b.enraged && train.hull <= train.hullMax * E.at) {
+    b.enraged = true;
+    race.fx.push({ type: 'bossEnrage', id: train.id });
+    race.events.push({ at: race.real, text: `${def.name} is enraged` });
+  }
+  for (const id of Object.keys(b.cd)) b.cd[id] = Math.max(0, b.cd[id] - h);
+  if (train.frozenFor > 0) return;
+  if (b.reel > 0) {
+    b.reel -= h;
+    return;
+  }
+  if (b.windup) {
+    b.windup.left -= h;
+    if (b.windup.left <= 0) {
+      const { atk, leverAt } = b.windup;
+      b.windup = null;
+      bossStrike(race, train, atk, leverAt);
+      const [lo, hi] = def.gap ?? B.BOSS.gap;
+      b.next = (lo + race.rng() * (hi - lo)) * (b.enraged ? E.gap : 1);
+    }
+    return;
+  }
+  b.next -= h;
+  if (b.next > 0) return;
+  const share = train.hull / train.hullMax;
+  const ready = def.attacks.filter((atk) => !(b.cd[atk.id] > 0) && (atk.below === undefined || share <= atk.below));
+  if (!ready.length) {
+    b.next = 0.5;
+    return;
+  }
+  const atk = weightedPick(race.rng, ready, (item) => item.weight ?? 1);
+  b.cd[atk.id] = atk.cooldown;
+  const telegraph = atk.telegraph * (b.enraged ? E.telegraph : 1);
+  b.windup = { atk, left: telegraph, total: telegraph, dealt: 0, leverAt: player.lever };
+  race.fx.push({ type: 'bossWarn', id: train.id, attack: atk.id, name: atk.name, seconds: telegraph });
+}
+
+// One boss attack going off. `leverAt` is where the player's lever stood when the warning began.
+function bossStrike(race, train, atk, leverAt) {
+  const b = train.boss;
+  const player = playerOf(race);
+  const mult = b.enraged ? B.BOSS.enrage.damage : 1;
+  b.attacks = (b.attacks ?? 0) + 1;
+  if (atk.type === 'drop') {
+    // Something lands on the line ahead: shoot it, crush it, or hit it.
+    const H = B.HAZARD;
+    const S = H.sizes[atk.size] ?? H.sizes.boulder;
+    for (let i = 0; i < (atk.count ?? 1); i++) {
+      const at = Math.round((player.distance + atk.ahead[0] + race.rng() * (atk.ahead[1] - atk.ahead[0]) + i * 0.5) * 100) / 100;
+      if (at >= race.distance - 0.3) continue;
+      const hp = Math.round(S.hp[0] + race.rng() * (S.hp[1] - S.hp[0]));
+      const rock = { id: `rock-d${++race.shotSeq}`, at, size: atk.size ?? 'boulder', label: atk.label ?? null, hp, hpMax: hp, armor: 0, destroyed: false, struck: false, seen: true, big: false, dropped: true, burn: 0, burnT: 0, poison: 0, poisonT: 0 };
+      race.obstacles.push(rock);
+      race.obstacles.sort((x, y) => x.at - y.at);
+      race.fx.push({ type: 'drop', id: rock.id, from: train.id, look: atk.look ?? 'rock' });
+    }
+    return;
+  }
+  if (atk.type === 'guard') {
+    train.barrier = atk.seconds;
+    train.barrierCut = atk.cut;
+    race.fx.push({ type: 'barrier', id: train.id, kind: 'boss' });
+    return;
+  }
+  // Everything else is thrown at the player's train.
+  const hits = atk.hits ?? 1;
+  for (let i = 0; i < hits; i++) {
+    customShot(race, train, player.id, atk.look ?? 'cannon', atk.travel ?? 0.55, { damage: atk.damage, mult, accuracy: atk.accuracy ?? 1, pen: atk.pen ?? 0, burn: atk.burn ?? 0, poison: atk.poison ?? 0, heat: atk.heat ?? 0, slow: atk.slow ?? 0, seconds: atk.seconds ?? 0, dodge: !!atk.dodge, leverAt, boss: atk.id }, i * (atk.spread ?? 0.22));
+  }
 }
 
 // The guided first run, in stages:
@@ -1037,7 +1503,7 @@ function finishRace(race, reason) {
     race.emergencyGallons -= race.emergency.gallons;
     race.emergency = null;
   }
-  const rivals = race.trains.slice(1);
+  const rivals = rivalsOf(race);
   let place = 1;
   for (const rival of rivals) {
     if (player.out) {
@@ -1049,6 +1515,7 @@ function finishRace(race, reason) {
     }
   }
   const standings = race.trains
+    .filter((train) => !train.isBoss)
     .map((train) => ({
       id: train.id,
       name: train.name,
@@ -1073,7 +1540,7 @@ function finishRace(race, reason) {
     reason,
     finished: player.finished,
     place,
-    field: race.trains.length,
+    field: rivals.length + 1,
     distance: player.distance,
     raceDistance: race.distance,
     gameSeconds,
@@ -1085,6 +1552,7 @@ function finishRace(race, reason) {
     fuelLoaded: player.fuelStart,
     fuelUsed: player.fuelUsed,
     fuelLeft: player.fuel,
+    fuelStolen: player.fuelStolen ?? 0,
     emergencyGallons: race.emergencyGallons,
     emergencyCost: race.emergencyCost,
     combat: race.combat,
@@ -1103,6 +1571,12 @@ function finishRace(race, reason) {
     boulders: race.obstacles.length,
     bouldersSmashed: race.obstacles.filter((rock) => rock.destroyed).length,
     bouldersCrushed: player.crushed ?? 0,
+    reborn: !!player.reborn,
+    dodges: race.dodges ?? 0,
+    // The boss fight, if there was one: slain, or how much of it was left standing.
+    boss: race.boss
+      ? { id: race.boss.boss.id, name: race.boss.name, slain: race.boss.out, hull: Math.ceil(race.boss.hull), hullMax: race.boss.hullMax, seconds: race.boss.boss.fought, broken: race.boss.boss.broken ?? 0, met: race.boss.boss.state !== 'waiting' }
+      : null,
     standings,
   };
 }

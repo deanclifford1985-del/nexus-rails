@@ -541,11 +541,127 @@ export const B = {
   },
 
   STATION: { stock: 9, phoenixPrice: 2000000 }, // the lot turns over every game week
-  // Very late-game engines, always on the station's back siding.
+  // The legendary machines: fixed engines, each with its own spells and a signature ability.
+  // `price` is the list price (what it is worth: resale and repairs work from it). `forge` means a
+  // boss relic builds it for that much instead; `forgeOnly` engines cannot be bought without the relic.
+  // `rebirth`: once a run, at 0 HP it rises again with this share of its hull.
+  // `smash`: its own front crushes obstacles up to this rank, whatever front is fitted.
   MYTHIC: {
-    wizard: { price: 300000, rarity: 'epic', power: 9, efficiency: 9, durability: 6, hpBase: 1800, tqBase: 4200, growth: 1.1, capacity: 6, spells: ['bolt', 'barrier'] },
-    titan: { price: 450000, rarity: 'epic', power: 10, efficiency: 5, durability: 9, endurance: 13, hpBase: 1900, tqBase: 5200, growth: 1.1, capacity: 9, spells: ['barrier'], hullBonus: 350, extraWeight: 6000 },
-    dragon: { price: 1200000, rarity: 'legendary', power: 12, efficiency: 7, durability: 10, endurance: 8, hpBase: 1850, tqBase: 4600, growth: 1.1, capacity: 8, spells: ['fire', 'barrier'] },
-    phoenix: { capacity: 7, spells: ['fire', 'barrier'] },
+    wizard: { price: 300000, rarity: 'epic', power: 9, efficiency: 9, durability: 6, hpBase: 1800, tqBase: 4200, growth: 1.1, capacity: 6, spells: ['bolt', 'barrier'], ability: 'tempest' },
+    titan: { price: 450000, rarity: 'epic', power: 10, efficiency: 5, durability: 9, endurance: 13, hpBase: 1900, tqBase: 5200, growth: 1.1, capacity: 9, spells: ['barrier'], hullBonus: 350, extraWeight: 6000, ability: 'bulwark', forge: { relic: 'bastion', price: 225000 } },
+    dragon: { price: 1200000, rarity: 'legendary', power: 12, efficiency: 7, durability: 10, endurance: 8, hpBase: 1850, tqBase: 4600, growth: 1.1, capacity: 8, spells: ['fire', 'barrier'], ability: 'inferno', forge: { relic: 'vharzul', price: 600000 } },
+    phoenix: { capacity: 7, spells: ['fire', 'barrier'], ability: 'siphon', rebirth: 0.4 },
+    marauder: { price: 90000, rarity: 'epic', power: 8, efficiency: 6, durability: 7, endurance: 7, hpBase: 1850, tqBase: 4400, growth: 1.1, capacity: 7, spells: [], ability: 'plunder', bootMult: 0.7, forge: { relic: 'rustjaw', price: 45000 }, forgeOnly: true },
+    glacier: { price: 280000, rarity: 'epic', power: 9, efficiency: 8, durability: 8, endurance: 14, hpBase: 1800, tqBase: 4500, growth: 1.1, capacity: 6, spells: ['frost', 'barrier'], ability: 'zero', forge: { relic: 'frostmaw', price: 140000 }, forgeOnly: true },
+    sandshark: { price: 760000, rarity: 'legendary', power: 12, efficiency: 9, durability: 11, endurance: 11, hpBase: 1900, tqBase: 5000, growth: 1.1, capacity: 7, spells: ['fire', 'frost', 'barrier'], ability: 'maw', smash: 1, forge: { relic: 'devourer', price: 380000 }, forgeOnly: true },
+    graviton: { price: 1500000, rarity: 'legendary', power: 14, efficiency: 10, durability: 14, endurance: 12, hpBase: 1800, tqBase: 5600, growth: 1.1, capacity: 8, spells: ['bolt', 'frost', 'barrier'], ability: 'blackhole', extraWeight: 4000 },
+  },
+
+  // Boss fights. A boss is not raced: it keeps station beside the player's train and the two fight
+  // until one falls or the boss breaks off. Times are real seconds, distances miles.
+  BOSS: {
+    enterAt: 2.5, // miles into the run before the boss shows itself (most weapons have booted by then)
+    enterSeconds: 3, // how long it takes to close in
+    opening: 3.5, // seconds after it arrives before its first attack
+    seconds: 150, // how long a boss stays and fights before it escapes, unless its own entry says otherwise
+    gap: [3.0, 4.4], // seconds between one attack landing and the next warning
+    // Below `at` of its HP a boss is enraged: shorter gaps, shorter warnings, harder hits.
+    enrage: { at: 0.3, gap: 0.65, telegraph: 0.85, damage: 1.25 },
+    breakStagger: 2.5, // seconds a boss reels when a charged attack is broken
+    dodgeLever: 0.15, // move the lever this far during the warning and an aimed attack lands wide
+    // Where the boss rides, in miles ahead of the player: `far` before it arrives, then weaving around `base`.
+    offset: { far: 1.6, base: 0.13, swing: 0.09, period: 9 },
+    slainDelay: 2.6, // seconds between the kill and the end of the run
+    respawnDays: 7, // game days before a slain boss is back on its line
+    repeat: { pay: 0.4, xp: 0.5 }, // what a boss is worth after the first kill
+    raidCut: 0.25, // a boss at large cuts the income of freight routes on its line by this share
+  },
+  // The bosses, weakest first. Each haunts a real line and its bounty is posted once the conductor
+  // holds `licence` and has slain the boss before it.
+  //   hull, armor: like a train's. seconds: how long it fights before escaping. miles: the run.
+  //   attacks: type 'shot' (default; `hits` shots of `damage`, with optional burn, poison, heat,
+  //   slow + seconds, pen), 'drop' (`count` obstacles of `size` land `ahead` miles up the line) or
+  //   'guard' (damage cut for `seconds`). telegraph: the warning, in seconds. cooldown: its own.
+  //   dodge: aimed, so moving the lever dodges it. break: share of the boss's HP that, dealt during
+  //   the warning, breaks the attack. below: only used once its HP is at or under this share.
+  BOSSES: {
+    rustjaw: {
+      name: 'Rustjaw', title: 'the Scrap Baron', tier: 1, look: 'scrap', line: 'kansascity-dallas', licence: 0,
+      miles: 60, seconds: 150, hull: 520, armor: 0.05,
+      bounty: 1500, xp: 900, weapon: 'rare', relic: "The Baron's Black Flag", forges: 'marauder',
+      text: 'Track pirates in a war-train welded from stolen freight. They have been raiding the Kansas City line for months.',
+      tip: 'His cannon is aimed: shift your lever when the warning shows. Break the Broadside with everything you have.',
+      attacks: [
+        { id: 'scrap', name: 'Scrap Cannon', look: 'cannon', telegraph: 1.4, cooldown: 4, damage: [22, 30], dodge: true, weight: 3, text: 'An aimed shot. Shift your lever to dodge.' },
+        { id: 'hooks', name: 'Grappling Hooks', look: 'launcher', telegraph: 1.2, cooldown: 14, damage: [8, 12], slow: 0.25, seconds: 5, weight: 1, text: 'Drags your speed down by a quarter for 5 seconds.' },
+        { id: 'broadside', name: 'Broadside', look: 'cannon', telegraph: 2.4, cooldown: 18, hits: 4, damage: [14, 18], break: 0.07, below: 0.6, weight: 2, text: 'Four guns at once. Deal 7% of his hull during the warning to break it.' },
+      ],
+    },
+    frostmaw: {
+      name: 'Frostmaw', title: 'the White Wyrm', tier: 2, look: 'frostwyrm', line: 'chicago-minneapolis', licence: 1,
+      miles: 80, seconds: 160, hull: 1050, armor: 0.1,
+      bounty: 5000, xp: 2000, weapon: 'epic', relic: 'The Frozen Heart', forges: 'glacier',
+      text: 'An ice wyrm that came down from the north with the winter and never left. It freezes trains to the rails and eats them at its leisure.',
+      tip: 'Its breath cannot be dodged: shield it. Shoot the ice walls or fit a front that breaks them.',
+      attacks: [
+        { id: 'breath', name: 'Frost Breath', look: 'frost', telegraph: 1.6, cooldown: 7, damage: [22, 30], slow: 0.3, seconds: 4, weight: 3, text: 'A cone of ice: damage and a slow. It cannot be dodged.' },
+        { id: 'wall', name: 'Ice Wall', type: 'drop', look: 'ice', label: 'Ice wall', size: 'boulder', count: 1, ahead: [1.8, 2.6], telegraph: 1.2, cooldown: 15, weight: 2, text: 'A wall of ice lands on your line ahead.' },
+        { id: 'hail', name: 'Hailstorm', look: 'frost', telegraph: 2.6, cooldown: 22, hits: 5, damage: [8, 12], break: 0.06, below: 0.66, weight: 2, text: 'Five shards. Deal 6% of its hull during the warning to break it.' },
+      ],
+    },
+    devourer: {
+      name: 'The Dune Devourer', title: 'terror of the Chihuahuan sands', tier: 3, look: 'wurm', line: 'dallas-elpaso', licence: 2,
+      miles: 100, seconds: 170, hull: 2300, armor: 0.15,
+      bounty: 14000, xp: 4000, weapon: 'epic', relic: "The Devourer's Fang", forges: 'sandshark',
+      text: 'A sand wurm longer than a freight train. It follows the vibration of the rails and swallows whatever is making it.',
+      tip: 'Its acid is Poison, and Poison never wears off: end the fight quickly. Dodge the Eruption with the lever.',
+      attacks: [
+        { id: 'acid', name: 'Acid Spit', look: 'acid', telegraph: 1.4, cooldown: 6, damage: [18, 26], poison: 1, dodge: true, weight: 3, text: 'Aimed. A stack of Poison if it lands.' },
+        { id: 'erupt', name: 'Eruption', look: 'rock', telegraph: 2.2, cooldown: 14, damage: [50, 65], dodge: true, weight: 2, text: 'It comes up under the line. Aimed: shift your lever.' },
+        { id: 'storm', name: 'Sandstorm', look: 'heat', telegraph: 1.8, cooldown: 18, damage: [8, 12], heat: 12, slow: 0.2, seconds: 6, weight: 1, text: 'Heat, grit and a slow. It cannot be dodged.' },
+        { id: 'swallow', name: 'Swallow Whole', look: 'rock', telegraph: 3, cooldown: 30, damage: [100, 130], break: 0.06, below: 0.5, weight: 2, text: 'Deal 6% of its hull during the warning to break it, or take the worst hit in the desert.' },
+      ],
+    },
+    bastion: {
+      name: 'The Iron Bastion', title: 'the fortress that went rogue', tier: 4, look: 'bastion', line: 'denver-saltlake', licence: 3,
+      miles: 140, seconds: 210, hull: 4200, armor: 0.3,
+      bounty: 35000, xp: 7500, weapon: 'legendary', relic: 'The Bastion Core', forges: 'titan',
+      text: 'An armored war-train built to guard the Rockies. Its crew are long gone. Its guns still follow anything that moves.',
+      tip: 'Heavy armor: bring armor penetration (heavy cannon, plasma, lightning, Tesla) or damage over time. Hold your fire, or burn it, while its Aegis is up.',
+      attacks: [
+        { id: 'battery', name: 'Gun Battery', look: 'heavy', telegraph: 1.6, cooldown: 6, hits: 3, damage: [22, 30], dodge: true, weight: 3, text: 'Three aimed shells. Shift your lever.' },
+        { id: 'mortar', name: 'Mine Mortar', type: 'drop', look: 'mine', label: 'Rail mine', size: 'boulder', count: 2, ahead: [1.8, 2.6], telegraph: 1.4, cooldown: 14, weight: 2, text: 'Two mines land on your line ahead.' },
+        { id: 'aegis', name: 'Aegis', type: 'guard', seconds: 6, cut: 0.6, telegraph: 1, cooldown: 24, below: 0.8, weight: 1, text: 'Six seconds of 60% less damage. Burn and Poison go straight through.' },
+        { id: 'railgun', name: 'Railgun', look: 'bolt', travel: 0.6, telegraph: 3, cooldown: 28, damage: [140, 180], pen: 0.5, break: 0.05, below: 0.6, weight: 2, text: 'Deal 5% of its hull during the warning to break it.' },
+      ],
+    },
+    vharzul: {
+      name: 'Vharzul', title: 'the Dread Wyrm', tier: 5, look: 'dreadwyrm', line: 'phoenix-losangeles', licence: 4,
+      miles: 200, seconds: 240, hull: 7000, armor: 0.2,
+      bounty: 100000, xp: 15000, weapon: 'legendary', relic: "The Wyrm's Heart", forges: 'dragon',
+      text: 'The dragon at the end of the line. Every conductor who ever rolled a die has been working up to this.',
+      tip: 'The desert and its fire both feed your engine heat: bring a cooler. Dodge the Dive, shield the breath, break the Cataclysm.',
+      attacks: [
+        { id: 'fire', name: 'Dragonfire', look: 'fire', telegraph: 1.5, cooldown: 6, damage: [38, 50], burn: 3, heat: 10, weight: 3, text: 'Damage, three stacks of Burn and 10 heat. It cannot be dodged.' },
+        { id: 'dive', name: 'Dive Bomb', look: 'rock', telegraph: 2.2, cooldown: 13, damage: [95, 120], dodge: true, weight: 2, text: 'Aimed. Shift your lever.' },
+        { id: 'gust', name: 'Wing Gust', look: 'frost', telegraph: 1.4, cooldown: 16, damage: [12, 18], slow: 0.35, seconds: 6, weight: 1, text: 'A third of your speed gone for 6 seconds.' },
+        { id: 'meteors', name: 'Meteors', type: 'drop', look: 'meteor', label: 'Burning rock', size: 'large', count: 2, ahead: [2.0, 3.0], telegraph: 1.6, cooldown: 18, below: 0.75, weight: 2, text: 'Two burning rocks land on your line ahead.' },
+        { id: 'cataclysm', name: 'Cataclysm', look: 'fire', telegraph: 3.2, cooldown: 32, hits: 6, damage: [32, 42], burn: 1, break: 0.045, below: 0.5, weight: 2, text: 'Six blasts. Deal 4.5% of its hull during the warning to break it.' },
+      ],
+    },
+  },
+
+  // Signature abilities. One per legendary machine, on its own button (Q). Times are real seconds,
+  // ranges miles. `uses` abilities work that many times a run; the rest recharge on `cooldown`.
+  // Damage from an ability grows with the conductor's Intelligence like a spell.
+  ABILITIES: {
+    siphon: { name: 'Siphon Speed', uses: 1, text: 'Once a run, take 10% of the nearest rival\'s speed for 15 seconds. They slow down and you gain what they lose.' },
+    blackhole: { name: 'Black Hole', cooldown: 60, seconds: 15, weight: 250000, crush: [220, 300], range: 4, text: 'Every rival within 4 miles is dragged down by 250,000 lb for 15 seconds. Bosses and obstacles in reach are crushed for 220-300 damage.' },
+    tempest: { name: 'Tempest', cooldown: 40, damage: [45, 60], range: 4.5, strike: 0.6, text: 'Calls lightning down on every enemy and every spotted obstacle within 4.5 miles: 45-60 damage each.' },
+    bulwark: { name: 'Bulwark', cooldown: 45, seconds: 8, cut: 0.8, text: 'For 8 seconds: 80% less damage, nothing staggers or slows you, and you crush any obstacle short of a boss.' },
+    inferno: { name: 'Inferno', cooldown: 35, damage: [40, 55], burn: 6, vent: 30, range: 3, text: 'A wave of dragonfire over everything within 3 miles: 40-55 damage and 6 stacks of Burn each, and the engine breathes out 30 heat.' },
+    plunder: { name: 'Plunder', cooldown: 30, fuel: 20, drain: 0.5, jam: 4, range: 1.5, text: 'Grappling hooks on the nearest enemy within 1.5 miles: take 20 gallons of its fuel and half its MP and charge, and jam its weapons for 4 seconds.' },
+    zero: { name: 'Absolute Zero', cooldown: 50, seconds: 5, slow: 0.5, range: 2, text: 'Freezes every enemy within 2 miles for 5 seconds: rivals lose half their speed and cannot fire, bosses cannot attack. Your engine heat drops to zero.' },
+    maw: { name: 'Maw', cooldown: 25, range: 1.5, bite: [150, 200], heal: 0.12, fuel: 8, text: 'Bites the next obstacle within 1.5 miles for 150-200 damage (or the nearest enemy within half a mile for half that). If it is destroyed, the engine eats it: +12% hull and 8 gallons.' },
   },
 };
