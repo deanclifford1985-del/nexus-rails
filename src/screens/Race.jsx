@@ -709,6 +709,7 @@ export default function Race() {
           <div className={`r3-win r3-foe ${nearest.out ? 'out' : ''}`}>
             <div className="r3-row r3-spread">
               <span className="r3-name" style={{ color: liveryFor(nearest).css }}>
+                {nearest.champion ? '♛ ' : ''}
                 {nearest.name}
               </span>
               <span className="r3-dim r3-small">{nearest.locoName}</span>

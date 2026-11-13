@@ -211,6 +211,7 @@ export function entryFee(kind, job) {
   if (!job) return 0;
   if (kind === 'race') return Math.round(((job.purse?.[0] ?? 0) * J.race.entryShare) / 10) * 10;
   if (kind === 'contract') return (job.award ?? 0) * J.contract.entryPerContract;
+  if (kind === 'open') return Math.round(((job.purse?.[0] ?? 0) * B.OPEN.entryShare) / 10) * 10;
   return 0;
 }
 

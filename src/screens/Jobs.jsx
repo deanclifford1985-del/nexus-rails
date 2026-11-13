@@ -1,5 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Award, Clock, FileSignature, Flag, Lock, Map as MapIcon, Mountain, Package, PartyPopper, Swords, TrainFront, Trophy, Truck } from 'lucide-react';
+import { Award, Clock, FileSignature, Flag, ListChecks, Lock, Map as MapIcon, Mountain, Package, PartyPopper, Swords, TrainFront, Trophy, Truck } from 'lucide-react';
+import WorldOpen from './WorldOpen.jsx';
+import Trials from './Trials.jsx';
+import Orders from './Orders.jsx';
+import { OPEN_IDS, openDone } from '../game/open.js';
+import { milestonesReady, tasksClaimable } from '../game/tasks.js';
 import RouteMap from '../ui/RouteMap.jsx';
 import BountyBoard from './Bounties.jsx';
 import { BOSS_IDS, bossState } from '../game/bosses.js';
@@ -25,6 +30,7 @@ const TABS = [
   { id: 'contracts', label: 'Contracts', icon: FileSignature },
   { id: 'races', label: 'Races', icon: Trophy },
   { id: 'bounties', label: 'Bounties', icon: Swords },
+  { id: 'orders', label: 'Orders', icon: ListChecks },
   { id: 'reputation', label: 'Reputation', icon: Award },
 ];
 
@@ -142,8 +148,9 @@ export default function Jobs() {
     .sort((a, b) => b.record.rep - a.record.rep || a.company.name.localeCompare(b.company.name));
   const [tab, setTab] = useState(screen.tab ?? 'deliveries');
   const [main, subPick] = tab.split(':');
-  const sub = subPick ?? (companyJobs.length ? 'open' : 'compete');
-  const counts = { deliveries: simple.length, contracts: contracts.length + companyJobs.reduce((n, [, jobs]) => n + jobs.length, 0), races: races.length, bounties: BOSS_IDS.filter((id) => bossState(conductor, id).state === 'open').length, reputation: known.length };
+  const contractSub = companyJobs.length ? 'open' : 'compete';
+  const sub = subPick ?? (main === 'races' ? 'prize' : contractSub);
+  const counts = { deliveries: simple.length, contracts: contracts.length + companyJobs.reduce((n, [, jobs]) => n + jobs.length, 0), races: races.length, bounties: BOSS_IDS.filter((id) => bossState(conductor, id).state === 'open').length, orders: tasksClaimable(conductor) + milestonesReady(conductor) || undefined, reputation: known.length };
   const daysToTurn = B.WEEK.days - (Math.floor((conductor.clock ?? 0) / 1440) % B.WEEK.days);
 
   const perks = [];
@@ -177,7 +184,7 @@ export default function Jobs() {
 
       <div className="tabs" role="tablist" aria-label="Dispatch boards">
         {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" aria-selected={main === t.id} className="tab" onClick={() => setTab(t.id === 'contracts' ? `contracts:${sub}` : t.id)}>
+          <button key={t.id} type="button" role="tab" aria-selected={main === t.id} className="tab" onClick={() => setTab(t.id === 'contracts' ? `contracts:${contractSub}` : t.id)}>
             <t.icon aria-hidden="true" />
             {t.label}
             {counts[t.id] !== undefined ? <span className="tab-count">{counts[t.id]}</span> : null}
@@ -391,6 +398,22 @@ export default function Jobs() {
       ) : null}
 
       {main === 'races' ? (
+        <div className="tabs tabs-sub" role="tablist" aria-label="Races">
+          <button type="button" role="tab" aria-selected={sub === 'prize'} className="tab" onClick={() => setTab('races:prize')}>
+            Prize races <span className="tab-count">{races.length}</span>
+          </button>
+          <button type="button" role="tab" aria-selected={sub === 'open'} className="tab" onClick={() => setTab('races:open')}>
+            World Open <span className="tab-count">{OPEN_IDS.filter((id) => !openDone(conductor, id)).length}</span>
+          </button>
+          <button type="button" role="tab" aria-selected={sub === 'trials'} className="tab" onClick={() => setTab('races:trials')}>
+            Proving grounds <span className="tab-count">3</span>
+          </button>
+        </div>
+      ) : null}
+      {main === 'races' && sub === 'open' ? <WorldOpen /> : null}
+      {main === 'races' && sub === 'trials' ? <Trials /> : null}
+
+      {main === 'races' && sub === 'prize' ? (
         <section className="stack" role="tabpanel">
           <p className="muted">Prize races: no freight, a field of rivals, and a purse for the top three. Entry costs {Math.round(B.JOBS.race.entryShare * 100)}% of the winner's purse, paid at the start line: 3rd place earns it back, 4th or worse loses it. You also pay for fuel and rounds. Each runs once a week, and the sponsor remembers a good finish.</p>
           <article className={`plate stack-sm ${fest.active ? 'festival-on' : ''}`}>
@@ -450,6 +473,7 @@ export default function Jobs() {
       ) : null}
 
       {main === 'bounties' ? <BountyBoard /> : null}
+      {main === 'orders' ? <Orders /> : null}
 
       {main === 'reputation' ? (
         <section className="stack" role="tabpanel">

@@ -10,6 +10,7 @@ import { traitPower } from './traits.js';
 import { estimateBand } from './estimate.js';
 import { expressJob } from './routemap.js';
 import { bossById, bossState, bountyJob } from './bosses.js';
+import { openDone, openField, openJob } from './open.js';
 
 // A "run" is anything that ends on the race screen. Its context is a small object:
 //   { kind: 'test' }                              the first run against Benchmark
@@ -20,6 +21,7 @@ import { bossById, bossState, bountyJob } from './bosses.js';
 //   { kind: 'demo' }                              Phoenix test drive
 //   { kind: 'express' }                           the current leg of an express run
 //   { kind: 'bounty', bossId }                    a boss hunt from the bounty board
+//   { kind: 'open', openId }                      a World Open event
 // Deliveries and contract jobs also carry `haul`: how many containers the player pulls.
 
 export function findRun(conductor, ctx) {
@@ -30,6 +32,7 @@ export function findRun(conductor, ctx) {
   if (ctx.kind === 'race') return board?.races?.find((race) => race.id === ctx.raceId) ?? null;
   if (ctx.kind === 'express') return expressJob(conductor);
   if (ctx.kind === 'bounty') return bountyJob(conductor, ctx.bossId);
+  if (ctx.kind === 'open') return openJob(conductor, ctx.openId);
   return null;
 }
 
@@ -173,6 +176,15 @@ export function describeRun(conductor, ctx) {
       const state = bossState(conductor, ctx.bossId);
       if (state.state === 'locked') blocked = `${state.why}.`;
       if (state.state === 'slain') blocked = `${boss.name} is down. It will be back on its line in ${state.backIn} day${state.backIn === 1 ? '' : 's'}.`;
+    } else if (ctx.kind === 'open') {
+      // A World Open event: the field is the event's own, not matched to the player.
+      const course = makeCourse(courseSeed, distance, theme);
+      rivals = openField(ctx.openId).map((entry, index) => {
+        const stats = deriveStats(entry.loco, entry.crew);
+        const plan = planTrip(stats, 0, distance, course);
+        return { id: `rival-${index + 1}`, name: entry.name, title: entry.title ?? null, locoName: entry.locoName, model: entry.model, stats, cargoLb: 0, lever: entry.lever, fuel: Math.min(stats.tank, Math.ceil(plan.gallons * 1.25)), ability: entry.ability, champion: entry.champion };
+      });
+      if (openDone(conductor, ctx.openId)) blocked = 'You have run this event this week. It opens again with the new week.';
     } else if (ctx.kind !== 'contract' && ctx.kind !== 'race') {
       // Pull up to as many of the job's containers as you own.
       haul = job.containers === 0 ? 0 : Math.max(1, Math.min(job.containers, owned, ctx.haul ?? owned));

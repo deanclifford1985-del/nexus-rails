@@ -28,6 +28,9 @@ import { CONTESTS, PRIZES, medalFor } from './festival.js';
 import { findRun } from './setup.js';
 import { bossById, bossRecord, bountyReward, legendOffer } from './bosses.js';
 import { CITIES, lineById } from './routemap.js';
+import { hasTrophy, openById, openWeek } from './open.js';
+import { allTasksClaimed, milestoneState, recordEvents, rollTasks, runEvents, taskBonus, taskDone } from './tasks.js';
+import { betterScore, trialMedal, trialRecord, trialScore, MEDALS } from './trials.js';
 import { charterPrice, cityOpen, garageSlots, routeBlocker, routeOfLoco, terminalLevel, terminalPrice, terminalUpgradePrice, tickEmpire } from './empire.js';
 import { dayIndex } from './calendar.js';
 
@@ -81,6 +84,7 @@ function turnWeek(conductor, rng) {
   conductor.board = generateBoard(rng, week);
   conductor.depot = { week, bought: 0 };
   conductor.station = { stock: generateStationStock(rng), week };
+  conductor.tasks = rollTasks(conductor, rng, week);
 }
 
 // Called when a save is opened and every few seconds while it is open:
@@ -103,6 +107,8 @@ export function refreshWorld(conductor, { now }) {
     if (!conductor.board.races) conductor.board.races = Array.from({ length: B.JOBS.race.count }, () => generateRace(rng));
     if (conductor.depot.week !== week) conductor.depot = { week, bought: 0 };
     if (!conductor.station.stock.length || conductor.station.week !== week) conductor.station = { stock: generateStationStock(rng), week };
+    // This week's orders (saves from before orders existed get theirs now).
+    if (!conductor.tasks || conductor.tasks.week !== week) conductor.tasks = rollTasks(conductor, rng, week);
     fillCompanyJobs(rng, conductor);
     placeJobs(conductor, rng);
     const done = conductor.research.justDone;
@@ -460,6 +466,8 @@ export function assignRoute(conductor, { locoId, lineId }) {
   const routes = conductor.empire.routes.filter((route) => route.locoId !== locoId);
   routes.push({ locoId, lineId, since: conductor.clock ?? 0 });
   conductor.empire.routes = routes;
+  // The most routes ever at work at once (for the Fleet Master milestone).
+  conductor.counters = { ...(conductor.counters ?? {}), routesPeak: Math.max(conductor.counters?.routesPeak ?? 0, routes.length) };
   return { locoId, lineId };
 }
 
@@ -478,8 +486,48 @@ export function collectTill(conductor) {
   empire.till = Math.round((empire.till - amount) * 100) / 100;
   empire.earned = (empire.earned ?? 0) + amount;
   conductor.lt = Math.round((conductor.lt + amount) * 10) / 10;
-  conductor.stats.earned += amount;
+  recordEvents(conductor, { collected: amount });
   return { amount };
+}
+
+// ---------- Orders and milestones ----------
+
+export function claimTask(conductor, { id }) {
+  const task = (conductor.tasks?.list ?? []).find((item) => item.id === id);
+  if (!task) fail('That order is no longer posted.');
+  if (task.claimed) fail('Already claimed.');
+  if (!taskDone(task)) fail('That order is not finished yet.');
+  task.claimed = true;
+  conductor.lt = Math.round((conductor.lt + task.lt) * 10) / 10;
+  const levels = addXp(conductor, task.xp);
+  return { lt: task.lt, xp: task.xp, levels };
+}
+
+// Every order of the week finished and claimed: the bonus, and a weapon for the shelf.
+export function claimTaskBonus(conductor) {
+  if (!allTasksClaimed(conductor)) fail('Finish and claim every order first.');
+  if (conductor.tasks.bonus) fail('Already claimed this week.');
+  const bonus = taskBonus(conductor);
+  return withRng(conductor, (rng) => {
+    conductor.tasks.bonus = true;
+    conductor.lt = Math.round((conductor.lt + bonus.lt) * 10) / 10;
+    const weapon = rollWeapon(rng, WEAPON_BASES[Math.floor(rng() * WEAPON_BASES.length)], bonus.weapon);
+    conductor.arsenal = [...(conductor.arsenal ?? []), weapon];
+    return { lt: bonus.lt, weapon };
+  });
+}
+
+// Claim the next rung of a milestone's ladder.
+export function claimMilestone(conductor, { id }) {
+  if (!B.MILESTONES[id]) fail('No such milestone.');
+  const state = milestoneState(conductor, id);
+  if (!state.ready) fail('Not reached yet.');
+  const lt = state.reward;
+  const xp = Math.round(lt / 2);
+  conductor.milestones = { ...(conductor.milestones ?? {}), [id]: state.claimed + 1 };
+  conductor.lt = Math.round((conductor.lt + lt) * 10) / 10;
+  const levels = addXp(conductor, xp);
+  return { lt, xp, levels, tier: state.claimed + 1 };
 }
 
 // ---------- Captain (NFT edition) ----------
@@ -548,7 +596,11 @@ export function payEntry(conductor, { ctx }) {
   const fee = entryFee(ctx.kind, job);
   if (!fee || job.entryPaid) return { fee: 0 };
   spend(conductor, fee, 'the entry fee');
-  job.entryPaid = fee;
+  // A World Open event is not a posting on the board: the save remembers the fee is paid.
+  if (ctx.kind === 'open') {
+    const week = openWeek(conductor);
+    conductor.open = { ...week, entered: { ...week.entered, [ctx.openId]: fee } };
+  } else job.entryPaid = fee;
   return { fee };
 }
 
@@ -609,11 +661,54 @@ export function settleRun(conductor, { ctx, result, now }) {
     });
   }
 
+  // Proving-ground trials: free fuel and rounds, a medal, and each medal's prize once.
+  if (ctx.kind === 'trial') {
+    return withRng(conductor, (rng) => {
+      const T = B.TRIALS;
+      const id = ctx.trial;
+      const medal = trialMedal(id, result);
+      const record = { ...trialRecord(conductor, id) };
+      const forfeit = result.reason === 'forfeit';
+      receipt.title = `Trial: ${T[id].name}`;
+      receipt.trial = id;
+      receipt.medal = medal;
+      receipt.score = trialScore(id, result);
+      receipt.outcome = forfeit ? 'forfeit' : medal === 'none' ? 'lost' : 'won';
+      // Every medal up to this one that has not been paid before.
+      let xp = 0;
+      for (const step of MEDALS.slice(MEDALS.indexOf(record.medal ?? 'none') + 1, MEDALS.indexOf(medal) + 1)) {
+        const prize = T.prizes[step];
+        receipt.lines.push({ label: `${step[0].toUpperCase()}${step.slice(1)} medal`, lt: prize.lt });
+        receipt.payout += prize.lt;
+        xp += prize.xp;
+        if (prize.weapon) {
+          const weapon = rollWeapon(rng, WEAPON_BASES[Math.floor(rng() * WEAPON_BASES.length)], prize.weapon);
+          conductor.arsenal = [...(conductor.arsenal ?? []), weapon];
+          receipt.prizeWeapon = weapon;
+        }
+      }
+      if (MEDALS.indexOf(medal) > MEDALS.indexOf(record.medal ?? 'none')) record.medal = medal;
+      if (!forfeit && result.reason === 'finished' && betterScore(id, receipt.score, record.best)) {
+        record.best = receipt.score;
+        receipt.record = true;
+      }
+      record.runs = (record.runs ?? 0) + (forfeit ? 0 : 1);
+      conductor.trials = { ...(conductor.trials ?? {}), [id]: record };
+      conductor.lt = Math.round((conductor.lt + receipt.payout) * 10) / 10;
+      receipt.xp = forfeit ? 0 : xp + (medal === 'none' ? 25 : 0);
+      receipt.levels = addXp(conductor, receipt.xp);
+      receipt.profit = receipt.payout;
+      if (!forfeit) recordEvents(conductor, { obstacles: (result.bouldersSmashed ?? 0) + (result.bouldersCrushed ?? 0), derails: result.rivalsDerailed ?? 0, damage: result.damageDealt ?? 0 });
+      advanceClock(conductor, rng, T.hours * 60);
+      return receipt;
+    });
+  }
+
   return withRng(conductor, (rng) => {
     receipt.fuelCost = settleFuel(conductor, result);
     // The entry fee was paid at the start line; it shows on the receipt as a cost of the run.
     const entered = findRun(conductor, ctx);
-    receipt.entryFee = ['race', 'contract'].includes(ctx.kind) && entered?.entryPaid ? entered.entryPaid : 0;
+    receipt.entryFee = ['race', 'contract', 'open'].includes(ctx.kind) && entered?.entryPaid ? entered.entryPaid : 0;
     const forfeit = result.reason === 'forfeit';
     const arrived = result.finished && result.reason === 'finished';
     const add = (label, lt) => {
@@ -750,6 +845,36 @@ export function settleRun(conductor, { ctx, result, now }) {
       }
     }
 
+    // The World Open: a purse for the top three, and the event's trophy for a first win.
+    if (ctx.kind === 'open' && job) {
+      const O = B.OPEN;
+      const event = openById(ctx.openId);
+      const t = event.tier - 1;
+      const place = arrived ? result.place : 0;
+      receipt.title = job.title;
+      receipt.company = `The World Open · ${event.country}`;
+      receipt.outcome = forfeit ? 'forfeit' : place === 1 ? 'won' : place >= 2 && place <= 3 ? 'placed' : 'lost';
+      receipt.place = place;
+      if (place >= 1 && place <= job.purse.length) add(`${['1st', '2nd', '3rd'][place - 1]} place purse`, job.purse[place - 1]);
+      if (!forfeit) {
+        xp = Math.round(O.winXp[t] * (place === 1 ? 1 : place === 2 || place === 3 ? O.placeXp : O.lossXp));
+        // Finishing ahead of the champion is worth something even without the win.
+        const order = result.standings ?? [];
+        const champ = order.findIndex((row) => row.champion);
+        const me = order.findIndex((row) => row.isPlayer);
+        const beaten = arrived && champ >= 0 && me >= 0 && me < champ;
+        receipt.champion = { name: event.champion.name, title: event.champion.title, beaten };
+        if (beaten && place !== 1) xp += Math.round(O.winXp[t] * O.champXp);
+        if (place === 1 && !hasTrophy(conductor, ctx.openId)) {
+          conductor.trophies = { ...(conductor.trophies ?? {}), [ctx.openId]: { at: conductor.clock ?? 0 } };
+          add(`${event.name} trophy`, Math.round(job.purse[0] * O.trophyLt));
+          receipt.trophy = event.name;
+        }
+        const week = openWeek(conductor);
+        conductor.open = { ...week, done: { ...week.done, [ctx.openId]: place } };
+      }
+    }
+
     // Bounties: bring the boss down for the purse, a weapon and (the first time) its relic.
     if (ctx.kind === 'bounty' && job) {
       const boss = bossById(ctx.bossId);
@@ -809,7 +934,7 @@ export function settleRun(conductor, { ctx, result, now }) {
 
     // Licence pay: every licence earned by miles driven pays a little more on every job.
     const licence = B.LICENCES[licenceLevel(conductor)];
-    if (!forfeit && licence.pay > 0 && receipt.payout > 0 && ['delivery', 'company', 'race', 'express'].includes(ctx.kind)) {
+    if (!forfeit && licence.pay > 0 && receipt.payout > 0 && ['delivery', 'company', 'race', 'express', 'open'].includes(ctx.kind)) {
       add(`${licence.name} +${Math.round(licence.pay * 100)}%`, Math.floor(receipt.payout * licence.pay));
     }
 
@@ -817,7 +942,7 @@ export function settleRun(conductor, { ctx, result, now }) {
     if (conductor.captain && !forfeit) {
       const earned = receipt.payout;
       const pay = talent(conductor, 'pay') + (ctx.kind === 'company' ? talent(conductor, 'contractPay') : 0);
-      if (earned > 0 && pay > 0 && ['delivery', 'company', 'race', 'express'].includes(ctx.kind)) add('Captain: Business', Math.floor(earned * pay));
+      if (earned > 0 && pay > 0 && ['delivery', 'company', 'race', 'express', 'open'].includes(ctx.kind)) add('Captain: Business', Math.floor(earned * pay));
       if (ctx.kind === 'contract' && job && talent(conductor, 'magnate') > 0) add('Captain: Rail Magnate purse', Math.round(job.distance * 25));
     }
 
@@ -856,6 +981,8 @@ export function settleRun(conductor, { ctx, result, now }) {
     conductor.stats.miles += result.distance;
     if (licenceLevel(conductor) > licenceBefore) receipt.licenceUp = { ...B.LICENCES[licenceLevel(conductor)], level: licenceLevel(conductor) };
     conductor.stats.earned += receipt.payout;
+    // Lifetime counters, and this week's orders.
+    if (!forfeit) recordEvents(conductor, runEvents(ctx, receipt, result));
     conductor.history = [
       { at: now, title: receipt.title, outcome: receipt.outcome, payout: receipt.payout, xp, miles: Math.round(result.distance) },
       ...conductor.history,

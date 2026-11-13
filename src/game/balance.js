@@ -559,6 +559,122 @@ export const B = {
     graviton: { price: 1500000, rarity: 'legendary', power: 14, efficiency: 10, durability: 14, endurance: 12, hpBase: 1800, tqBase: 5600, growth: 1.1, capacity: 8, spells: ['bolt', 'frost', 'barrier'], ability: 'blackhole', extraWeight: 4000 },
   },
 
+  // The World Open: races on real routes around the world, open to anyone who pays the entry.
+  // The fields are not matched to the player (unlike prize and contract races): each event has a
+  // tier, its rivals are built to that tier, and its champion drives a legendary machine. Each
+  // event runs once a week. The first win takes the event's trophy.
+  OPEN: {
+    entryShare: 0.2, // entry fee = this share of the winner's purse
+    placeShare: [1, 0.45, 0.2], // 1st, 2nd, 3rd
+    // By tier (1 to 5): the winner's purse, the experience for a win, and how the field is built.
+    purse: [1500, 4000, 10000, 25000, 60000],
+    winXp: [400, 800, 1300, 2000, 3000],
+    placeXp: 0.5, // of the win's, for 2nd or 3rd
+    lossXp: 0.2,
+    trophyLt: 1, // the first win pays the purse this many times again, with the trophy
+    champXp: 0.25, // of the win's, for finishing ahead of the champion without winning
+    rivals: [3, 4, 4, 4, 5],
+    stat: [3, 5, 7, 10, 13], // each rival's core stats, give or take 1
+    attr: [8, 10, 12, 15, 18], // their conductors' attributes
+    engineStages: [0, 1, 2, 4, 6], // workshop engine stages (5% each)
+    rarity: ['uncommon', 'rare', 'epic', 'epic', 'legendary'],
+    weapons: ['uncommon', 'uncommon', 'rare', 'rare', 'epic'], // the grade of their guns
+    // The champion drives a legendary machine tuned to the class of the event: this much Power over
+    // the field's, one point more of everything else, the same workshop stages, and a steady hand
+    // on the lever rather than a heavy one.
+    champPower: 2,
+    champAttr: [8, 10, 12, 15, 18],
+    champLever: 0.95,
+    // The events. `from` and `to` are real places (lon, lat) on a real line; `miles` is the stretch raced.
+    events: {
+      heartland: { name: 'Heartland Open', tier: 1, country: 'United States', from: ['Chicago', -87.63, 41.88], to: ['St. Louis', -90.2, 38.63], terrain: 'plains', miles: 30, text: 'Flat, fast prairie track where American railroading grew up.', champion: { name: 'Big Bill Harlan', title: 'the Heartland Hammer', model: 'tank', rarity: 'rare' } },
+      highland: { name: 'Highland Open', tier: 1, country: 'Scotland', from: ['Glasgow', -4.25, 55.86], to: ['Fort William', -5.11, 56.82], terrain: 'flooded', miles: 30, text: 'The West Highland line, floated across the bog of Rannoch Moor on a raft of brushwood.', champion: { name: 'Moira Kincaid', title: 'the Lady of the Moor', model: 'longrun', rarity: 'rare' } },
+      deccan: { name: 'Deccan Open', tier: 2, country: 'India', from: ['Mumbai', 72.88, 19.08], to: ['Pune', 73.86, 18.52], terrain: 'flooded', miles: 35, text: 'Up the Bhor Ghat in the monsoon: a wall of rain and a climb to match.', champion: { name: 'Arjun Rao', title: 'the Monsoon', model: 'wizard' } },
+      orient: { name: 'Orient Open', tier: 2, country: 'Austria and Hungary', from: ['Vienna', 16.37, 48.21], to: ['Budapest', 19.04, 47.5], terrain: 'plains', miles: 40, text: 'The Danube stretch of the old Paris to Istanbul run.', champion: { name: 'Baron Emil Varga', title: 'the Highwayman of the Danube', model: 'marauder' } },
+      rockies: { name: 'Kicking Horse Open', tier: 3, country: 'Canada', from: ['Calgary', -114.07, 51.05], to: ['Vancouver', -123.12, 49.28], terrain: 'snow', miles: 45, text: 'Over the Kicking Horse Pass and down through the spiral tunnels.', champion: { name: 'Jack Mercer', title: 'Avalanche', model: 'titan' } },
+      outback: { name: 'Outback Open', tier: 3, country: 'Australia', from: ['Adelaide', 138.6, -34.93], to: ['Alice Springs', 133.88, -23.7], terrain: 'desert', miles: 55, text: 'Red dust, heat haze and nowhere to hide from the sun.', champion: { name: 'Matilda Byrne', title: 'Red Dust', model: 'sandshark' } },
+      alpine: { name: 'Alpine Open', tier: 3, country: 'Switzerland', from: ['Zermatt', 7.75, 46.02], to: ['St. Moritz', 9.84, 46.5], terrain: 'snow', miles: 45, text: 'Glacier country: 291 bridges, 91 tunnels and the Oberalp Pass.', champion: { name: 'Lukas Brandt', title: 'the Clockmaker', model: 'glacier' } },
+      cape: { name: 'Cape Open', tier: 4, country: 'South Africa', from: ['Pretoria', 28.19, -25.75], to: ['Cape Town', 18.42, -33.92], terrain: 'desert', miles: 55, text: 'Across the Great Karoo to the foot of Table Mountain.', champion: { name: 'Thandiwe Mokoena', title: 'the Lioness', model: 'dragon' } },
+      tokaido: { name: 'Tokaido Open', tier: 4, country: 'Japan', from: ['Tokyo', 139.69, 35.69], to: ['Osaka', 135.5, 34.69], terrain: 'plains', miles: 60, text: 'The busiest fast line on earth, past Mount Fuji at full lever.', champion: { name: 'Kenji Sato', title: 'the Bullet', model: 'phoenix' } },
+      andes: { name: 'Andes Open', tier: 4, country: 'Peru', from: ['Lima', -77.04, -12.05], to: ['Huancayo', -75.21, -12.07], terrain: 'snow', miles: 55, text: 'From the sea to 15,000 feet in a day: the thin air cools nothing and forgives nothing.', champion: { name: 'Inés Quispe', title: 'the Condor', model: 'wizard' } },
+      siberia: { name: 'Trans-Siberian Open', tier: 5, country: 'Russia', from: ['Irkutsk', 104.28, 52.29], to: ['Ulan-Ude', 107.58, 51.83], terrain: 'snow', miles: 70, text: 'Round the cliffs of Lake Baikal in the dead of winter.', champion: { name: 'Viktor Volkov', title: 'the Wolf of Baikal', model: 'titan' } },
+      crown: { name: 'The Iron Crown', tier: 5, country: 'Great Britain', from: ['London', -0.13, 51.51], to: ['Edinburgh', -3.19, 55.95], terrain: 'plains', miles: 90, text: 'The Race to the North, run again: London to Edinburgh, and the crown of the circuit.', champion: { name: 'Lord Edmund Ashcroft', title: 'the Duke, reigning world champion', model: 'graviton' } },
+    },
+  },
+
+  // Weekly orders: four tasks posted with each game week. Each has a target that grows with the
+  // conductor's tier (0 to 3: the higher of the licence held and one tier per five levels) and pays
+  // LT and experience when claimed. Finishing all four pays a bonus: half their LT again, and a weapon.
+  TASKS: {
+    count: 4,
+    bonus: { ltShare: 0.5, weapon: ['rare', 'rare', 'epic', 'epic'] },
+    types: {
+      miles: { key: 'miles', text: 'Drive {n} miles', target: [150, 300, 500, 800], lt: [300, 600, 1000, 1600], xp: [200, 350, 500, 700] },
+      deliveries: { key: 'deliveries', text: 'Deliver {n} loads on time', target: [2, 3, 4, 5], lt: [350, 700, 1100, 1700], xp: [200, 350, 500, 700] },
+      containers: { key: 'containers', text: 'Deliver {n} containers of freight', target: [3, 6, 10, 16], lt: [350, 700, 1200, 1900], xp: [200, 350, 500, 700] },
+      early: { key: 'early', text: 'Deliver {n} loads with a quarter of the time to spare', one: 'Deliver a load with a quarter of the time to spare', target: [1, 2, 3, 3], lt: [300, 600, 1000, 1500], xp: [250, 400, 600, 800] },
+      podium: { key: 'podiums', text: 'Finish in the top three of {n} races', one: 'Finish in the top three of a race', target: [1, 2, 2, 3], lt: [400, 800, 1300, 2000], xp: [250, 400, 600, 800] },
+      contract: { key: 'contractWins', text: 'Win {n} contract races', one: 'Win a contract race', target: [1, 1, 2, 2], lt: [400, 800, 1400, 2200], xp: [300, 450, 650, 850] },
+      obstacles: { key: 'obstacles', text: 'Clear {n} obstacles off the line', target: [4, 8, 12, 18], lt: [300, 600, 1000, 1600], xp: [200, 350, 500, 700] },
+      derail: { key: 'derails', text: 'Knock {n} rivals off the rails', one: 'Knock a rival off the rails', target: [1, 2, 3, 4], lt: [400, 800, 1300, 2000], xp: [250, 400, 600, 800] },
+      damage: { key: 'damage', text: 'Deal {n} damage', target: [300, 800, 2000, 5000], lt: [300, 600, 1000, 1600], xp: [200, 350, 500, 700] },
+      earn: { key: 'earned', text: 'Earn {n} LT from runs', target: [1500, 4000, 9000, 20000], lt: [300, 700, 1200, 2000], xp: [200, 350, 500, 700] },
+      boss: { key: 'bossKills', text: 'Bring down {n} bosses', one: 'Bring down a boss', target: [1, 1, 1, 1], lt: [600, 1200, 2500, 5000], xp: [400, 700, 1000, 1500], needs: 'boss' },
+      till: { key: 'collected', text: 'Collect {n} LT from your routes', target: [1000, 4000, 12000, 40000], lt: [250, 600, 1200, 2500], xp: [150, 300, 450, 650], needs: 'routes' },
+    },
+  },
+  // Career milestones: a ladder for each thing a conductor does. Each rung pays its LT and half as
+  // much experience, once.
+  MILESTONES: {
+    miles: { name: 'Iron Road', text: 'miles driven', tiers: [100, 500, 2000, 6000, 15000, 35000], lt: [200, 500, 1500, 4000, 10000, 25000] },
+    deliveries: { name: 'Freight Hand', text: 'loads delivered on time', tiers: [5, 25, 75, 200, 500], lt: [300, 1000, 3000, 8000, 20000] },
+    podiums: { name: 'Podium Regular', text: 'top-three race finishes', tiers: [1, 5, 15, 40, 100], lt: [300, 1000, 3000, 8000, 20000] },
+    derails: { name: 'Wrecker', text: 'rivals knocked off the rails', tiers: [1, 10, 30, 80, 200], lt: [300, 1000, 3000, 8000, 20000] },
+    obstacles: { name: 'Line Clearer', text: 'obstacles cleared', tiers: [10, 50, 150, 400, 1000], lt: [300, 1000, 3000, 8000, 20000] },
+    bossKills: { name: 'Warden of the Line', text: 'bosses brought down', tiers: [1, 3, 6, 12, 25], lt: [1000, 4000, 12000, 30000, 80000] },
+    earned: { name: 'Money Maker', text: 'LT earned from runs', tiers: [5000, 25000, 100000, 500000, 2000000], lt: [500, 2000, 6000, 20000, 60000] },
+    terminals: { name: 'Rail Baron', text: 'terminals opened', tiers: [1, 3, 6, 10, 16], lt: [500, 2000, 6000, 15000, 40000] },
+    routes: { name: 'Fleet Master', text: 'routes at work at once', tiers: [1, 3, 5, 8, 12], lt: [500, 2000, 6000, 15000, 40000] },
+    legends: { name: 'Collector of Legends', text: 'legendary machines in the garage', tiers: [1, 2, 4, 6, 8], lt: [5000, 15000, 40000, 100000, 250000] },
+    medals: { name: 'Proven', text: 'trial medal points (bronze 1, silver 2, gold 3)', tiers: [1, 3, 6, 9], lt: [400, 1500, 4000, 10000] },
+    trophies: { name: 'Champion', text: 'World Open trophies', tiers: [1, 3, 6, 10], lt: [2000, 8000, 25000, 75000] },
+  },
+  // The Proving Grounds: three trials that are always open. Fuel and rounds are on the house; a
+  // medal's prize is paid once (a first gold pays bronze and silver too).
+  TRIALS: {
+    prizes: { bronze: { lt: 400, xp: 200 }, silver: { lt: 1000, xp: 400 }, gold: { lt: 2500, xp: 800, weapon: 'epic' } },
+    hours: 3, // on the calendar
+    gauntlet: {
+      name: 'The Gauntlet',
+      blurb: 'Twelve miles with fourteen obstacles on the line, the last of them a giant, and three minutes on the clock. Shoot them, crush them, or wear them.',
+      miles: 12,
+      seconds: 180, // real seconds before the judges call time: crawling through is not an option
+      obstacles: [
+        { at: 1.6, size: 'debris' }, { at: 2.3, size: 'debris' }, { at: 3.0, size: 'boulder' }, { at: 3.8, size: 'debris' }, { at: 4.5, size: 'boulder' },
+        { at: 5.3, size: 'boulder' }, { at: 6.0, size: 'large' }, { at: 6.8, size: 'debris' }, { at: 7.5, size: 'boulder' }, { at: 8.2, size: 'large' },
+        { at: 8.9, size: 'boulder' }, { at: 9.6, size: 'large' }, { at: 10.3, size: 'boulder' }, { at: 11.2, size: 'giant' },
+      ],
+      // Obstacles dealt with (shot down or crushed by the front) without a crash.
+      tiers: [{ at: 14, medal: 'gold' }, { at: 11, medal: 'silver' }, { at: 6, medal: 'bronze' }],
+    },
+    timetrial: {
+      name: 'Time Trial',
+      blurb: 'Twenty miles of bends and hills, alone against the clock. No weapons: just the engine, the lever and its heat.',
+      miles: 20,
+      // Real seconds on the clock at the line.
+      tiers: [{ at: 55, medal: 'gold' }, { at: 85, medal: 'silver' }, { at: 120, medal: 'bronze' }],
+    },
+    brawl: {
+      name: 'Iron Brawl',
+      blurb: 'Thirty miles against five armed raiders who would rather fight than race. Medals for the raiders you put off the rails.',
+      miles: 30,
+      rivals: 5,
+      rival: { power: 5, efficiency: 5, durability: 6, endurance: 5, attr: 10 },
+      // Raiders you knock off the rails yourself (and you must still be on them at the end).
+      tiers: [{ at: 4, medal: 'gold' }, { at: 3, medal: 'silver' }, { at: 1, medal: 'bronze' }],
+    },
+  },
+
   // The empire: a railway company with terminals in real cities and locomotives working freight
   // routes between them while the conductor is out on the line (or away from the game).
   EMPIRE: {

@@ -132,6 +132,7 @@ function makeTrain(spec, isPlayer) {
     reborn: false,
     smash: spec.stats.smash ?? -1,
     team: spec.team ?? null, // trains on the same team leave each other alone
+    champion: !!spec.champion, // the named champion of a World Open event
     gravFor: 0, // Black Hole: seconds of extra weight
     gravLb: 0,
     frozenFor: 0, // Absolute Zero: slowed and unable to fire
@@ -1016,6 +1017,7 @@ function knockOff(race, train) {
     return;
   }
   train.out = true;
+  train.downBy = train.lastHitBy ?? null;
   if (train.isBoss) {
     train.boss.state = 'dead';
     train.boss.windup = null;
@@ -1067,6 +1069,8 @@ function hurt(race, from, targetId, damage, { kind, crit = false, pen = 0, dot =
   }
   target.hull = Math.max(0, target.hull - damage);
   target.taken += damage;
+  // Whoever hit it last gets the credit if it goes down (a burn or poison tick has no sender).
+  if (from) target.lastHitBy = from.id;
   if (target.isBoss) breakWindup(race, target, damage);
   if (!dot && damage > 0) target.hitOnce = true;
   if (kind === 'fire') target.heat = Math.min(B.HEAT.max, target.heat + C.fireHeat);
@@ -1523,6 +1527,7 @@ function finishRace(race, reason) {
       name: train.name,
       locoName: train.locoName,
       isPlayer: train.isPlayer,
+      champion: train.champion,
       finished: train.finished,
       out: train.out,
       gameSeconds: train.finishGame,
@@ -1562,6 +1567,7 @@ function finishRace(race, reason) {
     damageTaken: player.taken,
     derailed: player.out,
     rivalsDerailed: rivals.filter((rival) => rival.out).length,
+    kills: rivals.filter((rival) => rival.out && rival.downBy === player.id).length, // the ones the player put off the rails
     roundsFired: player.roundsFired,
     hits: player.hits,
     misses: player.misses,

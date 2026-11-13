@@ -1,6 +1,7 @@
 import React from 'react';
 import { Landmark, Box, Building2, ClipboardList, Coins, Crown, FlaskConical, Fuel, Gem, Home, Shield, Store, TrainFront, Wrench } from 'lucide-react';
 import { empireIncome, empireRank, tillCap } from '../game/empire.js';
+import { milestonesReady, tasksClaimable } from '../game/tasks.js';
 import { IS_NFT } from '../edition.js';
 import { pointsLeft } from '../game/captain.js';
 import { useGame } from '../state/store.jsx';
@@ -59,6 +60,7 @@ export function Shell({ children }) {
   const rank = empireRank(conductor);
   const flags = {
     yard: conductor.attributePoints > 0,
+    jobs: tasksClaimable(conductor) + milestonesReady(conductor) > 0,
     research: false,
     empire: perDay > 0 && (till >= perDay * 3 || till >= tillCap(conductor) - 1),
     talents: IS_NFT && pointsLeft(conductor) > 0,

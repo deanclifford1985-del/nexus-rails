@@ -1,6 +1,6 @@
 import { LicenceBadge } from '../ui/Licence.jsx';
 import React from 'react';
-import { ArrowRight, Gem, Plus } from 'lucide-react';
+import { ArrowRight, Gem, Plus, Trophy } from 'lucide-react';
 import { MODELS } from '../game/locomotives.js';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
@@ -28,8 +28,27 @@ function place(n) {
   return `${n}${suffix[(v - 20) % 10] || suffix[v] || suffix[0]}`;
 }
 
+const TRIAL_SCORE = {
+  gauntlet: (score) => `${score} obstacle${score === 1 ? '' : 's'} dealt with`,
+  timetrial: (score) => `${fmt(score, 1)} seconds`,
+  brawl: (score) => `${score} raider${score === 1 ? '' : 's'} put off the rails`,
+};
+
 function headline(receipt) {
   const r = receipt.result;
+  if (receipt.trial) {
+    if (receipt.outcome === 'forfeit') return 'You stepped out of the trial.';
+    const score = TRIAL_SCORE[receipt.trial](receipt.score);
+    if (r.reason === 'derailed') return `Knocked off the rails with ${score}. A trial has to be finished on them.`;
+    if (r.reason === 'late') return `The judges called time with ${score}.`;
+    return `${score[0].toUpperCase()}${score.slice(1)}${receipt.record ? ': your best yet.' : '.'}`;
+  }
+  if (receipt.kind === 'open' && receipt.outcome !== 'forfeit' && !r.derailed) {
+    const champ = receipt.champion;
+    const tail = champ ? (champ.beaten ? ` You finished ahead of ${champ.name}, ${champ.title}.` : ` ${champ.name}, ${champ.title}, finished ahead of you.`) : '';
+    if (receipt.outcome === 'won') return `First home of ${r.field}.${receipt.trophy ? ` The ${receipt.trophy} trophy is yours.` : ''}${tail}`;
+    return `You finished ${place(r.place)} of ${r.field}${receipt.outcome === 'placed' ? ' and take a share of the purse' : ''}.${tail}`;
+  }
   if (receipt.kind === 'bounty' && r.boss && receipt.outcome !== 'forfeit') {
     const left = Math.round((r.boss.hull / r.boss.hullMax) * 100);
     if (r.boss.slain) return `${r.boss.name} is brought down after ${fmt(r.boss.seconds)} seconds of fighting.${receipt.firstKill ? ' The bounty is yours in full.' : ''}`;
@@ -84,7 +103,7 @@ export default function Receipt() {
   }
   const r = receipt.result;
   const [stamp, tone] = STAMPS[receipt.outcome];
-  const contest = !!receipt.contest;
+  const contest = !!receipt.contest || !!receipt.trial;
   const demo = receipt.kind === 'demo';
   const need = xpForLevel(conductor.level);
 
@@ -114,6 +133,20 @@ export default function Receipt() {
           </div>
         ) : null}
         {receipt.expressDone ? <p className="note">The {receipt.expressDone} is complete. Bonus paid below.</p> : null}
+        {receipt.trophy ? (
+          <div className="licence-up relic-up trophy-up">
+            <Trophy aria-hidden="true" />
+            <div>
+              <b>Trophy won: {receipt.trophy}</b>
+              <span className="small">It pays the winner's purse again, and it counts towards your empire rating for good.</span>
+            </div>
+          </div>
+        ) : null}
+        {receipt.trial && receipt.lines.length ? (
+          <p className="note">
+            {receipt.lines.map((line) => `${line.label}: ${ltWhole(line.lt)} LT`).join(' · ')}
+          </p>
+        ) : null}
         {receipt.relic ? (
           <div className="licence-up relic-up">
             <Gem aria-hidden="true" />
@@ -156,7 +189,7 @@ export default function Receipt() {
             ))}
             {receipt.lines.length === 0 ? (
               <>
-                <dt>{receipt.kind === 'contract' ? 'Purse (the prize is contracts)' : receipt.kind === 'race' ? 'Purse (top three only)' : receipt.kind === 'bounty' ? 'Bounty (only for a boss brought down)' : 'Pay'}</dt>
+                <dt>{receipt.kind === 'contract' ? 'Purse (the prize is contracts)' : receipt.kind === 'race' || receipt.kind === 'open' ? 'Purse (top three only)' : receipt.kind === 'bounty' ? 'Bounty (only for a boss brought down)' : 'Pay'}</dt>
                 <dd>0 LT</dd>
               </>
             ) : null}
@@ -345,7 +378,12 @@ export default function Receipt() {
       ) : null}
 
       <div className="row">
-        {contest ? (
+        {receipt.trial ? (
+          <button type="button" className="btn btn-brass btn-lg grow" onClick={() => go('jobs', { tab: 'races:trials' })}>
+            Back to the Proving Grounds
+            <ArrowRight aria-hidden="true" />
+          </button>
+        ) : contest ? (
           <button type="button" className="btn btn-brass btn-lg grow" onClick={() => go('festival')}>
             Back to the festival
             <ArrowRight aria-hidden="true" />

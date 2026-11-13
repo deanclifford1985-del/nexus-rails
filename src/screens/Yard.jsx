@@ -13,6 +13,9 @@ import { CalendarCard } from '../ui/Calendar.jsx';
 import GameCard from '../ui/GameCard.jsx';
 import { StartChecklist } from '../ui/Intro.jsx';
 import { Licences } from '../ui/Licence.jsx';
+import { WeeklyOrders } from './Orders.jsx';
+import { garageSlots, routeOfLoco } from '../game/empire.js';
+import { lineById } from '../game/routemap.js';
 import { IS_NFT } from '../edition.js';
 
 const OUTCOME = {
@@ -34,6 +37,7 @@ export default function Yard() {
     <div className="stack">
       <StartChecklist />
       <CalendarCard />
+      <WeeklyOrders compact />
       <section className="plate">
         <Licences conductor={conductor} />
       </section>
@@ -121,7 +125,7 @@ export default function Yard() {
           <div className="plate-head">
             <h3>Garage</h3>
             <span className="muted small">
-              {conductor.locos.length} of {B.LOCO.garageSlots} bays
+              {conductor.locos.length} of {garageSlots(conductor)} bays
             </span>
           </div>
           {conductor.locos.map((item) => {
@@ -134,6 +138,7 @@ export default function Yard() {
                     <b>{item.name}</b>
                     <RarityTag rarity={item.rarity} />
                     {active ? <span className="tag tag-solid">In use</span> : null}
+                    {routeOfLoco(conductor, item.id) ? <span className="tag tag-legendary">Working {lineById(routeOfLoco(conductor, item.id).lineId)?.name}</span> : null}
                   </div>
                   <span className="muted small num">
                     {fmt(s.hp)} hp, {fmt(s.topSpeed)} mph at 5 tons, tows {fmt(s.tow)} lb

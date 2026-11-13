@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { themeOf } from '../game/course.js';
-import { ArrowLeft, Crosshair, Flag, Fuel, Minus, Mountain, Package, Plus, Sparkles } from 'lucide-react';
+import { ArrowLeft, Crosshair, Crown, Flag, Fuel, Minus, Mountain, Package, Plus, Sparkles } from 'lucide-react';
 import { BossAttacks, BossCrest } from './Bounties.jsx';
 import { bountyReward } from '../game/bosses.js';
 import { clock } from '../ui/format.js';
@@ -30,6 +30,7 @@ const KIND_LABEL = {
   demo: 'Test drive',
   express: 'Express leg',
   bounty: 'Bounty hunt',
+  open: 'World Open',
 };
 
 const ARM_NAMES = { launcher: 'a missile launcher', cannon: 'a cannon', heavy: 'a heavy cannon', plasma: 'a plasma gun', arc: 'a lightning cannon', heat: 'a heat cannon', tesla: 'a Tesla coil', fire: 'Fire', bolt: 'Bolt', barrier: 'Barrier', shield: 'a shield', frost: 'Frost Breath', vent: 'a coolant vent' };
@@ -371,6 +372,9 @@ export default function Setup() {
                   A hunt starts on a full tank: the run itself needs {range(fuelEst)} gallons, and the fight is as long as it takes.{stats.arms.some((a) => a.startsWith('launcher')) ? ' Every missile burst burns fuel on top of that.' : ''} What you do not burn goes back to your reserve.
                 </p>
               ) : null}
+              {!run.boss && (run.rivals.length || run.boulders.length) && stats.arms.some((a) => a.startsWith('launcher')) ? (
+                <p className="small brass">Your missiles burn fuel from this tank: 2 gallons each, so 6 a burst. Load extra if you mean to fight.</p>
+              ) : null}
               {short ? (
                 <p className="note warn">
                   {fmt(load)} gallons may not cover this run: your estimate is {range(fuelEst)} gallons. Less fuel is a lighter, faster train, but an empty tank stops you.
@@ -404,10 +408,16 @@ export default function Setup() {
                 </p>
               ) : null}
               {run.rivals.map((rival) => (
-                <div className="spread" key={rival.id}>
+                <div className={`spread ${rival.champion ? 'rival-champ' : ''}`} key={rival.id}>
                   <div className="grow">
-                    <b>{rival.name}</b>
-                    <div className="muted small">{rival.locoName}</div>
+                    <b>
+                      {rival.champion ? <Crown aria-hidden="true" style={{ width: 15, height: 15, verticalAlign: '-2px' }} /> : null} {rival.name}
+                      {rival.title ? <span className="muted">, {rival.title}</span> : null}
+                    </b>
+                    <div className="muted small">
+                      {rival.locoName}
+                      {rival.ability ? ` · ${B.ABILITIES[rival.ability].name}` : ''}
+                    </div>
                   </div>
                   <span className="muted small num" style={{ textAlign: 'right' }}>
                     {fmt(rival.stats.hp)} hp, {fmt(rival.stats.tq)} tq
@@ -426,7 +436,7 @@ export default function Setup() {
                 ? `Entry fee already paid (${ltWhole(run.job.entryPaid)} LT). Running it again is free.`
                 : cantPay
                   ? `Entry fee: ${ltWhole(fee)} LT. You have ${ltWhole(conductor.lt)} LT.`
-                  : ctx.kind === 'race'
+                  : ctx.kind === 'race' || ctx.kind === 'open'
                     ? `Entry fee: ${ltWhole(fee)} LT, paid at the start line and not refunded. 1st pays ${ltWhole(run.job.purse[0])}, 2nd ${ltWhole(run.job.purse[1])}, 3rd ${ltWhole(run.job.purse[2])}.`
                     : `Entry fee: ${ltWhole(fee)} LT (${B.JOBS.contract.entryPerContract} LT for each of the ${run.job.award} contracts on offer), paid at the start line and not refunded.`}
             </p>
