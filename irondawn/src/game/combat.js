@@ -11,7 +11,11 @@ export function shotSpread({ weapon, stance = 'stand', moveShare = 0, aiming = f
   let spread = weapon.spread;
   spread *= C.STANCE_SPREAD[stance] ?? 1;
   spread *= 1 + (C.MOVE_SPREAD - 1) * clamp(moveShare, 0, 1);
-  if (!aiming) spread *= C.HIP_SPREAD * (weapon.hip ?? 1);
+  if (!aiming) {
+    const H = C.HIP_SPREAD;
+    const shotgun = weapon.class === 'shotgun';
+    spread = (spread * (shotgun ? H.shotgunMul : H.mul) + (shotgun ? H.shotgunAdd : H.add)) * (weapon.hip ?? 1);
+  }
   spread *= 1 + clamp(bloom, 0, C.BLOOM_MAX);
   if (braced) spread *= 0.8;
   return spread;

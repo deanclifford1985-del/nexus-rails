@@ -3,7 +3,7 @@
 //
 // Weapon numbers (before attachments and skill):
 //   damage per round (or pellet), rpm, magazine, reload seconds, spread in degrees when aimed and
-//   still, recoil in degrees per shot, range = effective metres (damage falls off past it),
+//   still (hip fire is several times wider: see combat.shotSpread), recoil in degrees per shot, range = effective metres (damage falls off past it),
 //   noise = metres an unsuppressed shot carries, weight in kg, zoom with iron sights.
 
 export const WEAPON_CLASSES = {
@@ -22,103 +22,103 @@ const ALL_SLOTS = ['optic', 'muzzle', 'under', 'mag'];
 export const WEAPONS = {
   p9: {
     id: 'p9', name: 'P9 Sidearm', class: 'pistol', tier: 1, rank: 0, price: 150,
-    damage: 24, rpm: 330, auto: false, mag: 15, reserve: 60, reload: 1.5, spread: 1.4, recoil: 1.1, range: 40, noise: 70, weight: 1.0, zoom: 1.2,
+    damage: 24, rpm: 330, auto: false, mag: 15, reserve: 60, reload: 1.5, spread: 0.45, recoil: 1.1, range: 40, noise: 70, weight: 1.0, zoom: 1.2,
     slots: ['optic', 'muzzle', 'mag'],
     blurb: 'Standard issue. It works, which is the kindest thing anyone says about it.',
   },
   ravager: {
     id: 'ravager', name: 'Ravager .45', class: 'pistol', tier: 3, rank: 4, price: 900,
-    damage: 40, rpm: 270, auto: false, mag: 10, reserve: 50, reload: 1.7, spread: 1.15, recoil: 1.6, range: 50, noise: 80, weight: 1.3, zoom: 1.2,
+    damage: 40, rpm: 270, auto: false, mag: 10, reserve: 50, reload: 1.7, spread: 0.38, recoil: 1.6, range: 50, noise: 80, weight: 1.3, zoom: 1.2,
     slots: ['optic', 'muzzle', 'mag'],
     blurb: 'A heavy pistol that ends arguments at close range.',
   },
   viper: {
     id: 'viper', name: 'Viper SMG', class: 'smg', tier: 1, rank: 1, price: 600,
-    damage: 19, rpm: 800, auto: true, mag: 30, reserve: 180, reload: 2.0, spread: 2.1, recoil: 0.7, range: 45, noise: 80, weight: 2.6, zoom: 1.3,
+    damage: 19, rpm: 800, auto: true, mag: 30, reserve: 180, reload: 2.0, spread: 0.5, recoil: 0.7, range: 45, noise: 80, weight: 2.6, zoom: 1.3,
     slots: ALL_SLOTS,
     blurb: 'Light, fast and happiest inside a building.',
   },
   wraith: {
     id: 'wraith', name: 'Wraith SD', class: 'smg', tier: 3, rank: 4, price: 2400,
-    damage: 22, rpm: 760, auto: true, mag: 30, reserve: 180, reload: 1.9, spread: 1.6, recoil: 0.6, range: 55, noise: 16, weight: 2.9, zoom: 1.3,
+    damage: 22, rpm: 760, auto: true, mag: 30, reserve: 180, reload: 1.9, spread: 0.4, recoil: 0.6, range: 55, noise: 16, weight: 2.9, zoom: 1.3,
     slots: ['optic', 'under', 'mag'], quiet: true,
     blurb: 'Built around its own suppressor. The loudest part is the bolt.',
   },
   m6: {
     id: 'm6', name: 'M6 Carbine', class: 'carbine', tier: 1, rank: 1, price: 800,
-    damage: 27, rpm: 650, auto: true, mag: 30, reserve: 180, reload: 2.3, spread: 1.5, recoil: 1.0, range: 110, noise: 120, weight: 3.3, zoom: 1.4,
+    damage: 27, rpm: 650, auto: true, mag: 30, reserve: 180, reload: 2.3, spread: 0.3, recoil: 1.0, range: 110, noise: 120, weight: 3.3, zoom: 1.4,
     slots: ALL_SLOTS,
     blurb: 'The rifle every recruit learns on. Does everything adequately.',
   },
   warden: {
     id: 'warden', name: 'Warden Mk2', class: 'carbine', tier: 3, rank: 5, price: 3200,
-    damage: 33, rpm: 700, auto: true, mag: 30, reserve: 210, reload: 2.2, spread: 1.2, recoil: 0.9, range: 140, noise: 120, weight: 3.4, zoom: 1.4,
+    damage: 33, rpm: 700, auto: true, mag: 30, reserve: 210, reload: 2.2, spread: 0.24, recoil: 0.9, range: 140, noise: 120, weight: 3.4, zoom: 1.4,
     slots: ALL_SLOTS,
     blurb: 'A free-floated barrel and a better trigger. The M6 grown up.',
   },
   spectre: {
     id: 'spectre', name: 'Spectre ACR', class: 'carbine', tier: 5, rank: 8, price: 9000,
-    damage: 40, rpm: 760, auto: true, mag: 35, reserve: 245, reload: 2.0, spread: 0.95, recoil: 0.8, range: 170, noise: 115, weight: 3.2, zoom: 1.4,
+    damage: 40, rpm: 760, auto: true, mag: 35, reserve: 245, reload: 2.0, spread: 0.19, recoil: 0.8, range: 170, noise: 115, weight: 3.2, zoom: 1.4,
     slots: ALL_SLOTS,
     blurb: 'Issued to officers and special units. Flat, fast and frighteningly accurate.',
   },
   thunder: {
     id: 'thunder', name: 'Thunder BR', class: 'rifle', tier: 3, rank: 5, price: 3800,
-    damage: 48, rpm: 420, auto: true, mag: 20, reserve: 140, reload: 2.6, spread: 1.3, recoil: 1.7, range: 220, noise: 140, weight: 4.4, zoom: 1.5,
+    damage: 48, rpm: 420, auto: true, mag: 20, reserve: 140, reload: 2.6, spread: 0.26, recoil: 1.7, range: 220, noise: 140, weight: 4.4, zoom: 1.5,
     slots: ALL_SLOTS,
     blurb: 'A full-power battle rifle. Hits like its name and kicks like it too.',
   },
   longbow: {
     id: 'longbow', name: 'Longbow DMR', class: 'dmr', tier: 2, rank: 2, price: 1500,
-    damage: 56, rpm: 240, auto: false, mag: 10, reserve: 80, reload: 2.6, spread: 0.55, recoil: 1.6, range: 320, noise: 140, weight: 4.6, zoom: 1.5,
+    damage: 56, rpm: 240, auto: false, mag: 10, reserve: 80, reload: 2.6, spread: 0.11, recoil: 1.6, range: 320, noise: 140, weight: 4.6, zoom: 1.5,
     slots: ALL_SLOTS,
     blurb: 'Semi-automatic and precise out to the far treeline.',
   },
   talon: {
     id: 'talon', name: 'Talon DMR', class: 'dmr', tier: 4, rank: 7, price: 5200,
-    damage: 74, rpm: 280, auto: false, mag: 15, reserve: 105, reload: 2.4, spread: 0.4, recoil: 1.4, range: 420, noise: 135, weight: 4.8, zoom: 1.5,
+    damage: 74, rpm: 280, auto: false, mag: 15, reserve: 105, reload: 2.4, spread: 0.08, recoil: 1.4, range: 420, noise: 135, weight: 4.8, zoom: 1.5,
     slots: ALL_SLOTS,
     blurb: 'Match barrel, match trigger. A sniper rifle that does not make you wait.',
   },
   ridgeline: {
     id: 'ridgeline', name: 'Ridgeline .308', class: 'sniper', tier: 2, rank: 3, price: 2200,
-    damage: 115, rpm: 42, auto: false, bolt: true, mag: 5, reserve: 40, reload: 3.2, spread: 0.18, recoil: 2.6, range: 550, noise: 160, weight: 5.6, zoom: 1.5,
+    damage: 115, rpm: 42, auto: false, bolt: true, mag: 5, reserve: 40, reload: 3.2, spread: 0.045, recoil: 2.6, range: 550, noise: 160, weight: 5.6, zoom: 1.5,
     slots: ALL_SLOTS,
     blurb: 'A bolt-action that has been putting rounds through the same hole for sixty years.',
   },
   reaper: {
     id: 'reaper', name: 'Reaper .338', class: 'sniper', tier: 4, rank: 6, price: 6000,
-    damage: 170, rpm: 38, auto: false, bolt: true, mag: 5, reserve: 40, reload: 3.4, spread: 0.12, recoil: 3.0, range: 800, noise: 170, weight: 6.8, zoom: 1.5,
+    damage: 170, rpm: 38, auto: false, bolt: true, mag: 5, reserve: 40, reload: 3.4, spread: 0.035, recoil: 3.0, range: 800, noise: 170, weight: 6.8, zoom: 1.5,
     slots: ALL_SLOTS,
     blurb: 'Reaches across valleys. Body armour is an inconvenience to it.',
   },
   leviathan: {
     id: 'leviathan', name: 'Leviathan .50', class: 'sniper', tier: 5, rank: 9, price: 12000,
-    damage: 270, rpm: 30, auto: false, bolt: true, mag: 5, reserve: 30, reload: 3.8, spread: 0.1, recoil: 4.0, range: 1100, noise: 220, weight: 12, zoom: 1.5, pierce: 0.6,
+    damage: 270, rpm: 30, auto: false, bolt: true, mag: 5, reserve: 30, reload: 3.8, spread: 0.03, recoil: 4.0, range: 1100, noise: 220, weight: 12, zoom: 1.5, pierce: 0.6,
     slots: ['optic', 'under', 'mag'],
     blurb: 'An anti-materiel rifle. What it hits stops being a problem.',
   },
   breacher: {
     id: 'breacher', name: 'Breacher 12', class: 'shotgun', tier: 1, rank: 1, price: 700,
-    damage: 14, pellets: 8, rpm: 70, auto: false, mag: 6, reserve: 42, reload: 3.0, spread: 5.5, recoil: 2.4, range: 22, noise: 110, weight: 3.4, zoom: 1.2,
+    damage: 14, pellets: 8, rpm: 70, auto: false, mag: 6, reserve: 42, reload: 3.0, spread: 2.4, recoil: 2.4, range: 22, noise: 110, weight: 3.4, zoom: 1.2,
     slots: ['optic', 'under', 'mag'],
     blurb: 'Pump-action. Opens doors and settles whatever was behind them.',
   },
   mauler: {
     id: 'mauler', name: 'Mauler Auto-12', class: 'shotgun', tier: 4, rank: 6, price: 5000,
-    damage: 15, pellets: 8, rpm: 240, auto: true, mag: 8, reserve: 56, reload: 2.8, spread: 5.0, recoil: 2.0, range: 26, noise: 115, weight: 4.6, zoom: 1.2,
+    damage: 15, pellets: 8, rpm: 240, auto: true, mag: 8, reserve: 56, reload: 2.8, spread: 2.2, recoil: 2.0, range: 26, noise: 115, weight: 4.6, zoom: 1.2,
     slots: ['optic', 'under', 'mag'],
     blurb: 'A drum-fed automatic shotgun for clearing rooms in a hurry.',
   },
   bulldog: {
     id: 'bulldog', name: 'Bulldog LMG', class: 'lmg', tier: 2, rank: 2, price: 1800,
-    damage: 30, rpm: 720, auto: true, mag: 100, reserve: 300, reload: 5.2, spread: 2.0, recoil: 1.2, range: 160, noise: 150, weight: 7.5, zoom: 1.4,
+    damage: 30, rpm: 720, auto: true, mag: 100, reserve: 300, reload: 5.2, spread: 0.42, recoil: 1.2, range: 160, noise: 150, weight: 7.5, zoom: 1.4,
     slots: ['optic', 'under', 'mag'],
     blurb: 'A belt of a hundred rounds and no reason to stop.',
   },
   juggernaut: {
     id: 'juggernaut', name: 'Juggernaut MMG', class: 'lmg', tier: 4, rank: 7, price: 6500,
-    damage: 44, rpm: 650, auto: true, mag: 150, reserve: 450, reload: 6.0, spread: 1.8, recoil: 1.5, range: 240, noise: 165, weight: 10.5, zoom: 1.4,
+    damage: 44, rpm: 650, auto: true, mag: 150, reserve: 450, reload: 6.0, spread: 0.38, recoil: 1.5, range: 240, noise: 165, weight: 10.5, zoom: 1.4,
     slots: ['optic', 'under', 'mag'],
     blurb: 'A medium machine gun somebody decided one soldier could carry. Bring strength.',
   },

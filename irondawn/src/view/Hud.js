@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { RANKS } from '../game/ranks.js';
 import { levelProgress } from '../game/character.js';
 import { ITEMS } from '../game/items.js';
+import { shotSpread } from '../game/combat.js';
 
 const TEMPLATE = `
 <div class="hud">
@@ -143,12 +144,8 @@ export class Hud {
     this.show('cross', q('.cross'), crossOn);
     if (crossOn) {
       // gap follows how wide the next shot would spread
-      let spread = 2.2;
-      if (w) {
-        const aimed = p.aimT > 0.85;
-        spread = w.eff.spread * (aimed ? 1 : 2.4 * (w.eff.hip ?? 1)) * (p.stance === 'prone' ? 0.5 : p.stance === 'crouch' ? 0.72 : 1) * (1 + Math.min(1, p.speedNow / 7) * 0.9) * (1 + p.bloom);
-      }
-      const px = Math.round(Math.max(3, Math.min(60, (spread / Math.max(8, cam.fov)) * window.innerHeight * 0.55)));
+      const spread = w ? shotSpread({ weapon: w.eff, stance: p.stance, moveShare: Math.min(1, p.speedNow / d.sprintSpeed), aiming: p.aimT > 0.85, bloom: p.bloom }) : 2.2;
+      const px = Math.round(Math.max(3, Math.min(70, (spread / Math.max(8, cam.fov)) * window.innerHeight)));
       this.style('crossgap', q('.cross'), '--gap', `${px}px`);
     }
     if (this.hitT > 0) {

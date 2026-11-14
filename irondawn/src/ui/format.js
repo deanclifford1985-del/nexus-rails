@@ -90,7 +90,7 @@ export function weaponRows(w) {
     { key: 'rpm', label: 'Rate of fire', value: `${w.rpm} rpm`, raw: w.rpm, good: 'high', max: 820 },
     { key: 'mag', label: 'Magazine', value: `${w.mag}`, raw: w.mag, good: 'high', max: 150 },
     { key: 'reload', label: 'Reload', value: `${w.reload.toFixed(1)} s`, raw: w.reload, good: 'low', max: 6 },
-    { key: 'spread', label: 'Spread', value: `${w.spread.toFixed(2)}°`, raw: w.spread, good: 'low', max: 6.5 },
+    { key: 'spread', label: 'Spread (aimed)', value: `${w.spread.toFixed(2)}°`, raw: w.spread, good: 'low', max: 2.6 },
     { key: 'recoil', label: 'Recoil', value: `${w.recoil.toFixed(1)}°`, raw: w.recoil, good: 'low', max: 4.2 },
     { key: 'range', label: 'Range', value: `${Math.round(w.range)} m`, raw: w.range, good: 'high', max: 1100 },
     { key: 'noise', label: 'Noise', value: `${Math.round(w.noise)} m`, raw: w.noise, good: 'low', max: 220 },

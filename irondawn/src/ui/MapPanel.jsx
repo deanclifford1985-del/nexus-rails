@@ -14,7 +14,8 @@ export default function MapPanel() {
     if (!canvas) return undefined;
     const draw = () => {
       const data = host.mapData();
-      const size = Math.min(canvas.parentElement.clientWidth, canvas.parentElement.clientHeight || 9999, 900);
+      // as big as the panel allows: its width, or the height left under the header and tabs
+      const size = Math.max(220, Math.min(canvas.parentElement.clientWidth, window.innerHeight - 190, 900));
       const scale = window.devicePixelRatio || 1;
       canvas.width = canvas.height = Math.round(size * scale);
       canvas.style.width = canvas.style.height = `${size}px`;

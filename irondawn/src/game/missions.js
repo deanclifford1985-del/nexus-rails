@@ -35,9 +35,9 @@ export const CHAPTERS = [
 
 export const STORY = [
   {
-    id: 'first_watch', chapter: 1, name: 'First Watch', type: 'defense', site: 'echo', tier: 1, rank: 1, hour: 22, par: 420,
+    id: 'first_watch', chapter: 1, name: 'First Watch', type: 'defense', site: 'echo', tier: 1, rank: 1, hour: 19.7, par: 420,
     squad: 'attached', leader: 'Sergeant Kaplan', allies: { rifleman: 3 },
-    brief: 'Checkpoint Echo is the last friendly post on the north road, and the Legion has been probing it for a week. Tonight they come properly. You are attached to Sergeant Kaplan’s section: hold the checkpoint until the attack breaks.',
+    brief: 'Checkpoint Echo is the last friendly post on the north road, and the Legion has been probing it for a week. At dusk today they come properly. You are attached to Sergeant Kaplan’s section: hold the checkpoint until the attack breaks.',
     intel: 'Three waves of light infantry from the north and north-east. No heavy weapons expected.',
     objectives: [
       { id: 'post', type: 'reach', at: 'asset', text: 'Take your post at the checkpoint' },
@@ -52,7 +52,7 @@ export const STORY = [
     xp: 350, rp: 300,
   },
   {
-    id: 'lost_patrol', chapter: 1, name: 'Lost Patrol', type: 'rescue', site: 'sawmill', tier: 1, rank: 1, hour: 5.4, par: 600,
+    id: 'lost_patrol', chapter: 1, name: 'Lost Patrol', type: 'rescue', site: 'sawmill', tier: 1, rank: 1, hour: 5.9, par: 600,
     squad: 'attached', leader: 'Sergeant Kaplan', allies: { rifleman: 2, medic: 1 },
     brief: 'Two of ours walked into a Legion patrol yesterday and did not walk out. Intelligence has them in the Sawmill Camp in the eastern woods. Kaplan’s section goes in at first light to bring them back.',
     intel: 'About ten riflemen and scouts. The captives are held in the sheds on the east side.',

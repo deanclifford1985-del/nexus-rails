@@ -92,8 +92,6 @@ function base(b) {
   const range = BASE.range;
   const [rx] = L(range.line);
   b.slab(rx + 3, -20, 7, 26, COL.gravel);
-  for (const z of [-32, -8]) for (const x of [rx + 0.4, rx + 6]) b.deco(x, 0, z, 0.16, 2.6, 0.16, COL.woodDark);
-  b.deco(rx + 3.2, 2.6, -20, 7, 0.14, 25, COL.tin);
   b.wall(rx - 0.8, -32, rx - 0.8, -8, 0.85, { t: 0.7, color: COL.sandbag });
   for (const dist of [...range.near, ...range.far]) {
     b.deco(rx - dist, 0, -36, 0.1, 1.3, 0.1, COL.wood);

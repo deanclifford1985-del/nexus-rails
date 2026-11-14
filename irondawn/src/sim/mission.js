@@ -88,6 +88,7 @@ export class MissionRun {
     p.items = { ...save.items };
     p.weapons = [null, null];
     p.loadWeapons(save, sim.derived, this.issue);
+    p.cur = p.weapons[0] ? 0 : 1;
     if (this.plan.has('supplies')) {
       p.items.medkit = (p.items.medkit ?? 0) + 2;
       p.items.frag = (p.items.frag ?? 0) + 2;

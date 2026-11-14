@@ -223,9 +223,9 @@
 
 .hud-squad {
   position: absolute;
-  left: var(--pad);
-  bottom: 150px;
-  width: 190px;
+  right: var(--pad);
+  top: 44%;
+  width: 180px;
   font-size: 14px;
 }
 
@@ -483,6 +483,23 @@
 .hud-binoc {
   position: absolute;
   inset: 0;
+  z-index: 1;
+}
+
+.hud-obj,
+.hud-feed,
+.hud-banner,
+.hud-radio,
+.hud-weapon,
+.hud-vitals,
+.hud-items,
+.hud-center {
+  z-index: 2;
+}
+
+.hud-fade,
+.hud-flash {
+  z-index: 4;
 }
 
 .scope-glass,
@@ -496,25 +513,8 @@
 }
 
 .binoc-glass {
-  background:
-    radial-gradient(circle at 37% 50%, transparent 0, transparent min(34vh, 24vw), rgba(0, 0, 0, 0) calc(min(34vh, 24vw) + 2px)),
-    radial-gradient(circle at 63% 50%, transparent 0, transparent min(34vh, 24vw), #000 calc(min(34vh, 24vw) + 3px));
-  -webkit-mask: none;
-}
-
-.binoc-glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: #000;
-  -webkit-mask:
-    radial-gradient(circle at 37% 50%, transparent min(34vh, 24vw), #000 calc(min(34vh, 24vw) + 3px)),
-    radial-gradient(circle at 63% 50%, transparent min(34vh, 24vw), #000 calc(min(34vh, 24vw) + 3px));
-  -webkit-mask-composite: source-in;
-  mask:
-    radial-gradient(circle at 37% 50%, transparent min(34vh, 24vw), #000 calc(min(34vh, 24vw) + 3px)),
-    radial-gradient(circle at 63% 50%, transparent min(34vh, 24vw), #000 calc(min(34vh, 24vw) + 3px));
-  mask-composite: intersect;
+  background: radial-gradient(ellipse 62vh 46vh at 50% 50%, transparent 0, transparent 96%, rgba(0, 0, 0, 0.95) 100%), #000;
+  background: radial-gradient(ellipse min(62vh, 47vw) min(46vh, 40vw) at 50% 50%, transparent 0, transparent 97%, #000 100%);
 }
 
 .scope-glass i {
@@ -1132,8 +1132,8 @@
 }
 
 .tb-use {
-  right: 160px;
-  bottom: 196px;
+  right: 186px;
+  bottom: 160px;
   width: 70px;
   height: 70px;
   display: none;
@@ -1141,8 +1141,8 @@
 }
 
 .tb-nade {
-  right: 30px;
-  bottom: 256px;
+  right: 112px;
+  bottom: 214px;
 }
 
 .tb-swap {
@@ -1151,13 +1151,13 @@
 }
 
 .tb-med {
-  right: 100px;
-  bottom: 256px;
+  right: 192px;
+  bottom: 96px;
 }
 
 .tb-bino {
-  right: 30px;
-  bottom: 322px;
+  right: 258px;
+  bottom: 96px;
 }
 
 .tb-menu,
@@ -1196,7 +1196,14 @@
 }
 
 .is-touch .hud-obj {
-  top: 58px;
+  top: 56px;
+}
+
+/* a small screen has room for the job in hand only */
+.is-touch .ol.todo,
+.is-touch .ol.done,
+.is-touch .ol.bonus {
+  display: none;
 }
 
 .is-touch .hud-weapon {
@@ -1218,7 +1225,21 @@
 }
 
 .is-touch .hud-squad {
+  top: 112px;
+  right: auto;
+  left: 150px;
+  width: 150px;
+}
+
+.is-touch .hud-hints,
+.is-touch .hud-support small {
   display: none;
+}
+
+.is-touch .hud-radio {
+  bottom: auto;
+  top: 56px;
+  width: min(440px, 52vw);
 }
 
 /* ---------- small screens ---------- */

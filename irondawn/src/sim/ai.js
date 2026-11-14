@@ -727,6 +727,21 @@ function nearestEnemy(sim, a, wanted) {
   return best;
 }
 
+// The nearest enemy who is in the fight, seen or not.
+function nearestFighting(sim, a, reach) {
+  let best = null;
+  let bestD = reach * reach;
+  for (const o of sim.actors) {
+    if (!o.alive || o.kind !== 'enemy' || o.ai.state !== 'combat' || o.surrendered || o.captured) continue;
+    const d = (o.x - a.x) ** 2 + (o.z - a.z) ** 2;
+    if (d < bestD) {
+      best = o;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
 function formationSlot(sim, slot) {
   const p = sim.player;
   const row = Math.floor(slot / 2) + 1;
@@ -828,6 +843,16 @@ function thinkFriendly(sim, a, dtT) {
       clearGoal(a);
       a.stance = 'crouch';
       return;
+    }
+    // under fire with nobody in view: work round until there is someone to shoot at, without
+    // straying far from the leader
+    if (!ai.target && !holdFire && sim.inFight()) {
+      const foe = nearestFighting(sim, a, 70);
+      if (foe && dp < 28) {
+        setGoal(a, foe.x, foe.z, 'run');
+        a.stance = 'stand';
+        return;
+      }
     }
     if (d > 1.4) {
       const sneaking = p.stance !== 'stand' && !sim.loud();

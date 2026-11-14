@@ -26,7 +26,7 @@ const mixColor = (out, a, b, t) => out.setRGB(lerp(a.r, b.r, t), lerp(a.g, b.g, 
 const C = (hex) => new THREE.Color(hex);
 const SKY = {
   dayTop: C(0x3d7bcb), dayHorizon: C(0xb9d3ea), duskTop: C(0x2c3d75), duskHorizon: C(0xf0a26e), nightTop: C(0x04060d), nightHorizon: C(0x0f1830),
-  sunDay: C(0xfff3de), sunDusk: C(0xff9d5c), moon: C(0x8ea6ff), hemiDay: C(0xc4dbff), hemiNight: C(0x26365f), groundDay: C(0x6e6b4c), groundNight: C(0x0d1114),
+  sunDay: C(0xfff3de), sunDusk: C(0xff9d5c), moon: C(0x9db4ff), hemiDay: C(0xc4dbff), hemiNight: C(0x6078b0), groundDay: C(0x6e6b4c), groundNight: C(0x2a3648),
 };
 
 export class WorldView {
@@ -351,6 +351,13 @@ export class WorldView {
     this.scene.add(this.sun);
     this.scene.add(this.sun.target);
     this.scene.fog = new THREE.FogExp2(0xb9d3ea, 0.0011);
+    this.lampLights = [];
+    for (let i = 0; i < 4; i++) {
+      const light = new THREE.PointLight(0xffd9a0, 0, 26, 1.6);
+      this.scene.add(light);
+      this.lampLights.push(light);
+    }
+    this.lampTimer = 0;
     this.sunDir = new THREE.Vector3(0.4, 0.8, 0.3);
   }
 
@@ -375,10 +382,10 @@ export class WorldView {
     mixColor(u.sunColor.value, t, SKY.sunDusk, dusk * 0.8);
     u.glow.value = 0.4 + k * 0.6;
     this.sun.color.copy(u.sunColor.value);
-    this.sun.intensity = 0.2 + k * 0.82;
+    this.sun.intensity = 0.5 + k * 0.52;
     mixColor(this.hemi.color, SKY.hemiNight, SKY.hemiDay, k);
     mixColor(this.hemi.groundColor, SKY.groundNight, SKY.groundDay, k);
-    this.hemi.intensity = 0.3 + k * 0.36;
+    this.hemi.intensity = 0.78 - k * 0.12;
     this.scene.fog.color.copy(u.horizon.value).multiplyScalar(0.96);
     this.scene.fog.density = lerp(0.0019, 0.00105, k);
     this.starMaterial.opacity = Math.max(0, 1 - k * 2.2);
@@ -412,6 +419,23 @@ export class WorldView {
       chunk.mesh.visible = d < (chunk.small ? far * 0.55 : far) + CHUNK * 0.75;
     }
     for (const [id, inst] of Object.entries(this.pools)) inst.visible = this.poolMaterial.opacity > 0.01 && !this.world.powerOff[id];
+    // at night the four lamps nearest you cast real light
+    const night = Math.max(0, 1 - this.dayShare * 2.2);
+    if (night <= 0) {
+      for (const light of this.lampLights) light.intensity = 0;
+    } else if (--this.lampTimer <= 0) {
+      this.lampTimer = 20;
+      const near = this.world.lamps
+        .filter((l) => !this.world.powerOff[l.site])
+        .map((l) => ({ l, d: (l.x - focus.x) ** 2 + (l.z - focus.z) ** 2 }))
+        .filter((e) => e.d < 120 * 120)
+        .sort((a, b) => a.d - b.d);
+      this.lampLights.forEach((light, i) => {
+        const e = near[i];
+        light.intensity = e ? 1.5 * night : 0;
+        if (e) light.position.set(e.l.x, e.l.y - 0.3, e.l.z);
+      });
+    }
   }
 
   setQuality(quality) {

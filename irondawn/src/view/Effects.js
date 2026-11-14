@@ -360,12 +360,12 @@ export class Effects {
         continue;
       }
       b.ring.visible = false;
-      b.mesh.visible = d > 7;
+      b.mesh.visible = d > 22;
       b.mesh.position.set(m.x, ground, m.z);
-      const w = 0.6 + Math.min(4, d * 0.012);
-      b.mesh.scale.set(w, 70, w);
+      const w = 0.22 + Math.min(2.4, d * 0.006);
+      b.mesh.scale.set(w, 46, w);
       b.mesh.material.color.setHex(color);
-      b.mesh.material.opacity = 0.16 + 0.06 * Math.sin(sim.time * 3 + i);
+      b.mesh.material.opacity = 0.085 + 0.03 * Math.sin(sim.time * 3 + i);
     }
   }
 

@@ -109,8 +109,10 @@ export class Player {
       return { eff, mag: same ? Math.min(old.mag, eff.mag) : eff.mag, reserve: same ? Math.min(old.reserve, eff.reserveMax) : eff.reserveMax, cool: 0, zoomIndex: 0 };
     };
     const primary = issue ? { uid: `issue-${issue.weapon}`, id: issue.weapon, att: issue.att ?? {} } : primaryOf(save);
+    const hadPrimary = !!this.weapons[0];
     this.weapons = [make(primary, this.weapons[0]), make(secondaryOf(save), this.weapons[1])];
-    if (!this.weapons[this.cur]) this.cur = this.weapons[0] ? 0 : 1;
+    // a newly issued rifle goes straight into your hands
+    if (!this.weapons[this.cur] || (!hadPrimary && this.weapons[0])) this.cur = this.weapons[0] ? 0 : 1;
   }
   get weapon() {
     return this.weapons[this.cur];
@@ -922,9 +924,9 @@ export class Player {
       const zoom = w ? 1 + ((w.eff.scoped ? 1.5 : w.eff.zoom) - 1) * aim : 1;
       fov = (2 * Math.atan(Math.tan((base * DEG) / 2) / zoom)) / DEG;
       cam.zoom = zoom;
-      const back = 3.3 - 1.9 * aim;
-      const side = 0.6 - 0.12 * aim;
-      const up = 0.32 - 0.14 * aim;
+      const back = 3.5 - 2.0 * aim;
+      const side = 0.78 - 0.22 * aim;
+      const up = 0.42 - 0.2 * aim;
       const cp = Math.cos(pitch);
       const dx = Math.sin(yaw) * cp;
       const dy = Math.sin(pitch);

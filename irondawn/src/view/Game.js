@@ -48,7 +48,6 @@ export class Game {
     this.actorViews = new ActorViews(this.scene, this.sim);
     this.effects = new Effects(this.scene, this.sim);
     this.audio = new GameAudio(() => api.settings().volume);
-    this.hud = new Hud(hudRoot, this);
     this.input = new Input(canvas, {
       settings: () => api.settings(),
       blocked: () => !!api.overlay() || this.fading,
@@ -58,6 +57,8 @@ export class Game {
         if (!api.overlay() && !this.fading) api.open('pause', {});
       },
     });
+    // the HUD first, so the touch controls sit on top of it
+    this.hud = new Hud(hudRoot, this);
     if (this.input.isTouch) this.input.touch = new TouchControls(hudRoot, this.input);
     this.inp = blankInput();
     this.acc = 0;
@@ -83,6 +84,7 @@ export class Game {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.pausedDrawn = false;
   }
 
   // ---------- the frame ----------
@@ -109,6 +111,9 @@ export class Game {
       this.acc = 0;
     }
     this.drain();
+    // With a menu up nothing in the world moves: draw it once and leave the GPU alone.
+    if (paused && this.pausedDrawn && !this.fading) return;
+    this.pausedDrawn = paused;
     this.draw(dt, paused);
     this.watchSpeed(dt, paused);
   }

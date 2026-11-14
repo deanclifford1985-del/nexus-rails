@@ -94,7 +94,7 @@ export const B = {
     FALLOFF_MIN: 0.45, // damage kept at twice a weapon's effective range
     STANCE_SPREAD: { stand: 1, crouch: 0.72, prone: 0.5 },
     MOVE_SPREAD: 1.9, // spread multiplier at a full run
-    HIP_SPREAD: 2.4, // firing without aiming
+    HIP_SPREAD: { mul: 6, add: 1.5, shotgunMul: 1.6, shotgunAdd: 0.5 }, // firing without aiming: spread * mul + add degrees
     BLOOM: 0.16, // spread added per shot of sustained fire (x weapon recoil)
     BLOOM_MAX: 2.6,
     BLOOM_DECAY: 3.2, // per second
