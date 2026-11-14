@@ -852,6 +852,13 @@ export function createPhantomViewer(host, { reducedMotion = false, startAngle = 
       envTex.dispose();
       pmrem.dispose();
       renderer.dispose();
+      // Hand the WebGL context back now rather than whenever the browser gets round to it: the Hall
+      // of Legends builds a new viewer for every machine looked at, and a page only gets so many.
+      try {
+        renderer.forceContextLoss();
+      } catch {
+        // Not every browser has the extension; the context is then freed with the canvas.
+      }
       canvas.remove();
     },
   };

@@ -154,7 +154,7 @@ Every rule here is **new**: the old game listed combat as not built. Spells belo
 | Rival kit | A cannon and fuel storage; 45% also a plasma lance, 30% a shield, 35% an ammo crate | **new** |
 | Rival tactics | Think every 1.4-3.2 s (slower in a big field). 38% the big hit first (Bolt or Heavy Cannon), a shield at under 65% HP when something is incoming. | Duel |
 | Knock-off reward | +60 XP per rival knocked off the rails | **new** |
-| Keys | 1-6 the commands in the order shown, F first weapon, B Bolt, R shield or Barrier, Q Siphon, Up/W and Down/S the lever, C camera, P pause | Duel |
+| Keys | 1-6 the commands in the order shown, F first weapon, B Bolt, R shield or Barrier, Q the locomotive's signature ability (Siphon Speed on the Phoenix; see the 13 Nov section), Up/W and Down/S the lever, C camera, P pause | Duel |
 
 Simulated with a starter engine and a player who fires about once a second: contract races are won 16% (36% at 110%). Starters with only their 3 rounds crash into about two thirds of obstacles and are knocked off the rails on about 1 delivery in 9; ammo crates, a plow and radar fix that. On rockfall deliveries, the starting 3 rounds clear about three boulders in four; the rest need ammo crates or a plasma lance.
 
@@ -190,7 +190,7 @@ All **new** (Dean, 3 Nov), numbers are first guesses.
 | Rule | Value | From |
 |---|---|---|
 | Board | 7 deliveries, 3 contract races and 3 prize races, sorted by distance | #223, #244, #270 |
-| Dispatch tabs | Deliveries; Contracts (sub-tabs: Open contracts = jobs paid with contracts you hold, Compete for contracts = contract races); Races (prize races plus the festival); Reputation (every company you have met: reputation, stars, progress to the next star, contracts held, races won, jobs run, pay bonus). Back from a run returns to the tab it came from. | Dean, 3 Nov |
+| Dispatch tabs | Rail map; Deliveries; Contracts (sub-tabs: Open contracts = jobs paid with contracts you hold, Compete for contracts = contract races); Races (sub-tabs: Prize races plus the festival, the World Open, the Proving Grounds); Bounties; Orders (this week's orders and the milestones); Reputation (every company you have met: reputation, stars, progress to the next star, contracts held, races won, jobs run, pay bonus). Back from a run returns to the tab it came from. | Dean, 3 Nov; Bounties, Orders and the two race sub-tabs are **new** (13 Nov) |
 | Prize races | 3 a week, 15 to 45 miles, no freight, 2 to 5 rivals, an entry fee (see below). Purse 20-30 LT a mile to the winner; 2nd takes 45%, 3rd 20%. 300 XP for a win, 150 for 2nd or 3rd, 60 otherwise. Sponsor reputation +40 for a win, +10 otherwise. Each race runs once; new ones post with the week. | **new**, Dean, 3 Nov |
 | Delivery distance | 50 to 250 miles, each extra 10 miles 5% less likely | #38 |
 | Delivery pay | A delivery fee (0.6-1.2 LT a mile) plus a rate for every container pulled (1.4-2.6 LT a mile each). A 50-mile steel job might pay 150 LT with 1 container and 350 LT with 3. The rates are not shown; the board shows the pay for what you can pull and the most the job pays. | Dean, 3 Nov |
@@ -226,13 +226,13 @@ All **new** (Dean, 3 Nov), numbers are first guesses.
 | Levels | 1,000 XP to level 2, +10% a level to 25, +5% after | #46 |
 | Workshop | Engine, Aerodynamics, Body, Cargo frame. 6 stages each at 500, 1,200, 2,500, 5,000, 8,500, 15,000 LT. Each stage +3 to 7%, except the Cargo frame: +1 Capacity slot a stage. | #41, #156; Cargo frame is **new** |
 | What stages improve | Engine: horsepower and torque. Aerodynamics: fuel economy. Body: towing capacity. Cargo frame: Capacity. | #41, applied to outputs |
-| Research | Engine, Efficiency, Structural. 3 tiers each: 1,500, 2,500, 5,000 LT, taking 10, 25 and 60 game days. | #104, #143; days are **new** (Dean, 3 Nov: research is for while you are away) |
+| Research | Engine, Efficiency, Structural, and (13 Nov, **new**) Logistics and Ordnance. 3 tiers each: 1,500, 2,500, 5,000 LT, taking 10, 25 and 60 game days. | #104, #143; days are **new** (Dean, 3 Nov: research is for while you are away) |
 | Paying for research | Paid up front when started (Intelligence cuts the price about 0.5% a point and speeds it 1% a point). Runs on the calendar, so through runs, rests and time away. Pause keeps progress and resuming is free. One project at a time. | #159, #276; up-front payment is **new** |
-| Research unlocks | Tier 1: stages 1-2. Tier 2: 3-4. Tier 3: 5-6. | #156 |
-| Station | 9 locomotives, new stock every game week, plus the Phoenix and the mythic engines | #105, weekly is Dean |
-| Garage | 6 bays. Sell for half price (Scrappy for full). | **new** |
-| Mythic engines | Always on the station's back siding. The Storm Magus (Epic, 300,000 LT, 6 slots, Bolt and Barrier), the Iron Titan (Epic, 450,000 LT, 9 slots, +1,200 HP, 6,000 lb heavier, Barrier), the Ember Wyrm (Legendary, 1,200,000 LT, 8 slots, Dragonfire and Barrier). Each has its own 3D model. | Dean, 3 Nov; numbers **new** |
-| Phoenix | Power 15, Efficiency 12, Armor 18. Fire and Barrier, 7 slots. 2,000,000 LT. Siphon Speed: once a run, the nearest rival loses 10% speed for 15 seconds and you gain it. | #105, #270 |
+| Research unlocks | Tier 1: stages 1-2. Tier 2: 3-4. Tier 3: 5-6. Logistics and Ordnance unlock nothing: each tier of Logistics adds 10% to what every freight route brings in, each tier of Ordnance 6% to the damage of every fitted weapon (not spells). | #156; the two new lines are **new** |
+| Station | 9 locomotives, new stock every game week, plus the Phoenix and the Hall of Legends | #105, weekly is Dean |
+| Garage | 6 bays, and one more for every terminal the company opens (14 at most). Sell for half price (Scrappy for full). | **new** |
+| Mythic engines | Always at the station, in the Hall of Legends. The Storm Magus (Epic, 300,000 LT, 6 slots, Bolt and Barrier), the Iron Titan (Epic, 450,000 LT, 9 slots, +350 HP since the 4 Nov rescale, 6,000 lb heavier, Barrier), the Ember Wyrm (Legendary, 1,200,000 LT, 8 slots, Dragonfire and Barrier). Each has its own 3D model. Since 13 Nov each also has a signature ability, and four more machines stand beside them: see the 13 Nov section. | Dean, 3 Nov; numbers **new** |
+| Phoenix | Power 15, Efficiency 12, Armor 18. Fire and Barrier, 7 slots. 2,000,000 LT. Siphon Speed: once a run, the nearest rival loses 10% speed for 15 seconds and you gain it. Rebirth (13 Nov): once a run, at 0 HP it rises again with 40% of its hull. | #105, #270; Rebirth is **new** |
 | Phoenix test drive | 25 miles against a copy of your own locomotive, both pulling 50,000 lb. No fuel used, nothing kept. The ability fires 5 seconds after the rival reaches top speed. | #150, #153, #155 |
 | Saves | 3 slots, kept in the browser | #276 |
 
@@ -285,7 +285,9 @@ All **new** (Dean, 3 Nov), numbers are first guesses.
 
 ## Not built yet
 
-Track pirates, loans and bank reputation, talent trees, missions, turrets, forming a business, temporary workshop boosts, the Station Upgrade research, fuel stations on long routes, the live-stat picker in the cab, player accounts.
+Loans and bank reputation, turrets, temporary workshop boosts, the Station Upgrade research, fuel stations on long routes, the live-stat picker in the cab.
+
+Built since this list was first written: talent trees and player accounts (Nexus Rail, 5-6 Nov); track pirates (Rustjaw, the first boss), missions (weekly orders and milestones) and forming a business (the empire), all 13 Nov, below.
 
 
 ## Nexus Rail: welcome Nexus and the admin link (Dean, 5 Nov)
@@ -449,3 +451,185 @@ Races now cost to enter, so there is risk against the reward. The fee is paid at
 | Deliveries, company jobs, express legs, the festival, the first run | Free | |
 
 Without enough LT for the fee, the start button says so and stays locked.
+
+## Legendary machines, bosses, the empire, orders and the World Open (13 Nov)
+
+Built from Dean's brief of 13 Nov: buy and build a locomotive empire while running jobs, tasks, races and challenges; fight bosses, obstacles and other trains with spells, missiles, weapons and defenses; make the trains legendary machines; add real-world open races.
+
+**Every rule and number in this section is new, so all of it is for review.** "Simulated" means sample engines (a starter with its kit, a mid-game Rare, a strong Epic, a kitted Legendary and each legendary machine) were run through the real race engine to set the number. The numbers live in `balance.js` under `MYTHIC`, `ABILITIES`, `BOSS`, `BOSSES`, `EMPIRE`, `TASKS`, `MILESTONES`, `TRIALS` and `OPEN`. The rules are in `bosses.js`, `empire.js`, `tasks.js`, `trials.js`, `open.js`, and the ability and boss parts of `race.js`.
+
+### Legendary machines and signature abilities
+
+Eight fixed engines, each on a 3D turntable in the Station's Hall of Legends. One of each to a garage. Stats are Power / Efficiency / Armor / Endurance.
+
+| Machine | Class | How to get it | Spells and extras | Signature ability |
+|---|---|---|---|---|
+| The Marauder | Epic, 8 / 6 / 7 / 7, 7 slots | Forged from The Baron's Black Flag (Rustjaw) for 45,000 LT. Never sold. | No spells. Its weapons boot up 30% sooner. | **Plunder** (30 s): hooks the nearest enemy within 1.5 mi. Takes 20 gallons of its fuel and half its MP and charge, and jams its weapons for 4 s. |
+| The Glacier | Epic, 9 / 8 / 8 / 14, 6 slots | Forged from The Frozen Heart (Frostmaw) for 140,000 LT. Never sold. | Frost Breath, Barrier | **Absolute Zero** (50 s): every enemy within 2 mi is frozen for 5 s (rivals lose half their speed and cannot fire; a boss cannot attack), and your engine heat drops to zero. |
+| The Storm Magus | Epic, 9 / 9 / 6, 6 slots | 300,000 LT | Bolt, Barrier | **Tempest** (40 s): a bolt of 45-60 on every enemy and every spotted obstacle within 4.5 mi. |
+| The Iron Titan | Epic, 10 / 5 / 9 / 13, 9 slots | 450,000 LT, or forged with The Bastion Core (the Iron Bastion) for 225,000 | Barrier. +350 HP, 6,000 lb heavier. | **Bulwark** (45 s): for 8 s, 80% less damage, nothing staggers or slows it, and it crushes any obstacle it meets. |
+| The Sandshark | Legendary, 12 / 9 / 11 / 11, 7 slots | Forged from The Devourer's Fang (the Dune Devourer) for 380,000 LT. Never sold. | Fire, Frost Breath, Barrier. Its jaws crush debris and boulders whatever front is fitted. | **Maw** (25 s): bites the next obstacle within 1.5 mi for 150-200 (or the nearest enemy within half a mile for half that). If the bite destroys it: +12% hull and 8 gallons. |
+| The Ember Wyrm | Legendary, 12 / 7 / 10 / 8, 8 slots | 1,200,000 LT, or forged with The Wyrm's Heart (Vharzul) for 600,000 | Dragonfire, Barrier | **Inferno** (35 s): 40-55 damage and 6 stacks of Burn on everything within 3 mi, and the engine sheds 30 heat. |
+| The Graviton | Legendary, 14 / 10 / 14 / 12, 8 slots | 1,500,000 LT | Bolt, Frost Breath, Barrier. 4,000 lb heavier. | **Black Hole** (60 s): every rival within 4 mi carries 250,000 lb more for 15 s. Bosses and obstacles in reach are crushed for 220-300. |
+| The Iron Phoenix | Legendary, 15 / 12 / 18, 7 slots | 2,000,000 LT | Fire, Barrier | **Siphon Speed** (once a run, as before) and **Rebirth**: once a run, at 0 HP it rises again with 40% of its hull. |
+
+| Rule | As built |
+|---|---|
+| The ability button | One per machine, key Q. It costs no MP, charge or ammo and recharges on its own clock (the real seconds in brackets above). It cannot be used while frozen, or with nothing in reach. |
+| Ability damage | Tempest, Inferno and Black Hole grow with the conductor's Intelligence like spells (+2% a point). Maw and Black Hole ignore armor. |
+| Forging | A boss's relic builds its machine for half the list price. A forged machine is worth what was paid for it, so it sells back for half of that, like anything else. |
+| Rivals use them | The World Open champions drive these machines and use the ability when it has something to do: Siphon Speed when a rival within 2 miles is ahead; Black Hole when one in reach is ahead or close behind; Bulwark when shots are incoming and its hull is under 75%; Absolute Zero about half the time an enemy is in reach (always, if its own engine is hot); Maw at point-blank; the rest whenever an enemy is in reach. |
+| Bulwark | A train inside Bulwark cannot be frozen by Absolute Zero, weighed down by Black Hole or slowed by a boss's attack. |
+
+### Bosses and bounties (Dispatch, Bounties)
+
+A boss is not raced. It shows itself 2.5 miles into the run, takes 3 seconds to close in, and then keeps station beside your train while the two of you fight until one falls or the boss breaks off. The run is over when the fight is: there is no finish line to reach.
+
+| Boss | Line, licence | Run | Hull, armor | Stays | First kill | Relic, and what it forges |
+|---|---|---|---|---|---|---|
+| Rustjaw, the Scrap Baron (track pirates in a welded war-train) | Kansas City to Dallas, Apprentice | 60 mi | 520, 5% | 150 s | 1,500 LT, 900 XP, a Rare weapon | The Baron's Black Flag: the Marauder |
+| Frostmaw, the White Wyrm | Chicago to Minneapolis, Fireman's Licence | 80 mi | 1,050, 10% | 160 s | 5,000 LT, 2,000 XP, an Epic weapon | The Frozen Heart: the Glacier |
+| The Dune Devourer (a sand wurm) | Dallas to El Paso, Engineer's Licence | 100 mi | 2,300, 15% | 170 s | 14,000 LT, 4,000 XP, an Epic weapon | The Devourer's Fang: the Sandshark |
+| The Iron Bastion (a rogue armored fortress train) | Denver to Salt Lake City, Road Foreman | 140 mi | 4,200, 30% | 210 s | 35,000 LT, 7,500 XP, a Legendary weapon | The Bastion Core: the Iron Titan at half price |
+| Vharzul, the Dread Wyrm | Phoenix to Los Angeles, Master Engineer | 200 mi | 7,000, 20% | 240 s | 100,000 LT, 15,000 XP, a Legendary weapon | The Wyrm's Heart: the Ember Wyrm at half price |
+
+| Rule | As built |
+|---|---|
+| Posting | A bounty is posted once you hold the boss's licence and have brought down the boss before it. |
+| Warnings | Every attack is announced: a banner with the attack's name and a fuse (1 to 3.2 seconds). 3 to 4.4 seconds pass between one attack landing and the next warning. |
+| Dodge | An **aimed** attack was laid on the speed you were making when the warning began. Move the lever 15 points either way before it lands and it misses. |
+| Break | A **charged** attack (Broadside, Hailstorm, Swallow Whole, Railgun, Cataclysm) is broken by dealing a share of the boss's hull (4.5% to 7%) during the warning. The attack is lost and the boss reels for 2.5 seconds. Charged attacks only come out once the boss is hurt. |
+| Shield | Everything else lands: raise a Barrier or shield, or take it. |
+| Drops | Ice walls, rail mines and burning rocks land on your own line 1.8 to 3 miles ahead: shoot them, crush them or hit them, as with any obstacle. |
+| Guard | The Iron Bastion's Aegis cuts the damage it takes by 60% for 6 seconds. Burn and Poison go through. |
+| Enrage | Below 30% hull: 35% less time between attacks, warnings 15% shorter, hits 25% harder. |
+| Escape | A boss fights for the time in the table, then breaks off. No bounty for a boss that got away or knocked you off the rails; the fight is still worth up to a quarter of its XP, by how much of its hull you took. |
+| What the attacks do | Rustjaw: Scrap Cannon (aimed, 22-30), Grappling Hooks (8-12 and a 25% slow for 5 s), Broadside (4 x 14-18, charged). Frostmaw: Frost Breath (22-30 and a 30% slow, cannot be dodged), Ice Wall (drop), Hailstorm (5 x 8-12, charged). Dune Devourer: Acid Spit (aimed, 18-26 and a stack of Poison), Eruption (aimed, 50-65), Sandstorm (8-12, 12 heat, 20% slow), Swallow Whole (100-130, charged). Iron Bastion: Gun Battery (aimed, 3 x 22-30), Mine Mortar (2 mines), Aegis, Railgun (140-180, half armor penetration, charged). Vharzul: Dragonfire (38-50, 3 Burn, 10 heat), Dive Bomb (aimed, 95-120), Wing Gust (12-18, 35% slow for 6 s), Meteors (2 large rocks), Cataclysm (6 x 32-42 with Burn, charged). |
+| Rewards | The first kill pays the bounty in full, its XP, a weapon and the relic. Later kills pay 40% of the bounty, half the XP and a weapon one grade lower. No entry fee; fuel and wear are charged as on any run. Licence pay does not apply. |
+| Return | A boss brought down is back on its line 7 game days later. |
+| Raiders | A boss at large takes 25% of what a freight route on its line brings in. The Empire map marks it with a red skull. |
+| Start line | A hunt defaults to a full tank (missiles burn fuel, and the fight can last the whole run), and the briefing lists each attack and how to answer it. |
+| In the race | A boss bar under the top buttons (hull, armor, time left before it escapes), a warning banner with the fuse and the break bar, the boss as its own 3D model (two war-trains, two wyrms that fly beside the line, a sand wurm), and a diamond for it on the course map. |
+| Simulated | With a player who fires whenever something is ready, shields what cannot be dodged and dodges 7 aimed attacks in 10. Rustjaw: a starter engine with its starting kit wins every time, with about half its hull left (a fifth if it never dodges). Frostmaw: a starter cannot hurt it enough; a mid-game Rare with a cannon, plasma lance and shield wins about half the time; a strong Epic every time. The Dune Devourer: a strong Epic wins about 9 times in 10 if it dodges and about 1 in 10 if it does not; a kitted Legendary every time. The Iron Bastion: a kitted Legendary or the Phoenix about half the time. Vharzul: the Phoenix about 4 times in 10 and a kitted Legendary about 1 in 4, both without full workshop stages or Ordnance research, which is what the last stretch is for. A real player fires less cleanly than the simulation, so expect these to be a little harder in play. |
+
+### The empire (the Empire tab)
+
+A railway company: terminals in the real cities of the rail map, and the locomotives in your garage working freight between them.
+
+| Rule | As built | From |
+|---|---|---|
+| Founding | A name and a headquarters city (any city on a line your licence has opened). 5,000 LT; 1,250 for a conductor with Leader or Business. The headquarters terminal comes with the charter. | Dean #265 for the company and the 75% discount; the price is **new** (his 100,000 LT was on the old economy) |
+| Terminals | 3,000 LT plus 1,500 for every line that meets at the city (Chicago, four lines: 9,000). Level 2 costs twice the terminal's price and level 3 four times; each level above the first adds 15% to every route that touches it. Each terminal adds a garage bay (14 bays at most). | **new** |
+| Routes | One locomotive works one line, between two of your terminals, on a line your licence has opened. The locomotive on the main line with you cannot work a route; taking one onto the main line recalls it; one on a route cannot be sold until it is recalled. | **new** |
+| What a route brings in | A day's work = one-way trips a day x miles x tons hauled x 0.25 LT x fuel economy x bonuses. It hauls 60% of its towing capacity at 80% of its loaded top speed (x0.8 on a flooded line, x0.9 in desert, x0.85 in snow), with 12 hours' turnaround at each end. Fuel economy counts as ton-miles per gallon ÷ 16, between 0.6 and 1.6. | **new** |
+| Bonuses | Multiplied together: terminal levels at each end, the company's rank (up to +30%), Logistics research (+10% a tier), a Business conductor (+10%), the Captain's Business pay talent (Nexus Rail). A boss at large on the line: -25%. | **new** |
+| Who drives | In Lite, hired hands: the route gets none of your conductor's attributes or traits. In Nexus Rail, the crew seated on that locomotive. | **new** |
+| The clock | **Freight runs on the real clock**, at the calendar's own pace: a real hour is four hours of work on the line, playing or away. Nothing that only moves the game calendar pays a route: not a run's trip and turnaround, not a rest, not a trial or a contest. (If it did, the Rest button and forfeited runs would print money.) The Empire screen shows LT an hour and LT a day in real time. | **new** |
+| The till | Takings collect in the till, which holds 72 real hours of them. A full till earns nothing more until it is collected (one button on the Empire screen). The Empire tab shows a dot once half a day of takings is waiting. | **new** |
+| What it pays | Simulated on Chicago to St. Louis (310 mi): a starter engine about 60 LT a real hour (1,500 a day); a mid-game Rare about 90 (2,200); a strong Epic about 160 (3,800); the Graviton about 400 (9,500); a kitted Legendary or the Phoenix about 500 (12,000). Long and slow lines pay a little less per hour. | simulated |
+| Empire power rating | One number for everything built: the card rating of every locomotive; 100 a level and 500 a licence; 0.005 per LT held (5,000 at most); 300 a research tier and 60 a workshop stage; 150 a company star, 20 a contract held, 15 a race won, 10 a job run; 400 a terminal, 250 a terminal level above the first, 300 a route at work; 600 a boss brought down, 400 a relic, 500 a World Open trophy, 120 a medal point (bronze 1, silver 2, gold 3). Shown in the top bar. | Dean #157 for the rating; the weights are **new** |
+| Ranks | Yard Hand; Line Runner at 2,500 (+5% on every route); Rail Boss at 6,000 (+10%); Regional Baron at 15,000 (+15%); Rail Tycoon at 40,000 (+20%); Iron Emperor at 100,000 (+30%). | **new** |
+| The map | The rail map with your terminals as gold squares, your lines in gold, a white dot for each locomotive at work, and a red skull on a line with a boss at large. Tap a city to open or grow its terminal. | **new** |
+
+`B.EMPIRE.incomeScale` scales all route income (1 as built). **Nexus Rail:** route takings are LT earned with no play, and every LT earned comes out of the treasury pool. Lower `incomeScale` there before real stakes, or set it to 0 to switch route income off. Like every LT change the game reports from the browser, the till trusts the device's clock.
+
+### Weekly orders and milestones (Dispatch, Orders)
+
+| Rule | As built |
+|---|---|
+| Orders | Four different orders are posted with each game week, drawn from the eleven below. Each pays LT and XP when claimed. An order not finished and claimed when the week turns is gone. |
+| Tier | Orders are sized to the conductor: tier 1 to 4, the higher of the licence held (Apprentice 1, Fireman's 2, Engineer's 3, Road Foreman or better 4) and one tier for every five levels (level 6, 11, 16). |
+| Bonus | All four finished and claimed: half their LT again and a weapon for the shelf (Rare at tiers 1 and 2, Epic at tiers 3 and 4). |
+| What counts | Every settled run except a forfeit counts towards all four at once: deliveries, contract jobs and races, prize races, express legs, bounties, the World Open. Trials count their obstacles, knock-offs and damage. Festival contests do not count. |
+| Milestones | Thirteen ladders. Each rung pays its LT once, and half as much XP. |
+
+| Order | Target by tier | LT by tier | XP by tier |
+|---|---|---|---|
+| Drive miles | 150, 300, 500, 800 | 300, 600, 1,000, 1,600 | 200, 350, 500, 700 |
+| Deliver loads on time | 2, 3, 4, 5 | 350, 700, 1,100, 1,700 | 200, 350, 500, 700 |
+| Deliver containers of freight | 3, 6, 10, 16 | 350, 700, 1,200, 1,900 | 200, 350, 500, 700 |
+| Deliver loads with a quarter of the time to spare | 1, 2, 3, 3 | 300, 600, 1,000, 1,500 | 250, 400, 600, 800 |
+| Finish in the top three of races (prize races and the World Open) | 1, 2, 2, 3 | 400, 800, 1,300, 2,000 | 250, 400, 600, 800 |
+| Win contract races | 1, 1, 2, 2 | 400, 800, 1,400, 2,200 | 300, 450, 650, 850 |
+| Clear obstacles off the line | 4, 8, 12, 18 | 300, 600, 1,000, 1,600 | 200, 350, 500, 700 |
+| Knock rivals off the rails | 1, 2, 3, 4 | 400, 800, 1,300, 2,000 | 250, 400, 600, 800 |
+| Deal damage | 300, 800, 2,000, 5,000 | 300, 600, 1,000, 1,600 | 200, 350, 500, 700 |
+| Earn LT from runs | 1,500, 4,000, 9,000, 20,000 | 300, 700, 1,200, 2,000 | 200, 350, 500, 700 |
+| Bring down a boss (posted only while a bounty is open) | 1 | 600, 1,200, 2,500, 5,000 | 400, 700, 1,000, 1,500 |
+
+| Milestone | Counts | Rungs | LT for each rung |
+|---|---|---|---|
+| Iron Road | miles driven | 100, 500, 2,000, 6,000, 15,000, 35,000 | 200, 500, 1,500, 4,000, 10,000, 25,000 |
+| Freight Hand | loads delivered on time | 5, 25, 75, 200, 500 | 300, 1,000, 3,000, 8,000, 20,000 |
+| Podium Regular | top-three race finishes | 1, 5, 15, 40, 100 | 300, 1,000, 3,000, 8,000, 20,000 |
+| Wrecker | rivals knocked off the rails | 1, 10, 30, 80, 200 | 300, 1,000, 3,000, 8,000, 20,000 |
+| Line Clearer | obstacles cleared | 10, 50, 150, 400, 1,000 | 300, 1,000, 3,000, 8,000, 20,000 |
+| Warden of the Line | bosses brought down | 1, 3, 6, 12, 25 | 1,000, 4,000, 12,000, 30,000, 80,000 |
+| Money Maker | LT earned from runs | 5,000, 25,000, 100,000, 500,000, 2,000,000 | 500, 2,000, 6,000, 20,000, 60,000 |
+| Rail Baron | terminals opened | 1, 3, 6, 10, 16 | 500, 2,000, 6,000, 15,000, 40,000 |
+| Fleet Master | routes at work at once | 1, 3, 5, 8, 12 | 500, 2,000, 6,000, 15,000, 40,000 |
+| Paymaster | LT collected from routes | 1,000, 10,000, 50,000, 250,000, 1,000,000 | 300, 1,500, 5,000, 20,000, 60,000 |
+| Collector of Legends | legendary machines in the garage | 1, 2, 4, 6, 8 | 5,000, 15,000, 40,000, 100,000, 250,000 |
+| Proven | trial medal points (bronze 1, silver 2, gold 3) | 1, 3, 6, 9 | 400, 1,500, 4,000, 10,000 |
+| Champion | World Open trophies | 1, 3, 6, 10 | 2,000, 8,000, 25,000, 75,000 |
+
+Counting for orders and milestones starts with this version: runs made before it are not counted back, except miles driven and LT earned, which the save already kept.
+
+### The Proving Grounds (Dispatch, Races, Proving grounds)
+
+Three trials that never close. Fuel and rounds are on the house, nothing is charged and nothing wears, so they can be tried as often as you like; only the best counts. Each takes 3 hours on the calendar.
+
+| Rule | As built |
+|---|---|
+| Medals | Bronze 400 LT and 200 XP; silver 1,000 and 400; gold 2,500, 800 and an Epic weapon. Each medal pays once for each trial, and a first gold pays the bronze and silver it skipped. An attempt that earns no medal is worth 25 XP; walking out is worth nothing. Every medal counts towards the empire rating. |
+| The Gauntlet | 12 miles, 14 obstacles (4 debris, 6 boulders, 3 large and a giant at the end), 3 real minutes on the clock, weapons and abilities live, a full tank. The score is the obstacles shot down or crushed by your front before the run ends, however it ends: at the line, on the clock, or as a wreck. One you crash into does not count. Gold 14, silver 11, bronze 6. Simulated: a starter clears 7 to 9; an engine with a cannon about 11; legendary machines 13 at full lever, and all 14 only by easing the lever to give the guns time on the giant. |
+| Time Trial | 20 miles of bends and hills, no weapons and no abilities, finished on the rails. The crew loads 1.8 times the fuel the sprint should burn, not a full tank. Gold in 60 real seconds, silver in 90, bronze in 125. Whatever is fitted still rides along, so weight is the whole game. Simulated: a starter with its kit about 115 s at 110% lever; a strong Epic stripped for speed about 65; a legendary machine travelling light 40 to 55, and 65 to 105 with a full fighting kit. |
+| Iron Brawl | 30 miles against five armed raiders, the same five every time (Power 5, Efficiency 5, Armor 6, Endurance 5, conductors of 10), who fight you and each other. The score is the raiders you put off the rails yourself (the last hit takes the credit), and you must still be on them at the line. Gold 4, silver 3, bronze 1. Outrun them and nothing is in range. Simulated: a starter takes bronze about 2 times in 3; a strong Epic gold about half the time; legendary machines gold by holding the lever near 70%. |
+
+### The World Open (Dispatch, Races, World Open)
+
+Twelve races on real routes around the world, shown on a world map. Anyone may enter any of them for the fee: no licence, no invitation. Unlike prize and contract races, the field is not matched to you. Each event has a tier, its crews are built to that tier, and its champion drives a legendary machine and uses its ability.
+
+| Event | Route raced | Terrain, miles | Tier | Champion |
+|---|---|---|---|---|
+| Heartland Open | Chicago to St. Louis, United States | Green Plains, 30 | 1 | Big Bill Harlan, the Heartland Hammer (a tuned Tank) |
+| Highland Open | Glasgow to Fort William, Scotland (the West Highland line) | Flooded Plains, 30 | 1 | Moira Kincaid, the Lady of the Moor (a tuned Long Run) |
+| Deccan Open | Mumbai to Pune, India (up the Bhor Ghat) | Flooded Plains, 35 | 2 | Arjun Rao, the Monsoon (the Storm Magus) |
+| Orient Open | Vienna to Budapest (the old Paris to Istanbul run) | Green Plains, 40 | 2 | Baron Emil Varga, the Highwayman of the Danube (the Marauder) |
+| Kicking Horse Open | Calgary to Vancouver, Canada | Frozen Pass, 45 | 3 | Jack Mercer, Avalanche (the Iron Titan) |
+| Outback Open | Adelaide to Alice Springs, Australia | Scorched Desert, 55 | 3 | Matilda Byrne, Red Dust (the Sandshark) |
+| Alpine Open | Zermatt to St. Moritz, Switzerland | Frozen Pass, 45 | 3 | Lukas Brandt, the Clockmaker (the Glacier) |
+| Cape Open | Pretoria to Cape Town, South Africa | Scorched Desert, 55 | 4 | Thandiwe Mokoena, the Lioness (the Ember Wyrm) |
+| Tokaido Open | Tokyo to Osaka, Japan | Green Plains, 60 | 4 | Kenji Sato, the Bullet (the Iron Phoenix) |
+| Andes Open | Lima to Huancayo, Peru | Frozen Pass, 55 | 4 | Inés Quispe, the Condor (the Storm Magus) |
+| Trans-Siberian Open | Irkutsk to Ulan-Ude, Russia (round Lake Baikal) | Frozen Pass, 70 | 5 | Viktor Volkov, the Wolf of Baikal (the Iron Titan) |
+| The Iron Crown | London to Edinburgh, Great Britain (the Race to the North) | Green Plains, 90 | 5 | Lord Edmund Ashcroft, the Duke (the Graviton) |
+
+| Rule | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 |
+|---|---|---|---|---|---|
+| Winner's purse (2nd takes 45%, 3rd 20%) | 1,500 LT | 4,000 | 10,000 | 25,000 | 60,000 |
+| Entry fee (20% of the purse) | 300 LT | 800 | 2,000 | 5,000 | 12,000 |
+| Experience for a win (half for 2nd or 3rd, a fifth otherwise) | 400 | 800 | 1,300 | 2,000 | 3,000 |
+| Rivals, besides the champion | 3 | 4 | 4 | 4 | 5 |
+| Their core stats (give or take 1) | 3 | 5 | 7 | 10 | 13 |
+| Their conductors' attributes | 8 | 10 | 12 | 15 | 18 |
+| Their engine workshop stages | 0 | 1 | 2 | 4 | 6 |
+| Their locomotives, and their guns | Uncommon, Uncommon | Rare, Uncommon | Epic, Rare | Epic, Rare | Legendary, Epic |
+
+| Rule | As built |
+|---|---|
+| The champion | Drives its legendary machine tuned to the class of the event: Power 2 over the field's, 1 over on everything else, the same workshop stages, and a steady 95% on the lever. It uses its signature ability. The same event always has the same field, so it can be learned. |
+| Entry | Paid at the start line and not refunded, as for any race. A forfeit keeps your entry for the rest of that week. |
+| Once a week | Each event can be run to a result once a game week. |
+| Trophy | The first win of an event takes its trophy: the winner's purse is paid a second time, and the trophy counts 500 towards the empire rating for good. |
+| Beating the champion | Finishing ahead of the champion without winning adds a quarter of the win's experience. |
+| Licence pay | Applies to the purse, as on other races. |
+| Simulated | With engines carrying a full fighting kit: an engine of the event's own class usually finishes second or third and wins about one time in ten; an engine a class above wins most of the time; an engine two classes under rarely places and is often knocked off the rails (bring a shield). Weight decides a lot. The Phoenix as bought runs second in the tier-4 events and wins them with three workshop stages at 110% lever. In the two tier-5 events a fully built legendary machine with a heavy kit and the Titan Breaker runs second or third; the same machine kitted light (two guns, a shield, the cowcatcher) wins nearly every time, and the Graviton wins either way. The Epic machines (Magus, Marauder, Glacier) are out of their depth at tier 5. Some fields are nastier than their tier: the Alpine Open's crews carry two heavy cannons and venom rounds. |
+
+### Small things
+
+- **Receipts** show the bounty, relic, trophy or medal won, and the champion you did or did not beat. Free-fuel runs (trials, festival contests) no longer show fuel going "back in reserve".
+- **Kill credit:** whoever lands the last hit on a train gets the credit for knocking it off (Burn and Poison ticks count for whoever hit it last).
+- **Crate conductors' traits (Nexus Rail):** a conductor from a crate stores its traits as plain names. Those traits did nothing in a race and broke the conductor's card on the Fleet screen. Both are fixed, and such traits are converted when the save is opened.
+- **The Iron Titan's hull bonus** was still shown as +1,200 HP after the 4 Nov rescale; it is +350, and now says so.
+- **Old saves:** version 7. A save from version 6 or earlier gets the two new research lines at tier 0 and empty records for bounties, relics, trophies and trials, and its orders are posted when it is next opened. Nothing else changes.
