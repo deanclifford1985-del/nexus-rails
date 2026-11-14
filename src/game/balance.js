@@ -735,7 +735,10 @@ export const B = {
     // Where the boss rides, in miles ahead of the player: `far` before it arrives, then weaving around `base`.
     offset: { far: 1.6, base: 0.13, swing: 0.09, period: 9 },
     slainDelay: 2.6, // seconds between the kill and the end of the run
-    respawnDays: 7, // game days before a slain boss is back on its line
+    // REAL hours before a slain boss is back on its line. The real clock, like the freight routes:
+    // neither the Rest button nor running jobs hurries it. (On the game calendar a boss could be
+    // rested back and farmed in minutes.)
+    respawnHours: 20,
     repeat: { pay: 0.4, xp: 0.5 }, // what a boss is worth after the first kill
     raidCut: 0.25, // a boss at large cuts the income of freight routes on its line by this share
   },

@@ -32,7 +32,6 @@ import { hasTrophy, openById, openWeek } from './open.js';
 import { allTasksClaimed, milestoneState, recordEvents, rollTasks, runEvents, taskBonus, taskDone } from './tasks.js';
 import { betterScore, trialCounts, trialMedal, trialRecord, trialScore, MEDALS } from './trials.js';
 import { charterPrice, cityOpen, garageSlots, routeBlocker, routeOfLoco, terminalLevel, terminalPrice, terminalUpgradePrice, tickEmpire } from './empire.js';
-import { dayIndex } from './calendar.js';
 
 // Every change to a save goes through one of these functions.
 // Each takes the conductor (already a private copy, safe to mutate) and returns
@@ -703,8 +702,9 @@ export function settleRun(conductor, { ctx, result, now }) {
       receipt.xp = forfeit ? 0 : xp + (medal === 'none' ? 25 : 0);
       receipt.levels = addXp(conductor, receipt.xp);
       receipt.profit = receipt.payout;
-      if (!forfeit) recordEvents(conductor, { obstacles: (result.bouldersSmashed ?? 0) + (result.bouldersCrushed ?? 0), derails: result.rivalsDerailed ?? 0, damage: result.damageDealt ?? 0 });
+      // The calendar first, then the counting: a run counts for the week it ends in (see settleRun).
       advanceClock(conductor, rng, T.hours * 60);
+      if (!forfeit) recordEvents(conductor, { obstacles: (result.bouldersSmashed ?? 0) + (result.bouldersCrushed ?? 0), derails: result.kills ?? 0, damage: result.damageDealt ?? 0 });
       return receipt;
     });
   }
@@ -714,7 +714,8 @@ export function settleRun(conductor, { ctx, result, now }) {
     // The entry fee was paid at the start line; it shows on the receipt as a cost of the run.
     const entered = findRun(conductor, ctx);
     receipt.entryFee = ['race', 'contract', 'open'].includes(ctx.kind) && entered?.entryPaid ? entered.entryPaid : 0;
-    const forfeit = result.reason === 'forfeit';
+    // (A bounty is won the moment the boss falls: nothing after that makes the run a forfeit.)
+    const forfeit = result.reason === 'forfeit' && !result.boss?.slain;
     const arrived = result.finished && result.reason === 'finished';
     const add = (label, lt) => {
       if (!lt) return;
@@ -902,7 +903,9 @@ export function settleRun(conductor, { ctx, result, now }) {
         const record = { ...bossRecord(conductor, ctx.bossId) };
         record.kills = (record.kills ?? 0) + 1;
         record.best = record.best === null || record.best === undefined ? result.boss.seconds : Math.min(record.best, result.boss.seconds);
-        record.slainDay = dayIndex(conductor.clock ?? 0);
+        // Off its line from this moment, on the real clock (the save's own clock catches up below).
+        record.slainAt = now;
+        delete record.slainDay; // how saves from before 14 Nov marked it
         conductor.bounties = { ...(conductor.bounties ?? {}), [ctx.bossId]: record };
         receipt.firstKill = reward.first;
       } else if (!forfeit && result.boss?.met) {
@@ -955,7 +958,8 @@ export function settleRun(conductor, { ctx, result, now }) {
     placeJobs(conductor, rng);
 
     // Knocking rivals off the rails, and clearing boulders, are worth a little experience of their own.
-    if (!forfeit && result.rivalsDerailed) xp += result.rivalsDerailed * B.COMBAT.derailXp;
+    // Only the rivals the player finished count: one wrecked by another train is not the player's.
+    if (!forfeit && result.kills) xp += result.kills * B.COMBAT.derailXp;
     if (!forfeit && result.bouldersSmashed) xp += result.bouldersSmashed * B.HAZARD.smashXp;
 
     // Rounds fired are restocked at the depot price; the locomotive wears a little with every mile.
@@ -986,8 +990,6 @@ export function settleRun(conductor, { ctx, result, now }) {
     conductor.stats.miles += result.distance;
     if (licenceLevel(conductor) > licenceBefore) receipt.licenceUp = { ...B.LICENCES[licenceLevel(conductor)], level: licenceLevel(conductor) };
     conductor.stats.earned += receipt.payout;
-    // Lifetime counters, and this week's orders.
-    if (!forfeit) recordEvents(conductor, runEvents(ctx, receipt, result));
     conductor.history = [
       { at: now, title: receipt.title, outcome: receipt.outcome, payout: receipt.payout, xp, miles: Math.round(result.distance) },
       ...conductor.history,
@@ -998,6 +1000,10 @@ export function settleRun(conductor, { ctx, result, now }) {
     receipt.minutes = minutes;
     advanceClock(conductor, rng, minutes);
     receipt.date = conductor.clock;
+    // Lifetime counters, and the week's orders. Counted after the calendar has moved, so a run
+    // counts for the week it ends in: one that runs past the week's end goes towards the new
+    // week's orders instead of finishing last week's in the same breath that throws them away.
+    if (!forfeit) recordEvents(conductor, runEvents(ctx, receipt, result));
     // The run's time is on the calendar already; the minutes spent racing do not also drift it.
     // The freight routes keep real time, though: they are paid for the real minutes the run took.
     if (conductor.lastSeen && now > conductor.lastSeen) tickEmpire(conductor, (now - conductor.lastSeen) / 60000);

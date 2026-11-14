@@ -275,12 +275,13 @@ export default function Receipt() {
                 <span className="label">Damage taken</span>
                 <b className={r.derailed ? 'stop' : ''}>{fmt(r.damageTaken)}</b>
               </div>
-              {r.rivalsDerailed ? (
+              {r.kills ? (
                 <div className="stat">
-                  <span className="label">Knocked off</span>
+                  <span className="label">Knocked off by you</span>
                   <b>
-                    {r.rivalsDerailed}
-                    <small>+{fmt(r.rivalsDerailed * B.COMBAT.derailXp)} XP</small>
+                    {r.kills}
+                    {/* Trials and festival contests pay their medal's XP and nothing else. */}
+                    {receipt.kind === 'trial' || receipt.contest ? null : <small>+{fmt(r.kills * B.COMBAT.derailXp)} XP</small>}
                   </b>
                 </div>
               ) : null}

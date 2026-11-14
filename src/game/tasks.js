@@ -84,7 +84,7 @@ export function runEvents(ctx, receipt, result) {
     raceWins: ['race', 'open'].includes(kind) && won ? 1 : 0,
     contractWins: kind === 'contract' && won ? 1 : 0,
     obstacles: (result.bouldersSmashed ?? 0) + (result.bouldersCrushed ?? 0),
-    derails: result.rivalsDerailed ?? 0,
+    derails: result.kills ?? 0, // only the rivals the player put off the rails (kill credit)
     damage: receipt.outcome === 'forfeit' ? 0 : result.damageDealt ?? 0,
     earned: receipt.payout ?? 0,
     bossKills: kind === 'bounty' && won ? 1 : 0,

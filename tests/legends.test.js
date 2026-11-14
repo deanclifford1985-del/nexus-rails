@@ -3,7 +3,7 @@ import { B } from '../src/game/balance.js';
 import { makeRng } from '../src/game/rng.js';
 import { LEGEND_MODELS, MODELS, abilityOf, deriveStats, generateLoco, makeMythic, makePhoenix, spellsOf } from '../src/game/locomotives.js';
 import { makeCourse } from '../src/game/course.js';
-import { abilityBlocker, createRace, fireAll, playerCast, playerOf, setLever, startRace, stepRace, useAbility } from '../src/game/race.js';
+import { abilityBlocker, createRace, fireAll, forfeitRace, playerCast, playerOf, setLever, startRace, stepRace, useAbility } from '../src/game/race.js';
 import { buildConductor } from '../src/game/conductor.js';
 import * as actions from '../src/game/actions.js';
 import { buildRaceConfig, describeRun } from '../src/game/setup.js';
@@ -393,7 +393,7 @@ describe('the bounty board', () => {
     expect(bossState(c, 'frostmaw').why).toMatch(/Fireman/);
     c.stats.miles = 600;
     expect(bossState(c, 'frostmaw').why).toMatch(/Rustjaw/);
-    c.bounties = { rustjaw: { kills: 1, best: 60, slainDay: -100 } };
+    c.bounties = { rustjaw: { kills: 1, best: 60, slainAt: null } };
     expect(bossState(c, 'frostmaw').state).toBe('open');
     expect(bossState(c, 'devourer').state).toBe('locked');
     expect(BOSS_IDS[0]).toBe('rustjaw');
@@ -430,16 +430,75 @@ describe('the bounty board', () => {
     expect(c.fuel.gallons).toBeCloseTo(fuel - result.fuelUsed, 3);
     expect(bossRecord(c, 'rustjaw')).toMatchObject({ kills: 1 });
     expect(c.stats.wins).toBe(1);
-    // Down for a week of game days; then it is back for a smaller purse and a lesser weapon.
+    // Down for twenty hours of the REAL clock, counted from the end of the fight.
+    const HOUR = 3600000;
     const down = bossState(c, 'rustjaw');
     expect(down.state).toBe('slain');
-    expect(down.backIn).toBeGreaterThan(3);
-    expect(describeRun(c, ctx).blocked).toMatch(/is down/);
+    expect(down.backIn).toBe(B.BOSS.respawnHours * HOUR);
+    expect(describeRun(c, ctx).blocked).toMatch(/is down.*20 hours/);
     expect(raiderOn(c, 'kansascity-dallas')).toBeNull();
-    actions.rest(c, { hours: 24 * 8 });
+    // Then it is back for a smaller purse and a lesser weapon.
+    actions.refreshWorld(c, { now: NOW + 19 * HOUR });
+    expect(bossState(c, 'rustjaw')).toMatchObject({ state: 'slain', backIn: HOUR });
+    actions.refreshWorld(c, { now: NOW + 20 * HOUR });
     expect(bossState(c, 'rustjaw').state).toBe('open');
+    expect(describeRun(c, ctx).blocked).toBeNull();
     expect(raiderOn(c, 'kansascity-dallas')).toBe('rustjaw');
     expect(bountyReward(c, 'rustjaw')).toMatchObject({ first: false, lt: Math.round(1500 * B.BOSS.repeat.pay), weapon: 'uncommon', relic: null });
+  });
+
+  it('nothing that only moves the game calendar brings a boss back: not resting, not runs, not forfeits', () => {
+    const c = newConductor();
+    const ctx = { kind: 'bounty', bossId: 'rustjaw' };
+    const race = createRace({ ...buildRaceConfig(c, describeRun(c, ctx), 190), seed: 4 });
+    startRace(race);
+    actions.settleRun(c, { ctx, result: fightOn(race), now: NOW });
+    expect(bossState(c, 'rustjaw').state).toBe('slain');
+    // A month of resting (the hole this closes: a boss rested back and farmed in minutes).
+    for (let i = 0; i < 10; i++) actions.rest(c, { hours: 72 });
+    expect(bossState(c, 'rustjaw').state).toBe('slain');
+    expect(() => describeRun(c, ctx).blocked).not.toThrow();
+    expect(describeRun(c, ctx).blocked).toMatch(/is down/);
+    // A delivered run and a forfeited one, each a day and more on the calendar, a minute on the clock.
+    const flat = { reason: 'finished', finished: true, place: 1, field: 1, distance: 60, raceDistance: 60, gameSeconds: 6000, realSeconds: 240, timeLimit: 25200, underLimitPct: 76, fuelLoaded: 40, fuelUsed: 30, fuelLeft: 10, emergencyGallons: 0, emergencyCost: 0, standings: [] };
+    actions.settleRun(c, { ctx: { kind: 'delivery', jobId: c.board.simple[0].id }, result: flat, now: NOW + 60000 });
+    actions.settleRun(c, { ctx: { kind: 'delivery', jobId: c.board.simple[1].id }, result: { ...flat, reason: 'forfeit', finished: false, distance: 2 }, now: NOW + 120000 });
+    expect(bossState(c, 'rustjaw')).toMatchObject({ state: 'slain', backIn: B.BOSS.respawnHours * 3600000 - 120000 });
+    // A save from before 14 Nov marked the kill with a game day: such a boss is simply back.
+    c.bounties.rustjaw = { kills: 1, best: 80, slainDay: 3 };
+    expect(bossState(c, 'rustjaw').state).toBe('open');
+  });
+
+  it('giving up in the moments after the kill is still the kill', () => {
+    const c = newConductor();
+    const ctx = { kind: 'bounty', bossId: 'rustjaw' };
+    const race = createRace({ ...buildRaceConfig(c, describeRun(c, ctx), 190), seed: 4 });
+    startRace(race);
+    // Fight until the boss falls, then give up before the run has ended by itself.
+    let guard = 0;
+    let next = 0;
+    while (race.status === 'running' && !race.boss.out && guard++ < 200000) {
+      stepRace(race, 0.1);
+      if (race.real >= next) {
+        next = race.real + 0.5;
+        fireAll(race);
+      }
+    }
+    expect(race.boss.out).toBe(true);
+    expect(race.status).toBe('running');
+    forfeitRace(race);
+    expect(race.result.reason).toBe('slain');
+    const receipt = actions.settleRun(c, { ctx, result: race.result, now: NOW });
+    expect(receipt.outcome).toBe('won');
+    expect(receipt.lines[0].lt).toBe(B.BOSSES.rustjaw.bounty);
+    expect(c.counters.bossKills).toBe(1);
+    expect(c.stats.wins).toBe(1);
+    expect(bossRecord(c, 'rustjaw').kills).toBe(1);
+    // Even a result that still said "forfeit" would be settled as the kill it was.
+    const d = newConductor();
+    const again = actions.settleRun(d, { ctx, result: { ...race.result, reason: 'forfeit' }, now: NOW });
+    expect(again.outcome).toBe('won');
+    expect(d.counters.bossKills).toBe(1);
   });
 
   it('a boss that gets away pays nothing but a little experience', () => {

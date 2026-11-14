@@ -42,6 +42,14 @@ export function fmtSpan(minutes) {
 
 // The Locomotive Festival: the first days of every third month (months 3, 6, 9, 12).
 // Each festival has an id so its contests can be entered once.
+// A wait on the REAL clock, in words: "20 hours", "an hour", "25 minutes".
+export function realWait(ms) {
+  const mins = Math.max(1, Math.round(ms / 60000));
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'}`;
+  const hours = Math.round(mins / 60);
+  return hours === 1 ? 'an hour' : `${hours} hours`;
+}
+
 export function festivalInfo(minutes) {
   const C = B.CALENDAR;
   const d = dateOf(minutes);

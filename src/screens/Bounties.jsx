@@ -5,6 +5,7 @@ import { useGame } from '../state/store.jsx';
 import { BOSS_IDS, bossById, bossState, bountyReward } from '../game/bosses.js';
 import { MODELS } from '../game/locomotives.js';
 import { lineById } from '../game/routemap.js';
+import { realWait } from '../game/calendar.js';
 import { Terrain } from '../ui/Terrain.jsx';
 import { clock, fmt, ltWhole } from '../ui/format.js';
 
@@ -56,7 +57,7 @@ export default function BountyBoard() {
   return (
     <section className="stack" role="tabpanel">
       <p className="muted">
-        The Railway Wardens pay for the monsters and marauders of the line. A boss is not raced: it rides beside you and the two of you fight until one falls, or until its time runs out and it gets away. Watch for the warning before every attack: <b>dodge</b> an aimed one by shifting your lever {Math.round(B.BOSS.dodgeLever * 100)}%, <b>break</b> a charged one with a burst of damage, <b>shield</b> the rest. The first kill pays in full and wins a relic that forges a legendary machine; a boss is back on its line {B.BOSS.respawnDays} days later for a smaller purse.
+        The Railway Wardens pay for the monsters and marauders of the line. A boss is not raced: it rides beside you and the two of you fight until one falls, or until its time runs out and it gets away. Watch for the warning before every attack: <b>dodge</b> an aimed one by shifting your lever {Math.round(B.BOSS.dodgeLever * 100)}%, <b>break</b> a charged one with a burst of damage, <b>shield</b> the rest. The first kill pays in full and wins a relic that forges a legendary machine; a boss is back on its line {B.BOSS.respawnHours} hours later for a smaller purse. Those are real hours, like the freight's: resting does not bring it back sooner.
       </p>
       <div className="row" style={{ gap: 8 }}>
         <span className="chip">
@@ -143,7 +144,7 @@ export default function BountyBoard() {
                 </button>
               ) : st.state === 'slain' ? (
                 <p className="note small">
-                  <Clock aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Brought down. Back on its line in {st.backIn} day{st.backIn === 1 ? '' : 's'}.
+                  <Clock aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: '-2px' }} /> Brought down. Back on its line in {realWait(st.backIn)}.
                 </p>
               ) : (
                 <p className="note warn small">

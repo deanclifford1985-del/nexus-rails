@@ -1,5 +1,4 @@
 import { B } from './balance.js';
-import { dayIndex } from './calendar.js';
 import { CITIES, licenceLevel, lineById } from './routemap.js';
 
 // The bounty board: which bosses are posted, what they pay, and what their relics build.
@@ -8,8 +7,28 @@ import { CITIES, licenceLevel, lineById } from './routemap.js';
 export const BOSS_IDS = Object.keys(B.BOSSES);
 export const bossById = (id) => (B.BOSSES[id] ? { id, ...B.BOSSES[id] } : null);
 
-// What this conductor has done to a boss: { kills, best (seconds of the fastest kill), slainDay }.
-export const bossRecord = (conductor, id) => conductor.bounties?.[id] ?? { kills: 0, best: null, slainDay: null };
+// What this conductor has done to a boss: { kills, best (seconds of the fastest kill), slainAt }.
+// `slainAt` is the real time (ms) of the last kill.
+export const bossRecord = (conductor, id) => conductor.bounties?.[id] ?? { kills: 0, best: null, slainAt: null };
+
+const RESPAWN_MS = () => B.BOSS.respawnHours * 3600000;
+
+/**
+ * Real milliseconds until a slain boss is back on its line; 0 when it is there. Measured on the
+ * real clock: `at` is the real time to ask about, by default the last moment the save saw
+ * (`lastSeen`, which the store keeps current while the game is open).
+ */
+export function bossBackIn(conductor, id, at = conductor.lastSeen) {
+  const slainAt = bossRecord(conductor, id).slainAt;
+  if (!slainAt || !(at >= 0)) return 0;
+  return Math.min(RESPAWN_MS(), Math.max(0, slainAt + RESPAWN_MS() - at));
+}
+
+// The real-time window in which a boss is off its line after its last kill: [from, to] in ms, or null.
+export function bossAway(conductor, id) {
+  const slainAt = bossRecord(conductor, id).slainAt;
+  return slainAt ? [slainAt, slainAt + RESPAWN_MS()] : null;
+}
 
 export const hasRelic = (conductor, id) => !!conductor.relics?.[id];
 export const relicCount = (conductor) => Object.keys(conductor.relics ?? {}).length;
@@ -19,25 +38,25 @@ export const bossKills = (conductor) => Object.values(conductor.bounties ?? {}).
  * Where a boss stands for this conductor:
  *   { state: 'locked', why }   the bounty is not posted yet
  *   { state: 'open' }          it is on its line: go and get it
- *   { state: 'slain', backIn } brought down; it returns in `backIn` game days
+ *   { state: 'slain', backIn } brought down; it returns in `backIn` real milliseconds
  */
 export function bossState(conductor, id) {
   const boss = B.BOSSES[id];
   const record = bossRecord(conductor, id);
   if (!boss) return { state: 'locked', why: 'Unknown boss', record };
-  const today = dayIndex(conductor.clock ?? 0);
-  if (record.slainDay !== null && record.slainDay !== undefined && today - record.slainDay < B.BOSS.respawnDays) {
-    return { state: 'slain', backIn: B.BOSS.respawnDays - (today - record.slainDay), record };
-  }
+  const backIn = bossBackIn(conductor, id);
+  if (backIn > 0) return { state: 'slain', backIn, record };
   if (licenceLevel(conductor) < boss.licence) return { state: 'locked', why: `Needs the ${B.LICENCES[boss.licence].name}`, record };
   const before = BOSS_IDS[BOSS_IDS.indexOf(id) - 1];
   if (before && !(bossRecord(conductor, before).kills > 0)) return { state: 'locked', why: `Bring down ${B.BOSSES[before].name} first`, record };
   return { state: 'open', record };
 }
 
-// A boss that is on its line (not brought down this week) raids the freight that runs there.
+// A boss that is on its line (not lately brought down) raids the freight that runs there.
 export const bossAtLarge = (conductor, id) => bossState(conductor, id).state !== 'slain';
 export const raiderOn = (conductor, lineId) => BOSS_IDS.find((id) => B.BOSSES[id].line === lineId && bossAtLarge(conductor, id)) ?? null;
+// The boss whose line this is, at large or not.
+export const bossOfLine = (lineId) => BOSS_IDS.find((id) => B.BOSSES[id].line === lineId) ?? null;
 
 // The bounty as a job the setup and race screens understand.
 export function bountyJob(conductor, id) {

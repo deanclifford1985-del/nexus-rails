@@ -10,6 +10,7 @@ import { traitPower } from './traits.js';
 import { estimateBand } from './estimate.js';
 import { expressJob } from './routemap.js';
 import { bossById, bossState, bountyJob } from './bosses.js';
+import { realWait } from './calendar.js';
 import { openDone, openField, openJob } from './open.js';
 
 // A "run" is anything that ends on the race screen. Its context is a small object:
@@ -175,7 +176,7 @@ export function describeRun(conductor, ctx) {
       subtitle = `${job.from} – ${job.to} line`;
       const state = bossState(conductor, ctx.bossId);
       if (state.state === 'locked') blocked = `${state.why}.`;
-      if (state.state === 'slain') blocked = `${boss.name} is down. It will be back on its line in ${state.backIn} day${state.backIn === 1 ? '' : 's'}.`;
+      if (state.state === 'slain') blocked = `${boss.name} is down. It will be back on its line in ${realWait(state.backIn)}.`;
     } else if (ctx.kind === 'open') {
       // A World Open event: the field is the event's own, not matched to the player.
       const course = makeCourse(courseSeed, distance, theme);

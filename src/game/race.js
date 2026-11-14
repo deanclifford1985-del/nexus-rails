@@ -1497,7 +1497,10 @@ export function clearPrompt(race) {
 }
 
 export function forfeitRace(race) {
-  if (race.status === 'running' || race.status === 'ready') finishRace(race, 'forfeit');
+  if (race.status !== 'running' && race.status !== 'ready') return;
+  // A boss already brought down stays brought down: giving up in the moments after the kill ends
+  // the run as the win it is, not as a forfeit that happens to pay a bounty.
+  finishRace(race, race.boss?.out && race.bossEndsRun ? 'slain' : 'forfeit');
 }
 
 function finishRace(race, reason) {
@@ -1633,21 +1636,29 @@ export function planTrip(stats, cargoLb, distance, course = null) {
 
 /**
  * Estimated time of arrival: runs a copy of the player's train, alone, from where it is now to the
- * line, with the lever where it is now, the bends ahead and the fuel on board. Boulders, rivals and
- * spells are left out. Returns real and game seconds to go, or where the fuel would run out.
+ * line, with the lever where it is now, the bends ahead and the fuel on board (or `fuel` gallons,
+ * to ask what the rest of the run would burn). Boulders, rivals and spells are left out. Returns
+ * real and game seconds to go, or where the fuel would run out, and the gallons the copy burned.
  */
-export function projectFinish(race) {
+const PROJECTED = ['hp', 'tq', 'baseWeight', 'tmpg', 'tank', 'cargo', 'fuel', 'lever', 'speed', 'distance', 'hull', 'hullMax', 'slowFor', 'surgeFor', 'surgeMph', 'grip', 'hillGrip', 'accel', 'heat', 'heatMult', 'coolMult', 'overHeatMult', 'secondWind', 'secondWindUsed', 'journey', 'journeyStacks', 'panels', 'windMax', 'capacitors', 'voltsMax', 'weaponStats'];
+
+export function projectFinish(race, { fuel = null } = {}) {
   const player = playerOf(race);
-  if (player.finished) return { realSeconds: 0, gameSeconds: 0, dryAt: null };
+  if (player.finished) return { realSeconds: 0, gameSeconds: 0, dryAt: null, fuelUsed: 0 };
   const sim = createRace({ kind: 'plan', distance: race.distance, course: race.course, player: { name: 'eta', stats: { hp: 1, tq: 1, weight: 1, tmpg: 1, tank: 1 }, fuel: 0 } });
   const copy = sim.trains[0];
-  for (const key of ['hp', 'tq', 'baseWeight', 'tmpg', 'tank', 'cargo', 'fuel', 'lever', 'speed', 'distance', 'hull', 'hullMax', 'slowFor', 'surgeFor', 'surgeMph']) copy[key] = player[key];
+  // Everything that decides how the train runs alone: the engine, the load, the conductor's hand on
+  // bends, hills and pulling away, the engine's heat and what is switched on. (Left at the stand-in's
+  // defaults, the copy took every bend and climb like a conductor with no Agility or Strength, and
+  // the ETA read about a fifth too long.)
+  for (const key of PROJECTED) copy[key] = player[key];
+  if (fuel !== null) copy.fuel = fuel;
   copy.stagger = 0;
   startRace(sim);
   let guard = 0;
   while (sim.status === 'running' && guard++ < 20000) {
-    if (copy.fuel <= 0 && copy.speed < 0.5) return { realSeconds: null, gameSeconds: null, dryAt: copy.distance };
+    if (copy.fuel <= 0 && copy.speed < 0.5) return { realSeconds: null, gameSeconds: null, dryAt: copy.distance, fuelUsed: copy.fuelUsed };
     stepRace(sim, 0.5, 0.25);
   }
-  return { realSeconds: copy.finishReal ?? sim.real, gameSeconds: copy.finishGame ?? sim.game, dryAt: null };
+  return { realSeconds: copy.finishReal ?? sim.real, gameSeconds: copy.finishGame ?? sim.game, dryAt: null, fuelUsed: copy.fuelUsed };
 }

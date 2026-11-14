@@ -85,11 +85,71 @@ describe('weekly orders', () => {
   });
 
   it('counts what each kind of run is worth', () => {
-    const ev = runEvents({ kind: 'race' }, { outcome: 'placed', payout: 300 }, fakeResult({ rivalsDerailed: 2, damageDealt: 400 }));
+    // Three rivals left the rails; the player finished two of them, and only those two count.
+    const ev = runEvents({ kind: 'race' }, { outcome: 'placed', payout: 300 }, fakeResult({ rivalsDerailed: 3, kills: 2, damageDealt: 400 }));
     expect(ev).toMatchObject({ podiums: 1, raceWins: 0, derails: 2, damage: 400, earned: 300, deliveries: 0 });
+    expect(runEvents({ kind: 'race' }, { outcome: 'placed', payout: 300 }, fakeResult({ rivalsDerailed: 3, kills: 0 })).derails).toBe(0);
     expect(runEvents({ kind: 'bounty' }, { outcome: 'won', payout: 1500 }, fakeResult()).bossKills).toBe(1);
     expect(runEvents({ kind: 'delivery' }, { outcome: 'delivered', haul: 3, payout: 500 }, fakeResult({ underLimitPct: 30 }))).toMatchObject({ deliveries: 1, containers: 3, early: 1 });
     expect(runEvents({ kind: 'delivery' }, { outcome: 'late', haul: 3, payout: 0 }, fakeResult({ underLimitPct: 0 }))).toMatchObject({ deliveries: 0, containers: 0, early: 0 });
+  });
+});
+
+describe('credit and the calendar', () => {
+  it('rivals wrecked by other trains earn the player nothing: no order, no milestone, no knock-off XP', () => {
+    const c = newConductor();
+    c.tasks = { week: c.tasks.week, bonus: false, list: [{ id: 'derail-x', type: 'derail', target: 1, progress: 0, lt: 400, xp: 250, claimed: false }] };
+    const race = c.board.races[0];
+    c.lt = 5000;
+    const ctx = { kind: 'race', raceId: race.id };
+    actions.payEntry(c, { ctx });
+    // Second home; two rivals went off the rails, both put there by another rival.
+    const receipt = actions.settleRun(c, { ctx, result: fakeResult({ place: 2, field: 4, combat: true, rivalsDerailed: 2, kills: 0, damageDealt: 0 }), now: NOW });
+    expect(receipt.xp).toBe(B.JOBS.race.placeXp);
+    expect(c.counters?.derails ?? 0).toBe(0);
+    expect(c.tasks.list[0].progress).toBe(0);
+    expect(milestoneState(c, 'derails').ready).toBe(false);
+    // The same finish with one of them the player's own: 60 XP, and the order and the ladder move.
+    const d = newConductor();
+    d.tasks = { week: d.tasks.week, bonus: false, list: [{ id: 'derail-x', type: 'derail', target: 1, progress: 0, lt: 400, xp: 250, claimed: false }] };
+    d.lt = 5000;
+    actions.payEntry(d, { ctx: { kind: 'race', raceId: d.board.races[0].id } });
+    const mine = actions.settleRun(d, { ctx: { kind: 'race', raceId: d.board.races[0].id }, result: fakeResult({ place: 2, field: 4, combat: true, rivalsDerailed: 2, kills: 1, damageDealt: 300 }), now: NOW });
+    expect(mine.xp).toBe(B.JOBS.race.placeXp + B.COMBAT.derailXp);
+    expect(d.counters.derails).toBe(1);
+    expect(d.tasks.list[0].progress).toBe(1);
+    expect(milestoneState(d, 'derails').ready).toBe(true);
+    // A trial counts the same way.
+    const e = newConductor();
+    actions.settleRun(e, { ctx: { kind: 'trial', trial: 'brawl' }, result: fakeResult({ kills: 0, rivalsDerailed: 2, damageDealt: 0 }), now: NOW });
+    expect(e.counters?.derails ?? 0).toBe(0);
+  });
+
+  it('a run counts for the week it ends in', () => {
+    // Several conductors, so that at least one new week posts an order a delivery feeds.
+    let checked = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const c = newConductor(seed);
+      // The last hours of the week: any run from here ends in the next one.
+      const D = B.WEEK.days * 24 * 60;
+      c.clock = (Math.floor(c.clock / D) + 1) * D - 120;
+      actions.refreshWorld(c, { now: NOW });
+      const week = c.tasks.week;
+      // Last week's order, one run short.
+      c.tasks = { week, bonus: false, list: [{ id: 'deliveries-x', type: 'deliveries', target: 1, progress: 0, lt: 100, xp: 100, claimed: false }] };
+      const job = c.board.simple[0];
+      const receipt = actions.settleRun(c, { ctx: { kind: 'delivery', jobId: job.id }, result: fakeResult({ distance: job.distance }), now: NOW });
+      expect(receipt.outcome).toBe('delivered');
+      expect(c.tasks.week).toBe(week + 1);
+      expect(c.tasks.list).toHaveLength(B.TASKS.count);
+      expect(c.counters).toMatchObject({ miles: job.distance, deliveries: 1 });
+      // The run went towards the new week's orders: the ones a delivery always feeds have moved.
+      for (const task of c.tasks.list.filter((item) => ['miles', 'deliveries'].includes(item.type))) {
+        expect(task.progress).toBe(Math.min(task.target, task.type === 'miles' ? job.distance : 1));
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(3);
   });
 });
 

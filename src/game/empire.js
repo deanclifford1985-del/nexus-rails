@@ -4,7 +4,7 @@ import { deriveStats, quoteLoad } from './locomotives.js';
 import { traitPower } from './traits.js';
 import { talent } from './captain.js';
 import { locoRating } from './power.js';
-import { BOSS_IDS, bossRecord, raiderOn, relicCount } from './bosses.js';
+import { BOSS_IDS, bossAway, bossOfLine, bossRecord, raiderOn, relicCount } from './bosses.js';
 import { starsFor } from './jobs.js';
 
 // The empire: a railway company. The conductor founds it, opens terminals in real cities, and puts
@@ -171,10 +171,27 @@ export function routeBlocker(conductor, locoId, lineId) {
 export function tickEmpire(conductor, realMinutes) {
   const empire = conductor.empire;
   if (!empire || !(realMinutes > 0) || !empire.routes?.length) return 0;
-  const perDay = empireIncome(conductor);
-  const cap = (perDay / 24) * E().tillHours;
+  const cap = tillCap(conductor);
+  // The stretch of real time being paid for starts at the save's own clock (`lastSeen`).
+  const from = conductor.lastSeen ?? 0;
+  const to = from + realMinutes * 60000;
+  let earned = 0;
+  for (const route of routesOf(conductor)) {
+    const loco = (conductor.locos ?? []).find((item) => item.id === route.locoId);
+    const line = lineById(route.lineId);
+    if (!loco || !line || !operates(conductor, line)) continue;
+    const quote = routeQuote(conductor, loco, line);
+    const clear = quote.perDay / quote.raid; // LT a real day with no boss on the line
+    // A boss raids its line except while it is off it (brought down, and not back yet): each part
+    // of the stretch is paid at its own rate, so a kill clears the line for exactly as long as the
+    // boss is away, however long the game was closed.
+    const boss = bossOfLine(line.id);
+    const away = boss ? bossAway(conductor, boss) : null;
+    const clearMs = !boss ? to - from : away ? Math.max(0, Math.min(to, away[1]) - Math.max(from, away[0])) : 0;
+    earned += (clear * clearMs + clear * (1 - B.BOSS.raidCut) * (to - from - clearMs)) / 86400000;
+  }
   const before = empire.till ?? 0;
-  const after = Math.min(Math.max(cap, before), before + (perDay * realMinutes) / 1440);
+  const after = Math.min(Math.max(cap, before), before + earned);
   empire.till = Math.round(after * 100) / 100;
   return empire.till - before;
 }

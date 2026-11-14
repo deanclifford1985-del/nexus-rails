@@ -184,10 +184,27 @@ describe('freight routes', () => {
     const raided = routeQuote(c, spare, lineById('kansascity-dallas'));
     expect(raided.raider).toBe('rustjaw');
     expect(raided.raid).toBeCloseTo(1 - B.BOSS.raidCut, 6);
-    c.bounties = { rustjaw: { kills: 1, best: 80, slainDay: 0 } };
+    c.bounties = { rustjaw: { kills: 1, best: 80, slainAt: NOW } };
     const safe = routeQuote(c, spare, lineById('kansascity-dallas'));
     expect(safe.raider).toBeNull();
     expect(safe.perDay).toBeGreaterThan(raided.perDay * 1.3);
+    // The boss is away for its twenty real hours, then raids again. Forty hours with the game
+    // closed are paid as twenty clear and twenty raided, not all at whichever rate holds today.
+    c.empire.till = 0;
+    actions.refreshWorld(c, { now: NOW + 40 * 3600000 });
+    expect(c.empire.till).toBeCloseTo((safe.perDay * 20 + raided.perDay * 20) / 24, 0);
+    expect(routeQuote(c, spare, lineById('kansascity-dallas')).raider).toBe('rustjaw');
+    // A line with no boss on it is paid plainly.
+    const d = newConductor();
+    d.lt = 500000;
+    actions.foundCompany(d, { name: 'Ironhand Rail', hq: 'chicago' });
+    actions.buyTerminal(d, { city: 'stlouis' });
+    const other = addLoco(d);
+    actions.assignRoute(d, { locoId: other.id, lineId: 'chicago-stlouis' });
+    const plainRate = routeQuote(d, other, lineById('chicago-stlouis'));
+    expect(plainRate.raid).toBe(1);
+    actions.refreshWorld(d, { now: NOW + 10 * 3600000 });
+    expect(d.empire.till).toBeCloseTo((plainRate.perDay * 10) / 24, 0);
   });
 });
 
@@ -205,7 +222,7 @@ describe('empire rating and rank', () => {
     actions.buyTerminal(c, { city: 'stlouis' });
     const spare = addLoco(c);
     actions.assignRoute(c, { locoId: spare.id, lineId: 'chicago-stlouis' });
-    c.bounties = { rustjaw: { kills: 2, best: 80, slainDay: 0 } };
+    c.bounties = { rustjaw: { kills: 2, best: 80, slainAt: null } };
     c.relics = { rustjaw: { at: 0 } };
     c.research.done.engine = 2;
     const grown = empireRating(c);

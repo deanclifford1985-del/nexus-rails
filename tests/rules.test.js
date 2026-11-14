@@ -217,6 +217,39 @@ describe('race engine', () => {
     expect(other.result.reason).toBe('forfeit');
   });
 
+  it('the ETA projection drives like the real train: Agility, Strength and pulling away included', () => {
+    // A conductor with a good hand on bends and hills, on a line that has both.
+    const able = { ...stats, grip: 0.38, hillGrip: 0.54, accel: 1.425 };
+    const course = makeCourse('eta-test', 50);
+    expect(course.bends.length).toBeGreaterThan(2);
+    const make = () => createRace({ kind: 'delivery', distance: 50, course, player: { name: 'p', stats: able, fuel: 120, cargoLb: 5000 } });
+    const race = make();
+    startRace(race);
+    const atStart = projectFinish(race);
+    const driven = runToEnd(make());
+    expect(atStart.dryAt).toBeNull();
+    expect(Math.abs(atStart.realSeconds - driven.realSeconds) / driven.realSeconds).toBeLessThan(0.03);
+    expect(Math.abs(atStart.fuelUsed - driven.fuelUsed) / driven.fuelUsed).toBeLessThan(0.05);
+    // Half way along it still agrees with what is left to drive.
+    const mid = make();
+    startRace(mid);
+    while (playerOf(mid).distance < 25) stepRace(mid, 0.1);
+    const left = projectFinish(mid);
+    expect(Math.abs(mid.real + left.realSeconds - driven.realSeconds) / driven.realSeconds).toBeLessThan(0.03);
+    // Asked what the rest of the run would burn with fuel to spare (the out-of-fuel dialog asks this
+    // from a standstill): close to what the second half really burned.
+    const dryRun = make();
+    startRace(dryRun);
+    while (playerOf(dryRun).distance < 25) stepRace(dryRun, 0.1);
+    const usedSoFar = playerOf(dryRun).fuelUsed;
+    playerOf(dryRun).fuel = 0;
+    playerOf(dryRun).speed = 0;
+    const need = projectFinish(dryRun, { fuel: 60 });
+    expect(need.dryAt).toBeNull();
+    expect(need.fuelUsed).toBeGreaterThan((driven.fuelUsed - usedSoFar) * 0.9);
+    expect(need.fuelUsed).toBeLessThan((driven.fuelUsed - usedSoFar) * 1.5);
+  });
+
   it('the overdrive lever is faster and thirstier', () => {
     const run = (lever) => {
       const race = createRace({ kind: 'delivery', distance: 40, player: { name: 'p', stats, fuel: 200, cargoLb: 8000, lever } });
