@@ -24,7 +24,6 @@ export function GameProvider({ children }) {
   const settingsRef = useRef(settings);
   const listeners = useRef(new Set());
   savesRef.current = saves;
-  overlayRef.current = overlay;
   settingsRef.current = settings;
 
   const commit = useCallback((next) => {
@@ -77,15 +76,26 @@ export function GameProvider({ children }) {
     return () => listeners.current.delete(listener);
   }, []);
 
+  // The ref is set at once (not on the next render) so the running game sees the change immediately.
+  const open = useCallback((name, props = {}) => {
+    const next = { name, props };
+    overlayRef.current = next;
+    setOverlay(next);
+  }, []);
+  const close = useCallback(() => {
+    overlayRef.current = null;
+    setOverlay(null);
+  }, []);
+
   const createSave = useCallback(
     (slot, details) => {
       const slots = savesRef.current.slots.slice();
       slots[slot] = newCharacter(details);
       commit({ slots, active: slot });
-      setOverlay(null);
+      close();
       setScreen('game');
     },
-    [commit],
+    [commit, close],
   );
 
   const loadSlot = useCallback(
@@ -93,10 +103,10 @@ export function GameProvider({ children }) {
       const current = savesRef.current;
       if (!current.slots[slot]) return;
       commit({ slots: current.slots, active: slot });
-      setOverlay(null);
+      close();
       setScreen('game');
     },
-    [commit],
+    [commit, close],
   );
 
   const deleteSlot = useCallback(
@@ -110,13 +120,10 @@ export function GameProvider({ children }) {
   );
 
   const quit = useCallback(() => {
-    setOverlay(null);
+    close();
     setScreen('title');
     commit({ slots: savesRef.current.slots, active: null });
-  }, [commit]);
-
-  const open = useCallback((name, props = {}) => setOverlay({ name, props }), []);
-  const close = useCallback(() => setOverlay(null), []);
+  }, [commit, close]);
 
   const setSetting = useCallback((key, value) => {
     setSettings((current) => {

@@ -5,6 +5,7 @@ import { GameProvider } from './state/store.jsx';
 import './styles/base.css';
 import './styles/hud.css';
 import './styles/ui.css';
+import './styles/screens.css';
 
 createRoot(document.getElementById('root')).render(
   <GameProvider>
