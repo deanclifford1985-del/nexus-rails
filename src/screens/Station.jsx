@@ -32,7 +32,7 @@ function HallOfLegends({ conductor, buy, cooling, full }) {
           Hall of <span className="hl-orange">Legends</span>
         </h2>
         <p className="muted">
-          The legendary machines. Each knows its own spells and carries a signature ability no other engine has. Some can be bought outright; the rest are forged from the relic of a boss you have brought down, for half of what they are worth.
+          The legendary machines. Each knows its own spells and carries a signature ability no other engine has. Some can be bought outright; the rest are forged from the relic of a boss you have brought down, for half the list price.
         </p>
       </div>
       <div className="legend-roster" role="tablist" aria-label="Legendary machines">

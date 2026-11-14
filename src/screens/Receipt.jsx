@@ -39,9 +39,11 @@ function headline(receipt) {
   if (receipt.trial) {
     if (receipt.outcome === 'forfeit') return 'You stepped out of the trial.';
     const score = TRIAL_SCORE[receipt.trial](receipt.score);
-    if (r.reason === 'derailed') return `Knocked off the rails with ${score}. A trial has to be finished on them.`;
-    if (r.reason === 'late') return `The judges called time with ${score}.`;
-    return `${score[0].toUpperCase()}${score.slice(1)}${receipt.record ? ': your best yet.' : '.'}`;
+    // A best worth the name: a score of nothing is not one.
+    const best = receipt.record && receipt.score > 0 ? ' Your best yet.' : '';
+    if (r.reason === 'derailed') return receipt.trial === 'gauntlet' ? `Wrecked with ${score}.${best}` : `Knocked off the rails with ${score}. This trial has to be finished on them.`;
+    if (r.reason === 'late') return `The judges called time with ${score}.${receipt.trial === 'gauntlet' ? best : ''}`;
+    return `${score[0].toUpperCase()}${score.slice(1)}.${best}`;
   }
   if (receipt.kind === 'open' && receipt.outcome !== 'forfeit' && !r.derailed) {
     const champ = receipt.champion;
@@ -194,7 +196,7 @@ export default function Receipt() {
               </>
             ) : null}
             <dt>
-              Fuel burned: {fmt(r.fuelUsed, 1)} gal{r.emergencyGallons ? `, ${fmt(r.emergencyGallons)} of it trucked in` : ''}
+              Fuel burned: {fmt(r.fuelUsed, 1)} gal{r.emergencyGallons ? ` (${fmt(r.emergencyGallons)} gal trucked in)` : ''}
             </dt>
             <dd className="stop">-{lt(receipt.fuelCost)} LT</dd>
             {receipt.entryFee ? (
@@ -253,7 +255,8 @@ export default function Receipt() {
               <small>mph</small>
             </b>
           </div>
-          {!demo ? (
+          {/* Fuel on the house (festival contests, trials, the test drive) goes back to nobody's reserve. */}
+          {!demo && !contest ? (
             <div className="stat">
               <span className="label">Back in reserve</span>
               <b>

@@ -54,7 +54,7 @@ function NavLink({ item, current, go, flag }) {
 
 export function Shell({ children }) {
   const { conductor, screen, go, vault } = useGame();
-  // The Empire tab asks for attention once three days of takings are waiting, or the till is full.
+  // The Empire tab asks for attention once half a day of takings is waiting, or the till is full.
   const till = conductor.empire?.till ?? 0;
   const perDay = conductor.empire ? empireIncome(conductor) : 0;
   const rank = empireRank(conductor);
@@ -62,7 +62,7 @@ export function Shell({ children }) {
     yard: conductor.attributePoints > 0,
     jobs: tasksClaimable(conductor) + milestonesReady(conductor) > 0,
     research: false,
-    empire: perDay > 0 && (till >= perDay * 3 || till >= tillCap(conductor) - 1),
+    empire: perDay > 0 && (till >= perDay / 2 || till >= tillCap(conductor) - 1),
     talents: IS_NFT && pointsLeft(conductor) > 0,
   };
   return (

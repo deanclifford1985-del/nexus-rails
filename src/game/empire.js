@@ -8,8 +8,9 @@ import { BOSS_IDS, bossRecord, raiderOn, relicCount } from './bosses.js';
 import { starsFor } from './jobs.js';
 
 // The empire: a railway company. The conductor founds it, opens terminals in real cities, and puts
-// the locomotives in the garage to work on freight routes between them. Routes earn on the
-// calendar, so they keep earning through every run, every rest and every hour away.
+// the locomotives in the garage to work on freight routes between them. Routes earn on the real
+// clock, so they keep earning through every hour of play and every hour away (and cannot be
+// hurried by resting or by anything else that only moves the game calendar).
 // Every number is in balance.js (B.EMPIRE). Saves change only through actions.js.
 
 const E = () => B.EMPIRE;
@@ -107,8 +108,12 @@ function driverOf(conductor, loco) {
   return crew ? { str: crew.str, agi: crew.agi, int: crew.int, end: crew.end, traits: crew.traits ?? [] } : null;
 }
 
+// Freight time: the hours of work on the line that a real hour buys (the calendar's own pace).
+export const freightPace = () => B.CALENDAR.driftGameMinutesPerRealMinute;
+
 /**
- * What one locomotive would bring in on one line, per game day, and how.
+ * What one locomotive would bring in on one line, and how. `perHour` and `perDay` are LT per REAL
+ * hour and per real day (24 of them); `tripsPerDay` is one-way trips in a real day.
  * Works for a route that exists and for one being considered, so the screen can compare.
  */
 export function routeQuote(conductor, loco, line) {
@@ -120,7 +125,8 @@ export function routeQuote(conductor, loco, line) {
   const mph = Math.max(4, quote.topSpeed * R.cruise * (R.terrain[line.terrain] ?? 1));
   const tripHours = line.miles / mph;
   const roundTripHours = 2 * tripHours + 2 * R.turnaroundHours;
-  const tripsPerDay = (24 / roundTripHours) * 2;
+  // One-way trips in a real day: a real hour is `freightPace` hours of work on the line.
+  const tripsPerDay = (24 / roundTripHours) * 2 * freightPace();
   const eco = Math.min(R.ecoRange[1], Math.max(R.ecoRange[0], stats.tmpg / R.ecoRef));
   const base = tripsPerDay * line.miles * tons * R.ratePerTonMile * eco;
   // Bonuses: the terminals at each end, the company's rank, Logistics research, a head for business.
@@ -131,7 +137,7 @@ export function routeQuote(conductor, loco, line) {
   const raider = raiderOn(conductor, line.id);
   const raid = raider ? 1 - B.BOSS.raidCut : 1;
   const perDay = base * terminals * rank * logistics * business * raid * E().incomeScale;
-  return { perDay, perWeek: perDay * B.WEEK.days, base, tons, mph, tripsPerDay, tripHours, eco, terminals, rank, logistics, business, raid, raider };
+  return { perDay, perHour: perDay / 24, base, tons, mph, tripsPerDay, tripHours, eco, terminals, rank, logistics, business, raid, raider };
 }
 
 export function routeIncome(conductor, route) {
@@ -141,8 +147,9 @@ export function routeIncome(conductor, route) {
   return routeQuote(conductor, loco, line).perDay;
 }
 
+// Everything the routes bring in, in LT per real day.
 export const empireIncome = (conductor) => sum(routesOf(conductor), (route) => routeIncome(conductor, route));
-export const tillCap = (conductor) => empireIncome(conductor) * E().tillDays;
+export const tillCap = (conductor) => (empireIncome(conductor) / 24) * E().tillHours;
 
 // Why this locomotive cannot work this line, or null if it can.
 export function routeBlocker(conductor, locoId, lineId) {
@@ -159,14 +166,15 @@ export function routeBlocker(conductor, locoId, lineId) {
   return null;
 }
 
-// Time passes: every route pays into the till (until the till is full). Mutates the save.
-export function tickEmpire(conductor, minutes) {
+// Real time passes: every route pays into the till (until the till is full). `realMinutes` is time
+// on the real clock, never the game calendar's. Mutates the save.
+export function tickEmpire(conductor, realMinutes) {
   const empire = conductor.empire;
-  if (!empire || !(minutes > 0) || !empire.routes?.length) return 0;
+  if (!empire || !(realMinutes > 0) || !empire.routes?.length) return 0;
   const perDay = empireIncome(conductor);
-  const cap = perDay * E().tillDays;
+  const cap = (perDay / 24) * E().tillHours;
   const before = empire.till ?? 0;
-  const after = Math.min(Math.max(cap, before), before + (perDay * minutes) / 1440);
+  const after = Math.min(Math.max(cap, before), before + (perDay * realMinutes) / 1440);
   empire.till = Math.round(after * 100) / 100;
   return empire.till - before;
 }

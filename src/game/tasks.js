@@ -19,7 +19,6 @@ function typesFor(conductor) {
   return Object.keys(T().types).filter((id) => {
     const needs = T().types[id].needs;
     if (needs === 'boss') return BOSS_IDS.some((boss) => bossState(conductor, boss).state === 'open');
-    if (needs === 'routes') return routesOf(conductor).length > 0;
     return true;
   });
 }
@@ -43,7 +42,8 @@ export const taskText = (task) => {
   return task.target === 1 && def.one ? def.one : def.text.replace('{n}', task.target.toLocaleString());
 };
 export const taskDone = (task) => task.progress >= task.target;
-export const tasksOf = (conductor) => conductor.tasks?.list ?? [];
+// (An order of a kind that is no longer posted is dropped rather than shown.)
+export const tasksOf = (conductor) => (conductor.tasks?.list ?? []).filter((task) => T().types[task.type]);
 export const tasksClaimable = (conductor) => tasksOf(conductor).filter((task) => taskDone(task) && !task.claimed).length;
 export const allTasksClaimed = (conductor) => tasksOf(conductor).length > 0 && tasksOf(conductor).every((task) => task.claimed);
 

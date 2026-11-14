@@ -60,7 +60,8 @@ describe('legendary machines', () => {
       expect(Array.isArray(spellsOf(loco))).toBe(true);
       for (const v of Object.values(deriveStats(loco, crew))) if (typeof v === 'number') expect(Number.isFinite(v)).toBe(true);
     }
-    // A relic forges an engine for half of what it is worth, so selling one never turns a profit.
+    // A relic forges an engine for half its list price at most. (A forged engine is then worth
+    // what was paid, so selling one always loses half: see the forge test below.)
     for (const [model, m] of Object.entries(B.MYTHIC)) if (m.forge) expect(m.forge.price).toBeLessThanOrEqual(m.price * B.LOCO.resale);
     expect(abilityOf(plain())).toBeNull();
   });
@@ -478,7 +479,9 @@ describe('the bounty board', () => {
     expect(got.price).toBe(45000);
     expect(c.lt).toBe(2000000 - 45000);
     expect(got.loco.model).toBe('marauder');
-    expect(resaleValue(got.loco)).toBe(45000);
+    // Worth what was paid: it sells back for half the forge price, never for all of it.
+    expect(got.loco.price).toBe(45000);
+    expect(resaleValue(got.loco)).toBe(22500);
     expect(() => actions.buyLoco(c, { id: 'marauder' })).toThrow(/already own/);
     // The Graviton needs no relic, only money.
     expect(legendOffer(c, 'graviton')).toMatchObject({ price: 1500000, locked: null });

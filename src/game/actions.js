@@ -30,7 +30,7 @@ import { bossById, bossRecord, bountyReward, legendOffer } from './bosses.js';
 import { CITIES, lineById } from './routemap.js';
 import { hasTrophy, openById, openWeek } from './open.js';
 import { allTasksClaimed, milestoneState, recordEvents, rollTasks, runEvents, taskBonus, taskDone } from './tasks.js';
-import { betterScore, trialMedal, trialRecord, trialScore, MEDALS } from './trials.js';
+import { betterScore, trialCounts, trialMedal, trialRecord, trialScore, MEDALS } from './trials.js';
 import { charterPrice, cityOpen, garageSlots, routeBlocker, routeOfLoco, terminalLevel, terminalPrice, terminalUpgradePrice, tickEmpire } from './empire.js';
 import { dayIndex } from './calendar.js';
 
@@ -73,8 +73,6 @@ function advanceClock(conductor, rng, minutes) {
       conductor.research.justDone = { category: active.category, tier: active.tier + 1 };
     }
   }
-  // The empire's freight routes earn for every minute that passes.
-  tickEmpire(conductor, minutes);
   if (weekOf(before) !== weekOf(conductor.clock)) turnWeek(conductor, rng);
 }
 
@@ -96,7 +94,11 @@ export function refreshWorld(conductor, { now }) {
     if (conductor.lastSeen && now > conductor.lastSeen) {
       const realMinutes = (now - conductor.lastSeen) / 60000;
       const drift = Math.floor(Math.min(C.driftCapDays * 24 * 60, realMinutes * C.driftGameMinutesPerRealMinute));
-      if (drift >= 1) advanceClock(conductor, rng, drift);
+      if (drift >= 1) {
+        advanceClock(conductor, rng, drift);
+        // The empire's freight routes earn on the real clock: pay them for the real time this covers.
+        tickEmpire(conductor, drift / C.driftGameMinutesPerRealMinute);
+      }
       // Keep the unspent part of a minute; after a capped absence, start afresh.
       const capped = realMinutes * C.driftGameMinutesPerRealMinute > C.driftCapDays * 24 * 60;
       conductor.lastSeen = capped ? now : conductor.lastSeen + (drift / C.driftGameMinutesPerRealMinute) * 60000;
@@ -388,6 +390,9 @@ export function buyLoco(conductor, { id }) {
   return withRng(conductor, (rng) => {
     const owned = structuredClone(loco);
     owned.id = `loco-${Math.floor(rng() * 2176782336).toString(36)}`;
+    // A forged engine is worth what was paid for it, so it sells back for half of that like
+    // anything else (not for half its list price, which would be all of it).
+    if (offer?.forged) owned.price = price;
     conductor.locos.push(owned);
     if (!isPhoenix) conductor.station.stock = conductor.station.stock.filter((item) => item.id !== id);
     return { loco: owned, price, forged: !!offer?.forged };
@@ -688,7 +693,7 @@ export function settleRun(conductor, { ctx, result, now }) {
         }
       }
       if (MEDALS.indexOf(medal) > MEDALS.indexOf(record.medal ?? 'none')) record.medal = medal;
-      if (!forfeit && result.reason === 'finished' && betterScore(id, receipt.score, record.best)) {
+      if (trialCounts(id, result) && betterScore(id, receipt.score, record.best)) {
         record.best = receipt.score;
         receipt.record = true;
       }
@@ -994,6 +999,8 @@ export function settleRun(conductor, { ctx, result, now }) {
     advanceClock(conductor, rng, minutes);
     receipt.date = conductor.clock;
     // The run's time is on the calendar already; the minutes spent racing do not also drift it.
+    // The freight routes keep real time, though: they are paid for the real minutes the run took.
+    if (conductor.lastSeen && now > conductor.lastSeen) tickEmpire(conductor, (now - conductor.lastSeen) / 60000);
     conductor.lastSeen = now;
     return receipt;
   });

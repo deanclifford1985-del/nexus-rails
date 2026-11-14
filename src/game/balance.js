@@ -544,8 +544,9 @@ export const B = {
 
   STATION: { stock: 9, phoenixPrice: 2000000 }, // the lot turns over every game week
   // The legendary machines: fixed engines, each with its own spells and a signature ability.
-  // `price` is the list price (what it is worth: resale and repairs work from it). `forge` means a
-  // boss relic builds it for that much instead; `forgeOnly` engines cannot be bought without the relic.
+  // `price` is the list price. `forge` means a boss relic builds it for that much instead (and that
+  // is then what the engine is worth: resale and repairs work from what was paid); `forgeOnly`
+  // engines cannot be bought without the relic.
   // `rebirth`: once a run, at 0 HP it rises again with this share of its hull.
   // `smash`: its own front crushes obstacles up to this rank, whatever front is fitted.
   MYTHIC: {
@@ -620,7 +621,6 @@ export const B = {
       damage: { key: 'damage', text: 'Deal {n} damage', target: [300, 800, 2000, 5000], lt: [300, 600, 1000, 1600], xp: [200, 350, 500, 700] },
       earn: { key: 'earned', text: 'Earn {n} LT from runs', target: [1500, 4000, 9000, 20000], lt: [300, 700, 1200, 2000], xp: [200, 350, 500, 700] },
       boss: { key: 'bossKills', text: 'Bring down {n} bosses', one: 'Bring down a boss', target: [1, 1, 1, 1], lt: [600, 1200, 2500, 5000], xp: [400, 700, 1000, 1500], needs: 'boss' },
-      till: { key: 'collected', text: 'Collect {n} LT from your routes', target: [1000, 4000, 12000, 40000], lt: [250, 600, 1200, 2500], xp: [150, 300, 450, 650], needs: 'routes' },
     },
   },
   // Career milestones: a ladder for each thing a conductor does. Each rung pays its LT and half as
@@ -635,6 +635,7 @@ export const B = {
     earned: { name: 'Money Maker', text: 'LT earned from runs', tiers: [5000, 25000, 100000, 500000, 2000000], lt: [500, 2000, 6000, 20000, 60000] },
     terminals: { name: 'Rail Baron', text: 'terminals opened', tiers: [1, 3, 6, 10, 16], lt: [500, 2000, 6000, 15000, 40000] },
     routes: { name: 'Fleet Master', text: 'routes at work at once', tiers: [1, 3, 5, 8, 12], lt: [500, 2000, 6000, 15000, 40000] },
+    collected: { name: 'Paymaster', text: 'LT collected from your routes', tiers: [1000, 10000, 50000, 250000, 1000000], lt: [300, 1500, 5000, 20000, 60000] },
     legends: { name: 'Collector of Legends', text: 'legendary machines in the garage', tiers: [1, 2, 4, 6, 8], lt: [5000, 15000, 40000, 100000, 250000] },
     medals: { name: 'Proven', text: 'trial medal points (bronze 1, silver 2, gold 3)', tiers: [1, 3, 6, 9], lt: [400, 1500, 4000, 10000] },
     trophies: { name: 'Champion', text: 'World Open trophies', tiers: [1, 3, 6, 10], lt: [2000, 8000, 25000, 75000] },
@@ -646,7 +647,7 @@ export const B = {
     hours: 3, // on the calendar
     gauntlet: {
       name: 'The Gauntlet',
-      blurb: 'Twelve miles with fourteen obstacles on the line, the last of them a giant, and three minutes on the clock. Shoot them, crush them, or wear them.',
+      blurb: 'Twelve miles with fourteen obstacles on the line, the last of them a giant, and three minutes on the clock. Shoot them, crush them, or wear them: every one you clear counts, even if the next one wrecks you.',
       miles: 12,
       seconds: 180, // real seconds before the judges call time: crawling through is not an option
       obstacles: [
@@ -654,19 +655,23 @@ export const B = {
         { at: 5.3, size: 'boulder' }, { at: 6.0, size: 'large' }, { at: 6.8, size: 'debris' }, { at: 7.5, size: 'boulder' }, { at: 8.2, size: 'large' },
         { at: 8.9, size: 'boulder' }, { at: 9.6, size: 'large' }, { at: 10.3, size: 'boulder' }, { at: 11.2, size: 'giant' },
       ],
-      // Obstacles dealt with (shot down or crushed by the front) without a crash.
+      // Obstacles dealt with (shot down, or crushed by the front) before the run ends, however it
+      // ends. One you crash into does not count.
       tiers: [{ at: 14, medal: 'gold' }, { at: 11, medal: 'silver' }, { at: 6, medal: 'bronze' }],
     },
     timetrial: {
       name: 'Time Trial',
-      blurb: 'Twenty miles of bends and hills, alone against the clock. No weapons: just the engine, the lever and its heat.',
+      blurb: 'Twenty miles of bends and hills, alone against the clock. No weapons, and only the fuel the sprint needs. Travel light: whatever is fitted still rides along, and every pound counts.',
       miles: 20,
-      // Real seconds on the clock at the line.
-      tiers: [{ at: 55, medal: 'gold' }, { at: 85, medal: 'silver' }, { at: 120, medal: 'bronze' }],
+      fuelMargin: 1.8, // loaded: what the run should burn at full lever, times this
+      // Real seconds on the clock at the line. Simulated: a starter with its kit on runs about 115 s
+      // at 110% lever; a strong engine stripped for speed about 65; a legendary machine travelling
+      // light 40 to 55.
+      tiers: [{ at: 60, medal: 'gold' }, { at: 90, medal: 'silver' }, { at: 125, medal: 'bronze' }],
     },
     brawl: {
       name: 'Iron Brawl',
-      blurb: 'Thirty miles against five armed raiders who would rather fight than race. Medals for the raiders you put off the rails.',
+      blurb: 'Thirty miles against five armed raiders who would rather fight than race. Medals for the raiders you put off the rails, so stay in range: a raider you have outrun is a raider still on them.',
       miles: 30,
       rivals: 5,
       rival: { power: 5, efficiency: 5, durability: 6, endurance: 5, attr: 10 },
@@ -688,14 +693,20 @@ export const B = {
     terminal: { base: 3000, perLine: 1500, levels: 3, upgrade: [0, 2, 4], boost: 0.15 },
     baysPerTerminal: 1, // every terminal adds a garage bay...
     baysMax: 14, // ...up to this many in all
-    // A route: one locomotive working one line between two of your terminals. What it brings in a day:
+    // A route: one locomotive working one line between two of your terminals. What a day of its
+    // work on the line brings in:
     //   one-way trips a day x miles x tons hauled x ratePerTonMile x fuel economy x bonuses
     // It hauls `loadShare` of its towing capacity at `cruise` of its loaded top speed, and spends
     // `turnaroundHours` at each end. The rate is after fuel and wages. `incomeScale` scales it all
     // (the NFT edition pays LT out of the treasury pool: lower this there if routes pay too much).
+    //
+    // Freight runs on the REAL clock, at the calendar's own pace (CALENDAR.driftGameMinutesPerRealMinute:
+    // a real hour is four hours of work on the line), playing or away. The calendar's jumps (a run's
+    // trip and turnaround, a rest, a contest) move no freight: if they did, resting or forfeiting
+    // short runs would print money.
     route: { loadShare: 0.6, cruise: 0.8, turnaroundHours: 12, ratePerTonMile: 0.25, ecoRef: 16, ecoRange: [0.6, 1.6], terrain: { plains: 1, flooded: 0.8, desert: 0.9, snow: 0.85 }, business: 0.1 },
     incomeScale: 1,
-    tillDays: 14, // the till holds this many days of takings; collect it or the routes work for nothing
+    tillHours: 72, // the till holds this many real hours of takings; collect it or the routes work for nothing
     // Empire Power Rating (Dean, #157): the locomotives' own ratings plus all of this.
     rating: { level: 100, perLt: 0.005, ltCap: 5000, research: 300, upgrade: 60, star: 150, contract: 20, win: 15, job: 10, terminal: 400, terminalLevel: 250, route: 300, boss: 600, relic: 400, trophy: 500, licence: 500, medal: 120 },
     // Ranks by rating. Each adds to what every route brings in.

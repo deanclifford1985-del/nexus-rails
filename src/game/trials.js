@@ -66,7 +66,10 @@ export function trialConfig(conductor, id) {
   const base = { kind: 'trial', trial: id, title: `Trial: ${t.name}`, distance: t.miles, freeFuel: true, course, player, rivals: [] };
   if (id === 'gauntlet') return { ...base, combat: true, obstacles: t.obstacles, timeLimit: t.seconds * B.TIME_SCALE };
   if (id === 'brawl') return { ...base, combat: true, rivals: raiders(course), player: { ...player, competitive: traitPower(conductor, 'competitive') } };
-  return { ...base, combat: false };
+  // The Time Trial is a sprint: the crew loads what the run needs and a margin, not a full tank
+  // (a full tank is a ton or two of dead weight, and nothing here burns fuel but the engine).
+  const sprint = Math.min(stats.tank, Math.ceil(planTrip(stats, 0, t.miles, course).gallons * t.fuelMargin));
+  return { ...base, combat: false, player: { ...player, fuel: sprint } };
 }
 
 // What a result scores in a trial: the number its medals are judged on.
@@ -76,10 +79,18 @@ export function trialScore(id, result) {
   return result.realSeconds;
 }
 
-// The medal a result earns. Every trial must be finished on the rails.
+// Does this result count? The Time Trial and the Iron Brawl must be finished on the rails. The
+// Gauntlet is a score attack: whatever was dealt with before the run ended counts, however it
+// ended (the line, the clock or a wreck). Walking away never counts.
+export function trialCounts(id, result) {
+  if (result.reason === 'forfeit') return false;
+  return id === 'gauntlet' || result.reason === 'finished';
+}
+
+// The medal a result earns.
 export function trialMedal(id, result) {
   const t = B.TRIALS[id];
-  if (result.reason !== 'finished') return 'none';
+  if (!trialCounts(id, result)) return 'none';
   const score = trialScore(id, result);
   const tier = id === 'timetrial' ? t.tiers.find((item) => score <= item.at) : t.tiers.find((item) => score >= item.at);
   return tier?.medal ?? 'none';

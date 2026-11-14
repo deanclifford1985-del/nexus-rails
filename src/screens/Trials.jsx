@@ -8,7 +8,9 @@ import { fmt, ltWhole } from '../ui/format.js';
 // The Proving Grounds: three trials that are always open, each with three medals.
 
 const ICON = { gauntlet: Mountain, timetrial: Timer, brawl: Swords };
-const need = (id, at) => (id === 'timetrial' ? `in ${at} seconds or less` : id === 'gauntlet' ? `${at} obstacles dealt with, no crashes counted` : `${at} raider${at === 1 ? '' : 's'} put off the rails by you`);
+const need = (id, at) => (id === 'timetrial' ? `in ${at} seconds or less` : id === 'gauntlet' ? `${at} obstacles shot or crushed` : `${at} raider${at === 1 ? '' : 's'} put off the rails by you`);
+// "Run the Time Trial", but "Run The Gauntlet".
+const runLabel = (name) => (name.startsWith('The ') ? `Run ${name}` : `Run the ${name}`);
 const scoreText = (id, score) => (id === 'timetrial' ? `${fmt(score, 1)} s` : id === 'gauntlet' ? `${score} cleared` : `${score} knocked off`);
 
 export function Medal({ medal }) {
@@ -60,11 +62,13 @@ export default function Trials() {
                 ) : (
                   'Not run yet.'
                 )}{' '}
-                Finish on the rails{id === 'gauntlet' ? ` inside ${t.seconds / 60} minutes` : ''} or there is no medal.
+                {id === 'gauntlet'
+                  ? `The run ends at the line, after ${t.seconds / 60} minutes, or when you are wrecked: what you had cleared by then counts. One you crash into does not.`
+                  : 'Finish on the rails or there is no medal.'}
               </span>
               <button type="button" className="btn btn-ember btn-block" onClick={() => go('race', { ctx: { kind: 'trial', trial: id }, config: trialConfig(conductor, id), run: { title: t.name } })}>
                 <Flag aria-hidden="true" />
-                Run the {t.name}
+                {runLabel(t.name)}
               </button>
             </article>
           );

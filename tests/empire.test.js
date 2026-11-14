@@ -103,36 +103,57 @@ describe('freight routes', () => {
     expect(c.empire.routes).toHaveLength(0);
   });
 
-  it('earn on the calendar into the till, up to two weeks of takings; collecting banks it', () => {
+  it('earn by the real clock into the till, up to three days of takings; collecting banks it', () => {
     const c = company();
     const spare = addLoco(c);
     actions.assignRoute(c, { locoId: spare.id, lineId: 'chicago-stlouis' });
     const perDay = empireIncome(c);
     const quote = routeQuote(c, spare, lineById('chicago-stlouis'));
     expect(perDay).toBeCloseTo(quote.perDay, 6);
-    console.log(`starter on Chicago - St. Louis: ${perDay.toFixed(0)} LT a day (${quote.tons.toFixed(1)} tons at ${quote.mph.toFixed(0)} mph, ${quote.tripsPerDay.toFixed(2)} trips a day)`);
-    // A starter engine should earn something like a decent delivery a day: not a fortune, not nothing.
-    expect(perDay).toBeGreaterThan(150);
-    expect(perDay).toBeLessThan(900);
+    expect(quote.perHour).toBeCloseTo(perDay / 24, 6);
+    console.log(`starter on Chicago - St. Louis: ${quote.perHour.toFixed(0)} LT a real hour, ${perDay.toFixed(0)} a real day (${quote.tons.toFixed(1)} tons at ${quote.mph.toFixed(0)} mph, ${quote.tripsPerDay.toFixed(1)} trips a day)`);
+    // A starter engine should earn something like a few decent deliveries a real day: not a fortune, not nothing.
+    expect(perDay).toBeGreaterThan(600);
+    expect(perDay).toBeLessThan(3600);
     expect(() => actions.collectTill(c)).toThrow(/Nothing/);
-    actions.rest(c, { hours: 48 });
-    expect(c.empire.till).toBeCloseTo(perDay * 2, 0);
+    // Two real hours pass (the save is opened again two hours later).
+    const HOUR = 3600000;
+    actions.refreshWorld(c, { now: NOW + 2 * HOUR });
+    expect(c.empire.till).toBeCloseTo(quote.perHour * 2, 0);
     const lt = c.lt;
     const { amount } = actions.collectTill(c);
-    expect(amount).toBe(Math.floor(perDay * 2));
+    expect(amount).toBe(Math.floor(quote.perHour * 2));
     expect(c.lt).toBe(lt + amount);
     expect(c.empire.earned).toBe(amount);
     expect(c.empire.till).toBeLessThan(1);
-    // The till stops filling at the cap.
-    actions.rest(c, { hours: 24 * 40 });
+    // The till stops filling at the cap, however long the absence.
+    actions.refreshWorld(c, { now: NOW + 24 * 40 * HOUR });
+    expect(tillCap(c)).toBeCloseTo((empireIncome(c) / 24) * B.EMPIRE.tillHours, 4);
     expect(c.empire.till).toBeCloseTo(tillCap(c), 0);
-    expect(tillCap(c)).toBeCloseTo(empireIncome(c) * B.EMPIRE.tillDays, 4);
-    // A run takes time on the calendar too, so the routes earn while the conductor is out.
-    actions.collectTill(c);
-    const till = c.empire.till;
+  });
+
+  it('cannot be hurried: resting, forfeiting runs and trials move the calendar but no freight', () => {
+    const c = company();
+    const spare = addLoco(c);
+    actions.assignRoute(c, { locoId: spare.id, lineId: 'chicago-stlouis' });
+    const clock = c.clock;
+    // Rest for a month of game days.
+    actions.rest(c, { hours: 24 * 30 });
+    expect(c.clock).toBe(clock + 24 * 30 * 60);
+    expect(c.empire.till).toBe(0);
+    // A forfeited run, a trial and a finished delivery, all settled at the same real moment.
     const job = c.board.simple[0];
-    actions.settleRun(c, { ctx: { kind: 'delivery', jobId: job.id }, result: { reason: 'forfeit', finished: false, distance: 5, gameSeconds: 600, fuelLoaded: 10, fuelUsed: 5, fuelLeft: 5, emergencyGallons: 0, emergencyCost: 0, standings: [] }, now: NOW });
-    expect(c.empire.till).toBeGreaterThan(till + perDay);
+    const result = { reason: 'forfeit', finished: false, distance: 5, gameSeconds: 600, fuelLoaded: 10, fuelUsed: 5, fuelLeft: 5, emergencyGallons: 0, emergencyCost: 0, standings: [] };
+    actions.settleRun(c, { ctx: { kind: 'delivery', jobId: job.id }, result, now: NOW });
+    actions.settleRun(c, { ctx: { kind: 'trial', trial: 'timetrial' }, result: { ...result, realSeconds: 5 }, now: NOW });
+    const done = c.board.simple[0];
+    actions.settleRun(c, { ctx: { kind: 'delivery', jobId: done.id, haul: 1 }, result: { ...result, reason: 'finished', finished: true, place: 1, field: 1, distance: done.distance, gameSeconds: 6000, realSeconds: 240, timeLimit: done.timeLimit, underLimitPct: 50 }, now: NOW });
+    expect(c.empire.till).toBe(0);
+    // But a run that took five real minutes is five minutes of freight.
+    const next = c.board.simple[0];
+    actions.settleRun(c, { ctx: { kind: 'delivery', jobId: next.id, haul: 1 }, result: { ...result, reason: 'finished', finished: true, place: 1, field: 1, distance: next.distance, gameSeconds: 6000, realSeconds: 300, timeLimit: next.timeLimit, underLimitPct: 50 }, now: NOW + 5 * 60000 });
+    expect(c.empire.till).toBeCloseTo((empireIncome(c) / 24 / 60) * 5, 0);
+    expect(c.empire.till).toBeGreaterThan(0);
   });
 
   it('pay more with a stronger engine, bigger terminals, Logistics research and a higher rank', () => {

@@ -47,7 +47,7 @@ export const MODELS = {
     name: 'The Iron Titan',
     blurb: 'A walking fortress on rails. Nine cargo slots and a hull nothing else can match.',
     bonus: {},
-    perk: 'Barrier spell, +1,200 HP, 9 slots',
+    perk: `Barrier spell, +${B.MYTHIC.titan.hullBonus} HP, 9 slots`,
     mythic: true,
   },
   dragon: {

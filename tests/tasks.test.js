@@ -3,10 +3,10 @@ import { B } from '../src/game/balance.js';
 import { makeRng } from '../src/game/rng.js';
 import { buildConductor } from '../src/game/conductor.js';
 import { generateLoco, makeMythic } from '../src/game/locomotives.js';
-import { createRace, fireAll, orderEmergencyFuel, playerOf, startRace, stepRace } from '../src/game/race.js';
+import { createRace, fireAll, orderEmergencyFuel, playerOf, setLever, startRace, stepRace } from '../src/game/race.js';
 import * as actions from '../src/game/actions.js';
 import { milestoneState, milestonesReady, recordEvents, rollTasks, runEvents, taskBonus, taskText, taskTier, tasksClaimable } from '../src/game/tasks.js';
-import { TRIAL_IDS, trialConfig, trialMedal, trialRecord, trialScore } from '../src/game/trials.js';
+import { TRIAL_IDS, trialConfig, trialCounts, trialMedal, trialRecord, trialScore } from '../src/game/trials.js';
 import { migrate } from '../src/game/storage.js';
 
 const NOW = 1791480000000;
@@ -30,8 +30,6 @@ describe('weekly orders', () => {
       expect(task.target).toBe(def.target[0]);
       expect(task.lt).toBe(def.lt[0]);
       expect(taskText(task)).not.toMatch(/\{n\}/);
-      // No routes yet, so nothing asks for route takings.
-      expect(task.type).not.toBe('till');
     }
     // Higher licence or level: bigger orders, bigger pay.
     c.stats.miles = 2500;
@@ -141,17 +139,49 @@ describe('the proving grounds', () => {
     expect(createRace(trialConfig(c, 'timetrial')).combat).toBe(false);
   });
 
-  it('medals come from the score, and only for a run finished on the rails', () => {
-    expect(trialMedal('timetrial', { reason: 'finished', realSeconds: 54 })).toBe('gold');
-    expect(trialMedal('timetrial', { reason: 'finished', realSeconds: 84 })).toBe('silver');
-    expect(trialMedal('timetrial', { reason: 'finished', realSeconds: 119 })).toBe('bronze');
-    expect(trialMedal('timetrial', { reason: 'finished', realSeconds: 121 })).toBe('none');
+  it('medals come from the score', () => {
+    const [gold, silver, bronze] = B.TRIALS.timetrial.tiers.map((tier) => tier.at);
+    expect(trialMedal('timetrial', { reason: 'finished', realSeconds: gold - 1 })).toBe('gold');
+    expect(trialMedal('timetrial', { reason: 'finished', realSeconds: silver - 1 })).toBe('silver');
+    expect(trialMedal('timetrial', { reason: 'finished', realSeconds: bronze - 1 })).toBe('bronze');
+    expect(trialMedal('timetrial', { reason: 'finished', realSeconds: bronze + 1 })).toBe('none');
     expect(trialMedal('gauntlet', { reason: 'finished', bouldersSmashed: 9, bouldersCrushed: 5 })).toBe('gold');
     expect(trialMedal('gauntlet', { reason: 'finished', bouldersSmashed: 4, bouldersCrushed: 2 })).toBe('bronze');
-    expect(trialMedal('gauntlet', { reason: 'late', bouldersSmashed: 14 })).toBe('none');
-    expect(trialMedal('gauntlet', { reason: 'derailed', bouldersSmashed: 14 })).toBe('none');
     expect(trialMedal('brawl', { reason: 'finished', kills: 3, rivalsDerailed: 5 })).toBe('silver');
     expect(trialScore('brawl', { kills: 2, rivalsDerailed: 5 })).toBe(2);
+  });
+
+  it('the Gauntlet counts what was cleared however the run ends; the others must be finished on the rails', () => {
+    // A wreck or the clock ends the Gauntlet, and what was dealt with by then still counts.
+    expect(trialMedal('gauntlet', { reason: 'derailed', bouldersSmashed: 7 })).toBe('bronze');
+    expect(trialMedal('gauntlet', { reason: 'late', bouldersSmashed: 8, bouldersCrushed: 3 })).toBe('silver');
+    expect(trialMedal('gauntlet', { reason: 'derailed', bouldersSmashed: 5 })).toBe('none');
+    // Walking away never counts.
+    expect(trialMedal('gauntlet', { reason: 'forfeit', bouldersSmashed: 14 })).toBe('none');
+    expect(trialCounts('gauntlet', { reason: 'forfeit' })).toBe(false);
+    // The Iron Brawl and the Time Trial are judged at the line.
+    expect(trialMedal('brawl', { reason: 'derailed', kills: 5 })).toBe('none');
+    expect(trialMedal('timetrial', { reason: 'late', realSeconds: 10 })).toBe('none');
+    expect(trialCounts('brawl', { reason: 'finished' })).toBe(true);
+  });
+
+  it('the Time Trial is run light: the fuel the sprint needs, not a full tank', () => {
+    const c = newConductor();
+    const config = trialConfig(c, 'timetrial');
+    const tank = config.player.stats.tank;
+    expect(config.player.fuel).toBeLessThan(tank / 2);
+    expect(config.player.fuel).toBeGreaterThan(5);
+    // The combat trials start full: missiles burn fuel.
+    expect(trialConfig(c, 'gauntlet').player.fuel).toBe(tank);
+    expect(trialConfig(c, 'brawl').player.fuel).toBe(tank);
+    // And the sprint load is enough to finish on, at 110% lever, without calling the fuel truck.
+    const race = createRace({ ...config, seed: 3 });
+    startRace(race);
+    setLever(race, 1.1);
+    let guard = 0;
+    while (race.status === 'running' && guard++ < 200000) stepRace(race, 0.5);
+    expect(race.result.reason).toBe('finished');
+    expect(playerOf(race).fuel).toBeGreaterThan(0);
   });
 
   it('a medal pays once; a first gold pays the ones below it too; the best score is kept', () => {
@@ -182,6 +212,15 @@ describe('the proving grounds', () => {
     expect(none).toMatchObject({ medal: 'none', outcome: 'lost', payout: 0, xp: 25 });
     expect(c.fuel.gallons).toBe(fuel);
     expect(c.locos[0].condition).toBe(1);
+    // A wreck in the Gauntlet still scores: the best is kept and the medal paid.
+    expect(trialRecord(c, 'gauntlet')).toMatchObject({ medal: 'none', best: 2, runs: 1 });
+    const wrecked = actions.settleRun(c, { ctx: { kind: 'trial', trial: 'gauntlet' }, result: fakeResult({ reason: 'derailed', finished: false, derailed: true, bouldersSmashed: 6, bouldersCrushed: 1 }), now: NOW });
+    expect(wrecked).toMatchObject({ medal: 'bronze', outcome: 'won', payout: P.bronze.lt, record: true });
+    expect(trialRecord(c, 'gauntlet')).toMatchObject({ medal: 'bronze', best: 7, runs: 2 });
+    // Walking out of a trial records nothing.
+    const quit = actions.settleRun(c, { ctx: { kind: 'trial', trial: 'gauntlet' }, result: fakeResult({ reason: 'forfeit', finished: false, bouldersSmashed: 12 }), now: NOW });
+    expect(quit).toMatchObject({ medal: 'none', outcome: 'forfeit', payout: 0, xp: 0 });
+    expect(trialRecord(c, 'gauntlet')).toMatchObject({ medal: 'bronze', best: 7, runs: 2 });
   });
 
   it('the Iron Brawl credits only the raiders the player puts off the rails', () => {

@@ -1901,6 +1901,16 @@ svg {
     height: 19px;
   }
 }
+/* Ten tabs or more (Nexus Rail, with the Captain's tabs after Empire) on a phone: smaller, tighter
+   labels, so that neighbours do not run into each other. */
+@media (max-width: 560px) {
+  .tabbar:has(.nav-link:nth-child(10)) .nav-link {
+    font-size: 0.6rem;
+    letter-spacing: -0.03em;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
 .slots {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

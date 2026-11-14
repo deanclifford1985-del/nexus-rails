@@ -207,7 +207,7 @@ function Founding({ conductor, act, notify }) {
         <h2>One engine is a job. A company is an empire.</h2>
       </div>
       <p className="muted">
-        Take out a charter and you can open terminals in the cities your licence reaches, and put the locomotives in your garage to work hauling freight between them. They earn around the clock: while you race, while you rest, while you are away from the game.
+        Take out a charter and you can open terminals in the cities your licence reaches, and put the locomotives in your garage to work hauling freight between them. They earn by the real clock, hour after hour: while you play, and while you are away from the game.
       </p>
       <div className="found-grid">
         <label className="stack-sm">
@@ -322,7 +322,7 @@ function Fleet({ conductor, act, notify, cooling, cool }) {
               </div>
               {route ? (
                 <span className="small">
-                  <b>{line.name}</b>: <b className="brass num">{ltWhole(quote.perDay)} LT a day</b> · hauls {fmt(quote.tons, 1)} tons at {fmt(quote.mph)} mph, {fmt(quote.tripsPerDay, 2)} trips a day
+                  <b>{line.name}</b>: <b className="brass num">{ltWhole(quote.perDay)} LT a day</b> · hauls {fmt(quote.tons, 1)} tons at {fmt(quote.mph)} mph, {fmt(quote.tripsPerDay, 1)} trips a day
                   {quote.raider ? <span className="stop"> · raided by {B.BOSSES[quote.raider].name}: −{Math.round(B.BOSS.raidCut * 100)}%</span> : null}
                 </span>
               ) : active ? (
@@ -401,8 +401,8 @@ export default function Empire() {
               <CountUp value={till} format={(v) => Math.round(v).toLocaleString()} /> <small>LT</small>
             </div>
             <div className="stats" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-              <Stat label="A day" value={ltWhole(perDay)} unit="LT" tone="brass" />
-              <Stat label="A week" value={ltWhole(perDay * B.WEEK.days)} unit="LT" />
+              <Stat label="An hour" value={ltWhole(perDay / 24)} unit="LT" tone="brass" />
+              <Stat label="A day" value={ltWhole(perDay)} unit="LT" />
               <Stat label="All time" value={ltWhole(empire.earned ?? 0)} unit="LT" />
             </div>
             {cap > 0 ? <Meter value={empire.till ?? 0} max={cap} tone={full ? 'ember' : 'go'} thin label="Till against its limit" /> : null}
@@ -410,7 +410,7 @@ export default function Empire() {
               {empire.routes.length
                 ? full
                   ? 'The till is full: your routes are working for nothing until you collect.'
-                  : `Your routes pay in around the clock (1 real hour is ${B.CALENDAR.driftGameMinutesPerRealMinute} hours on the line). The till holds ${B.EMPIRE.tillDays} days of takings.`
+                  : `Your routes pay in by the real clock, hour by hour, whether you are playing or away. Resting and runs do not hurry them. The till holds ${B.EMPIRE.tillHours / 24} days of takings.`
                 : 'No routes at work yet. Open a second terminal and put a locomotive from your garage on the line between them.'}
             </span>
             <button
@@ -435,7 +435,7 @@ export default function Empire() {
                 <Warehouse aria-hidden="true" /> <span><b>Terminals</b> in real cities. One at each end of a line and the line is yours to work. Each adds a garage bay.</span>
               </li>
               <li>
-                <TrainFront aria-hidden="true" /> <span><b>Routes.</b> A locomotive from your garage hauls freight on a line, day and night, and pays into the till.</span>
+                <TrainFront aria-hidden="true" /> <span><b>Routes.</b> A locomotive from your garage hauls freight on a line, day and night by the real clock, playing or away, and pays into the till.</span>
               </li>
               <li>
                 <Skull aria-hidden="true" /> <span><b>Raiders.</b> A boss at large takes {Math.round(B.BOSS.raidCut * 100)}% of what its line earns. Bring it down.</span>
