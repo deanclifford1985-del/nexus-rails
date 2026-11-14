@@ -260,6 +260,7 @@ export class SiteBuilder {
         const openings = gaps.map((g) => ({ ...g, y0: 0, y1: 99 }));
         if (kind === 'hesco') this.wall(ax, az, bx, bz, 2.3, { t: 1.3, color: COL.hesco, openings });
         else if (kind === 'stone') this.wall(ax, az, bx, bz, 3.4, { t: 0.9, color: COL.stone, openings });
+        else if (kind === 'low') this.wall(ax, az, bx, bz, 1.1, { t: 0.5, color: COL.stoneDark, openings });
         else this.wall(ax, az, bx, bz, 1.0, { t: 0.75, color: COL.sandbag, openings });
       }
       if (gate) {

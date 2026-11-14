@@ -29,7 +29,7 @@ export const BASE = {
     okoro: { ...at(-128, -30), yaw: Math.PI / 2 },
     vasquez: { ...at(132, 96), yaw: -Math.PI / 2 },
     ilves: { ...at(-128, 112), yaw: 0 },
-    dane: { ...at(-66, -196), yaw: 0 },
+    dane: { ...at(-62, -256), yaw: 0 },
   },
   helipad: at(118, -92),
 
@@ -51,7 +51,7 @@ export const BASE = {
     start: C.z + 92,
     gates: [C.z + 92, C.z + 52, C.z + 22, C.z - 12, C.z - 44, C.z - 78], // z of each timing gate, in order
     hurdles: [C.z + 76, C.z + 68, C.z + 60],
-    crawl: [C.z + 44, C.z + 30], // wire from here to here
+    crawl: [C.z + 44, C.z + 34], // wire from here to here
     wall: C.z + 10,
     zigzag: [C.z - 2, C.z - 20, C.z - 32],
     wall2: C.z - 56,
@@ -72,9 +72,9 @@ export const BASE = {
 
   // Observation post: a low hill north-west of camp looking north.
   op: {
-    post: at(-66, -202),
-    bump: { x: C.x - 66, z: C.z - 206, r: 46, h: 9 },
-    sector: { x: C.x - 66, z: C.z - 330, half: 130, depth: 120 }, // dummies hide in this box north of the post
+    post: at(-66, -262),
+    bump: { x: C.x - 66, z: C.z - 264, r: 48, h: 10 },
+    sector: { x: C.x - 66, z: C.z - 400, half: 130, depth: 130 }, // dummies hide in this box north of the post
     facing: 0,
   },
 };
@@ -82,7 +82,8 @@ export const BASE = {
 // Rectangles the terrain levels to the camp's height.
 export const FLATS = [BASE.range.flat, BASE.course.flat];
 // Gentle hills added to the terrain.
-export const BUMPS = [BASE.op.bump];
+// (The second is the knoll south-east of Lake Miren that overlooks the Lakeside Villa.)
+export const BUMPS = [BASE.op.bump, { x: 300, z: -124, r: 48, h: 12 }];
 // Areas kept clear of wild trees and rocks (x0, x1, z0, z1).
 export const CLEARINGS = [
   BASE.range.flat,
@@ -90,6 +91,8 @@ export const CLEARINGS = [
   { x0: BASE.op.post.x - 14, x1: BASE.op.post.x + 14, z0: BASE.op.post.z - 12, z1: BASE.op.post.z + 14 },
   { x0: BASE.lane.x - 6, x1: BASE.lane.x + 6, z0: BASE.lane.z0 - 14, z1: BASE.lane.z0 + 2 },
 ];
+// Open ground: no trees or rocks, but brush still grows (the valley below the observation post).
+export const OPEN = [{ x0: BASE.op.sector.x - BASE.op.sector.half - 20, x1: BASE.op.sector.x + BASE.op.sector.half + 20, z0: BASE.op.sector.z - BASE.op.sector.depth / 2 - 20, z1: BASE.op.post.z - 10 }];
 // Areas forced to dense woodland (the infiltration lane).
 export const WOODS = [{ x0: BASE.lane.x - BASE.lane.half, x1: BASE.lane.x + BASE.lane.half, z0: BASE.lane.z0, z1: BASE.lane.z1 }];
 

@@ -43,7 +43,7 @@ export const B = {
     RUN: { base: 4.6, speed: 0.004 }, // m/s: base * (1 + speed * k)
     SPRINT_MUL: 1.55,
     CROUCH_MUL: 0.52,
-    PRONE_MUL: 0.2,
+    PRONE_MUL: 0.3,
     AIM_MOVE_MUL: 0.6,
     CARRY: { base: 24, strength: 0.46 }, // kg before you slow down
     OVERLOAD_SLOW: 0.5, // speed lost per 100% overload
@@ -212,8 +212,8 @@ export const B = {
     RANGE_TARGETS: 18,
     RANGE_LONG: 6,
     RANGE_SHOW: 2.6, // seconds a target stays up
-    OBSTACLE_PAR: 62, // seconds for a perfect run
-    OBSTACLE_SLOW: 135, // seconds at which the score reaches zero
+    OBSTACLE_PAR: 46, // seconds for a perfect run
+    OBSTACLE_SLOW: 112, // seconds at which the score reaches zero
     STEALTH_STRIKES: 3,
     OBSERVE_SECONDS: 75,
     OBSERVE_TARGETS: 8,

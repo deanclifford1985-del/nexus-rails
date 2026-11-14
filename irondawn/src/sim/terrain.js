@@ -4,7 +4,7 @@
 
 import { WORLD, LOCATIONS, LAKES, ROADS, locationOf } from '../game/world.js';
 import { clamp, lerp, smoothstep, mulberry } from '../game/balance.js';
-import { FLATS, BUMPS, CLEARINGS, WOODS, inRect } from './baseplan.js';
+import { FLATS, BUMPS, CLEARINGS, OPEN, WOODS, inRect } from './baseplan.js';
 
 export const GROUND = { grass: 0, forest: 1, dirt: 2, sand: 3, rock: 4, snow: 5, tallgrass: 6, farm: 7, gravel: 8, seabed: 9 };
 export const SEA_LEVEL = 0;
@@ -283,6 +283,7 @@ export class Terrain {
         if (inSite) wood = 0;
         if (this.roadDist[i] < 9) wood *= smoothstep(4, 9, this.roadDist[i]);
         for (const rect of CLEARINGS) if (inRect(rect, x, z, 3)) wood = 0;
+        for (const rect of OPEN) if (inRect(rect, x, z)) wood = Math.min(wood, 0.3);
         if (y < 2.8 || slope > 33 || y > 150) wood = 0;
         for (const lake of this.lakes) if (Math.hypot(x - lake.x, z - lake.z) < lake.r + 14) wood = 0;
         this.forest[i] = wood;
@@ -420,6 +421,7 @@ export class Terrain {
         if (roll > wood * 0.82 + 0.012) continue;
         const y = this.heightAt(px, pz);
         if (y < 2.9 || y > 150 || this.roadDistAt(px, pz) < 6.5 || blocked(px, pz, 4) || this.slopeAt(px, pz) > 33) continue;
+        if (OPEN.some((rect) => inRect(rect, px, pz))) continue;
         let lake = false;
         for (const l of this.lakes) if (Math.hypot(px - l.x, pz - l.z) < l.r + 12) lake = true;
         if (lake) continue;
@@ -453,6 +455,16 @@ export class Terrain {
         }
       }
     }
+    for (const rect of OPEN) {
+      for (let z = rect.z0; z < rect.z1; z += 9) {
+        for (let x = rect.x0; x < rect.x1; x += 9) {
+          const px = x + rng() * 9;
+          const pz = z + rng() * 9;
+          if (rng() > 0.3) continue;
+          bushes.push({ x: px, z: pz, y: this.heightAt(px, pz), r: 1.1 + rng() * 0.9 });
+        }
+      }
+    }
     // rocks: on steep ground and in the range, a few everywhere
     const R = 15;
     for (let z = -half; z < half; z += R) {
@@ -465,7 +477,7 @@ export class Terrain {
         if (y < 1.5) continue;
         const slope = this.slopeAt(px, pz);
         const chance = 0.014 + (slope > 20 ? 0.2 : 0) + smoothstep(-450, -700, pz) * 0.12;
-        if (roll > chance || this.roadDistAt(px, pz) < 6 || blocked(px, pz, 3)) continue;
+        if (roll > chance || this.roadDistAt(px, pz) < 6 || blocked(px, pz, 3) || OPEN.some((rect) => inRect(rect, px, pz))) continue;
         const r = 0.7 + size * size * 2.2;
         rocks.push({ x: px, z: pz, y, r, h: r * (0.8 + rng() * 0.6) });
       }

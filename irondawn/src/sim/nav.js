@@ -29,7 +29,8 @@ export class Nav {
       for (let bx = 0; bx < size; bx += B) {
         const x = bx - half + B / 2;
         const z = bz - half + B / 2;
-        const bad = terrain.slopeAt(x, z) > 44 || terrain.depthAt(x, z) > 1.1;
+        // nothing steeper than the least practised climber can manage (see B.DERIVE.SLOPE)
+        const bad = terrain.slopeAt(x, z) > 35 || terrain.depthAt(x, z) > 1.1;
         if (!bad) continue;
         for (let dz = 0; dz < B; dz++) for (let dx = 0; dx < B; dx++) blocked[(bz + dz) * size + bx + dx] = 1;
       }
@@ -51,18 +52,18 @@ export class Nav {
     }
   }
 
-  // A box blocks the cells whose centres it covers (grown by a quarter metre), if it stands in
-  // the way at body height.
+  // A box blocks every cell it touches, if it stands in the way at body height.
   markBox(b, value = 1) {
     if (b.kind === 'ladder') return;
     const { terrain, size, half, blocked } = this;
     const ground = terrain.heightAt((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
     if (b.y0 > ground + 1.4 || b.y1 < ground + 0.45) return; // overhead, or low enough to step on
-    const pad = 0.25;
-    const x0 = Math.ceil(b.x0 - pad + half - 0.5);
-    const x1 = Math.floor(b.x1 + pad + half - 0.5);
-    const z0 = Math.ceil(b.z0 - pad + half - 0.5);
-    const z1 = Math.floor(b.z1 + pad + half - 0.5);
+    // every cell the box touches: a thin wall or a wire fence must never fall between cell centres
+    const pad = 0.05;
+    const x0 = Math.floor(b.x0 - pad + half);
+    const x1 = Math.floor(b.x1 + pad + half);
+    const z0 = Math.floor(b.z0 - pad + half);
+    const z1 = Math.floor(b.z1 + pad + half);
     for (let z = z0; z <= z1; z++) {
       for (let x = x0; x <= x1; x++) {
         if (x >= 0 && z >= 0 && x < size && z < size) blocked[z * size + x] = value;
@@ -106,9 +107,12 @@ export class Nav {
   // null when there is no way within the window.
   findPath(sx, sz, gx, gz) {
     const { size, half, blocked, g, came, state } = this;
-    const start = this.nearestFree(sx, sz, 4);
+    const start = this.nearestFree(sx, sz, 9);
     const goal = this.nearestFree(gx, gz, 8);
+    this.lastFound = false;
+    this.lastExpanded = 0;
     if (!start || !goal) return null;
+    this.lastFound = true;
     if (this.walkable(start.x, start.z, goal.x, goal.z)) return [{ x: goal.x, z: goal.z }];
 
     // window centred between the two, clamped to the world
@@ -120,6 +124,7 @@ export class Nav {
     const scz = Math.floor(start.z + half) - wz;
     let gcx = Math.floor(goal.x + half) - wx;
     let gcz = Math.floor(goal.z + half) - wz;
+    this.lastFound = false;
     if (scx < 0 || scz < 0 || scx >= WINDOW || scz >= WINDOW) return null;
     // a goal outside the window: aim for the point on the window's edge nearest to it
     gcx = Math.max(1, Math.min(WINDOW - 2, gcx));
@@ -179,7 +184,7 @@ export class Nav {
     let bestNode = startNode;
     let bestH = hOf(scx, scz);
     let expanded = 0;
-    while (heapSize > 0 && expanded < 14000 && heapSize < heap.length - 16) {
+    while (heapSize > 0 && expanded < 22000 && heapSize < heap.length - 16) {
       const node = pop();
       if (state[node] === 2) continue;
       state[node] = 2;
@@ -210,12 +215,14 @@ export class Nav {
             g[next] = cost;
             came[next] = node;
             state[next] = 1;
-            push(next, cost + hOf(nx, nz));
+            push(next, cost + hOf(nx, nz) * 1.5);
           }
         }
       }
     }
     // No route all the way: walk to the closest point reached, which is usually the right idea.
+    this.lastFound = found >= 0;
+    this.lastExpanded = expanded;
     const end = found >= 0 ? found : bestNode;
     if (end === startNode) return null;
     const cells = [];
