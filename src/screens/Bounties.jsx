@@ -104,7 +104,7 @@ export default function BountyBoard() {
                   <span className="label">Stays for</span>
                   <b>{clock(boss.seconds)}</b>
                 </div>
-                {st.record.best ? (
+                {st.record.best !== null && st.record.best !== undefined ? (
                   <div className="stat">
                     <span className="label">Your best</span>
                     <b className="go">{clock(st.record.best)}</b>

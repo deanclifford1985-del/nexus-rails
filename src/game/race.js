@@ -138,6 +138,7 @@ function makeTrain(spec, isPlayer) {
     frozenFor: 0, // Absolute Zero: slowed and unable to fire
     frozenSlow: 0,
     unstoppable: 0, // Bulwark: nothing staggers or slows it, and it crushes obstacles
+    bulwarkCut: 0, // ... and this share comes off every hit while it lasts
     fuelStolen: 0,
   };
 }
@@ -296,12 +297,13 @@ function advanceTrain(race, train, h) {
   const boost = train.isPlayer ? race.competitive.boost : 0;
   // Black Hole: a rival's gravity well piles weight on for a few seconds.
   if (train.gravFor > 0) train.gravFor -= h;
-  const weight = train.baseWeight + train.cargo + train.fuel * LB_PER_GAL + (train.gravFor > 0 ? train.gravLb : 0);
+  // (Bulwark shrugs the extra weight off for as long as it lasts, like every other slow.)
+  const weight = train.baseWeight + train.cargo + train.fuel * LB_PER_GAL + (train.gravFor > 0 && !(train.unstoppable > 0) ? train.gravLb : 0);
   const power = train.lever * (1 + boost) * (train.guidePower ?? 1);
   let vmax = topSpeedFor(train.hp * power, weight);
   if (train.crippled) vmax *= B.RACE.testRace.guide.crippledSpeed;
   if (train.slowFor > 0) {
-    vmax *= 1 - R.siphon.steal;
+    if (!(train.unstoppable > 0)) vmax *= 1 - R.siphon.steal;
     train.slowFor -= h;
   }
   if (train.surgeFor > 0) {
@@ -645,9 +647,12 @@ const ABILITY = {
   bulwark: {
     need: () => null,
     use(race, from, A) {
-      from.barrier = A.seconds;
-      from.barrierCut = A.cut;
+      // Bulwark keeps its own clock and its own cut (see shieldCut), so a lesser shield raised
+      // before or during it never makes it weaker. The bubble on screen lasts as long as either.
       from.unstoppable = A.seconds;
+      from.bulwarkCut = A.cut;
+      from.barrierCut = Math.max(from.barrier > 0 ? from.barrierCut : 0, A.cut);
+      from.barrier = Math.max(from.barrier, A.seconds);
       from.stagger = 0;
       from.ability.activeFor = A.seconds;
       race.fx.push({ type: 'barrier', id: from.id, kind: 'bulwark' });
@@ -780,7 +785,7 @@ function strikeBoulders(race, train, before) {
       race.fx.push({ type: 'crush', id: rock.id });
       continue;
     }
-    const cut = Math.max(front.cut, train.barrier > 0 ? train.barrierCut : 0);
+    const cut = Math.max(front.cut, shieldCut(train));
     const damage = Math.round(S.crash * (0.85 + race.rng() * 0.3));
     const taken = Math.round(damage * (1 - cut));
     train.hull = Math.max(0, train.hull - taken);
@@ -797,6 +802,9 @@ function strikeBoulders(race, train, before) {
 // ---------- Weapons and spells ----------
 
 export const SHIELDS = ['barrier', 'shield'];
+// What a train's shields take off a hit: the stronger of a raised shield (Barrier, Aegis, a boss's
+// guard) and Bulwark, each on its own clock.
+export const shieldCut = (train) => Math.max(train.barrier > 0 ? train.barrierCut : 0, train.unstoppable > 0 ? train.bulwarkCut ?? 0 : 0);
 // A key is a kind, or a kind with a number for the second of its kind: 'cannon#2'.
 export const kindOf = (key) => String(key).split('#')[0];
 // The train's Tesla Coil numbers (its best coil, if it has two).
@@ -964,7 +972,8 @@ export function castSpell(race, from, kind) {
     return true;
   }
   if (SHIELDS.includes(kindOf(kind))) {
-    from.barrier = arm.seconds;
+    // (Raised inside Bulwark, the bubble stays up for whichever lasts longer.)
+    from.barrier = Math.max(arm.seconds, from.unstoppable > 0 ? from.unstoppable : 0);
     from.barrierCut = arm.cut;
     race.fx.push({ type: 'barrier', id: from.id, kind: kindOf(kind) });
     return true;
@@ -1063,8 +1072,9 @@ function hurt(race, from, targetId, damage, { kind, crit = false, pen = 0, dot =
   }
   if (!dot) {
     damage = afterArmor(damage, target.armor ?? 0, pen);
-    blocked = target.barrier > 0;
-    if (blocked) damage = Math.round(damage * (1 - target.barrierCut));
+    const cut = shieldCut(target);
+    blocked = cut > 0;
+    if (blocked) damage = Math.round(damage * (1 - cut));
     if (!(target.unstoppable > 0)) target.stagger = Math.max(target.stagger, blocked ? C.staggerBlocked : kind === 'arc' ? C.staggerBlocked : C.stagger);
   }
   target.hull = Math.max(0, target.hull - damage);
@@ -1073,7 +1083,8 @@ function hurt(race, from, targetId, damage, { kind, crit = false, pen = 0, dot =
   if (from) target.lastHitBy = from.id;
   if (target.isBoss) breakWindup(race, target, damage);
   if (!dot && damage > 0) target.hitOnce = true;
-  if (kind === 'fire') target.heat = Math.min(B.HEAT.max, target.heat + C.fireHeat);
+  // Fire spells heat what they hit. (A boss's attacks carry their own heat, whatever they look like.)
+  if (kind === 'fire' && !from?.isBoss) target.heat = Math.min(B.HEAT.max, target.heat + C.fireHeat);
   if (from) from.dealt += damage;
   race.fx.push({ type: 'hit', kind, to: target.id, damage, crit, blocked, dot });
   if (target.hull <= 0) knockOff(race, target);
@@ -1586,7 +1597,7 @@ function finishRace(race, reason) {
     dodges: race.dodges ?? 0,
     // The boss fight, if there was one: slain, or how much of it was left standing.
     boss: race.boss
-      ? { id: race.boss.boss.id, name: race.boss.name, slain: race.boss.out, hull: Math.ceil(race.boss.hull), hullMax: race.boss.hullMax, seconds: race.boss.boss.fought, broken: race.boss.boss.broken ?? 0, met: race.boss.boss.state !== 'waiting' }
+      ? { id: race.boss.boss.id, name: race.boss.name, slain: race.boss.out, hull: Math.ceil(race.boss.hull), hullMax: race.boss.hullMax, seconds: race.boss.out ? Math.max(1, race.boss.boss.fought) : race.boss.boss.fought, broken: race.boss.boss.broken ?? 0, met: race.boss.boss.state !== 'waiting' }
       : null,
     standings,
   };

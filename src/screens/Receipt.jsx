@@ -53,7 +53,7 @@ function headline(receipt) {
   }
   if (receipt.kind === 'bounty' && r.boss && receipt.outcome !== 'forfeit') {
     const left = Math.round((r.boss.hull / r.boss.hullMax) * 100);
-    if (r.boss.slain) return `${r.boss.name} is brought down after ${fmt(r.boss.seconds)} seconds of fighting.${receipt.firstKill ? ' The bounty is yours in full.' : ''}`;
+    if (r.boss.slain) return `${r.boss.name} is brought down after ${fmt(r.boss.seconds)} second${Math.round(r.boss.seconds) === 1 ? '' : 's'} of fighting.${receipt.firstKill ? ' The bounty is yours in full.' : ''}`;
     if (!r.boss.met) return `The run ended before ${r.boss.name} showed itself.`;
     if (r.derailed) return `${r.boss.name} knocked you off the rails with ${left}% of its hull left.`;
     return `${r.boss.name} got away with ${left}% of its hull left. No bounty for a boss still on the line.`;

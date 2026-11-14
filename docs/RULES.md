@@ -631,6 +631,9 @@ Twelve races on real routes around the world, shown on a world map. Anyone may e
 
 - **Receipts** show the bounty, relic, trophy or medal won, and the champion you did or did not beat. Free-fuel runs (trials, festival contests) no longer show fuel going "back in reserve".
 - **Kill credit:** whoever lands the last hit on a train gets the credit for knocking it off (Burn and Poison ticks count for whoever hit it last). The Iron Brawl's score, the "Knock rivals off the rails" order, the Wrecker milestone and the +60 XP all follow it.
+- **Shields do not stack, and never weaken each other:** with Bulwark and a Barrier or Aegis Shield both up, the stronger cut counts, each for its own time. Inside Bulwark nothing slows the train, including a Black Hole or a Siphon that landed before it went up (the weight comes back if Bulwark ends first).
+- **A boss's attack heats the engine by what its own entry says.** The 6 heat of the fire-spell rule is for fire spells, not for a boss's attack that looks like fire.
+- **A boss brought down while it is still closing in** counts as a one-second fight.
 - **A boss kill stands:** giving up (or closing the page) in the moments between the kill and the end of the run is still the kill.
 - **Crate conductors' traits (Nexus Rail):** a conductor from a crate stores its traits as plain names. Those traits did nothing in a race and broke the conductor's card on the Fleet screen. Both are fixed, and such traits are converted when the save is opened.
 - **The Iron Titan's hull bonus** was still shown as +1,200 HP after the 4 Nov rescale; it is +350, and now says so.

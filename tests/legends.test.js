@@ -3,7 +3,7 @@ import { B } from '../src/game/balance.js';
 import { makeRng } from '../src/game/rng.js';
 import { LEGEND_MODELS, MODELS, abilityOf, deriveStats, generateLoco, makeMythic, makePhoenix, spellsOf } from '../src/game/locomotives.js';
 import { makeCourse } from '../src/game/course.js';
-import { abilityBlocker, createRace, fireAll, forfeitRace, playerCast, playerOf, setLever, startRace, stepRace, useAbility } from '../src/game/race.js';
+import { abilityBlocker, createRace, fireAll, forfeitRace, playerCast, playerOf, setLever, shieldCut, startRace, stepRace, useAbility } from '../src/game/race.js';
 import { buildConductor } from '../src/game/conductor.js';
 import * as actions from '../src/game/actions.js';
 import { buildRaceConfig, describeRun } from '../src/game/setup.js';
@@ -131,6 +131,62 @@ describe('legendary machines', () => {
     expect(race.obstacles[0].struck).toBe(true);
     expect(p.hull).toBe(hull);
     expect(p.crushed).toBe(1);
+  });
+
+  it('a lesser shield never weakens Bulwark, and nothing slows a train inside it', () => {
+    const titan = makeMythic(makeRng(2), 'titan');
+    const HIGH = B.ABILITIES.bulwark.cut;
+    const LOW = B.COMBAT.barrier.cut;
+    expect(LOW).toBeLessThan(HIGH);
+    // Bulwark, then the Barrier spell on top: still Bulwark's cut, for Bulwark's whole time.
+    let race = field(titan, { rivals: 1 });
+    let p = playerOf(race);
+    stepRace(race, 2);
+    expect(useAbility(race)).toBe(true);
+    expect(shieldCut(p)).toBe(HIGH);
+    expect(playerCast(race, 'barrier')).toBe(true);
+    expect(shieldCut(p)).toBe(HIGH);
+    advance(race, B.ABILITIES.bulwark.seconds - 1);
+    expect(shieldCut(p)).toBe(HIGH);
+    expect(p.barrier).toBeGreaterThan(0);
+    stepRace(race, 1.5);
+    expect(shieldCut(p)).toBe(0);
+    // The Barrier first, then Bulwark: Bulwark's cut at once.
+    race = field(titan, { rivals: 1 });
+    p = playerOf(race);
+    stepRace(race, 2);
+    expect(playerCast(race, 'barrier')).toBe(true);
+    expect(shieldCut(p)).toBe(LOW);
+    expect(useAbility(race)).toBe(true);
+    expect(shieldCut(p)).toBe(HIGH);
+    // Bulwark nearly over, then the Barrier: Bulwark's cut for its last second, the Barrier's after.
+    race = field(titan, { rivals: 1 });
+    p = playerOf(race);
+    stepRace(race, 2);
+    useAbility(race);
+    advance(race, B.ABILITIES.bulwark.seconds - 1);
+    p.cooldown = {};
+    p.mp = 100;
+    expect(playerCast(race, 'barrier')).toBe(true);
+    expect(shieldCut(p)).toBe(HIGH);
+    stepRace(race, 1.5);
+    expect(shieldCut(p)).toBe(LOW);
+    // A Black Hole and a Siphon that landed before Bulwark went up: no weight, no slow, while it lasts.
+    race = field(titan, { rivals: 0, kind: 'delivery' });
+    p = playerOf(race);
+    advance(race, 30);
+    const free = p.vmax;
+    p.gravFor = 15;
+    p.gravLb = B.ABILITIES.blackhole.weight;
+    p.slowFor = 14;
+    stepRace(race, 0.2);
+    expect(p.vmax).toBeLessThan(free * 0.5);
+    expect(useAbility(race)).toBe(true);
+    stepRace(race, 0.2);
+    expect(p.vmax).toBeGreaterThan(free * 0.97);
+    advance(race, B.ABILITIES.bulwark.seconds);
+    expect(p.unstoppable).toBe(0);
+    expect(p.vmax).toBeLessThan(free * 0.5);
   });
 
   it('Plunder takes fuel and jams guns; Absolute Zero freezes the field; Maw eats obstacles', () => {
@@ -467,6 +523,53 @@ describe('the bounty board', () => {
     // A save from before 14 Nov marked the kill with a game day: such a boss is simply back.
     c.bounties.rustjaw = { kills: 1, best: 80, slainDay: 3 };
     expect(bossState(c, 'rustjaw').state).toBe('open');
+  });
+
+  it('a boss brought down while it is still closing in was fought for a moment, not for no time', () => {
+    const c = newConductor();
+    const ctx = { kind: 'bounty', bossId: 'rustjaw' };
+    const race = createRace({ ...buildRaceConfig(c, describeRun(c, ctx), 190), seed: 4 });
+    startRace(race);
+    let guard = 0;
+    while (race.boss.boss.state !== 'entering' && guard++ < 5000) stepRace(race, 0.1);
+    expect(race.boss.boss.state).toBe('entering');
+    // One huge hit lands before the fight proper has begun.
+    race.boss.hull = 0;
+    race.boss.out = true;
+    while (race.status === 'running' && guard++ < 10000) stepRace(race, 0.1);
+    expect(race.result.reason).toBe('slain');
+    expect(race.result.boss.seconds).toBe(1);
+    const receipt = actions.settleRun(c, { ctx, result: race.result, now: NOW });
+    expect(receipt.outcome).toBe('won');
+    expect(bossRecord(c, 'rustjaw').best).toBe(1);
+  });
+
+  it("a boss's fire heats the engine by what its card says, no more", () => {
+    const c = newConductor();
+    c.stats.miles = 20000;
+    c.bounties = Object.fromEntries(['rustjaw', 'frostmaw', 'devourer', 'bastion'].map((id) => [id, { kills: 1, best: 60, slainAt: null }]));
+    const ctx = { kind: 'bounty', bossId: 'vharzul' };
+    const run = describeRun(c, ctx);
+    expect(run.blocked).toBeNull();
+    const race = createRace({ ...buildRaceConfig(c, run, 190), seed: 2 });
+    startRace(race);
+    const p = playerOf(race);
+    p.hull = p.hullMax = 1e7;
+    const card = Object.fromEntries(B.BOSSES.vharzul.attacks.map((atk) => [atk.id, atk.heat ?? 0]));
+    const seen = {};
+    let guard = 0;
+    while (race.status === 'running' && guard++ < 40000 && Object.keys(seen).length < 2) {
+      const before = p.heat;
+      const landing = race.shots.filter((s) => s.to === 'player' && s.custom?.boss).map((s) => s.custom.boss);
+      stepRace(race, 0.05, 0.05);
+      const hits = race.fx.filter((f) => f.type === 'hit' && f.to === 'player' && !f.dot).length;
+      race.fx.length = 0;
+      // One hit of one attack in this slice: the heat it added is that attack's own.
+      if (hits === 1 && new Set(landing).size === 1 && p.heat > before + 1) seen[landing[0]] = Math.round(p.heat - before);
+      p.heat = Math.min(p.heat, 20);
+    }
+    expect(Object.keys(seen).length).toBeGreaterThan(0);
+    for (const [id, heat] of Object.entries(seen)) expect(Math.abs(heat - card[id])).toBeLessThanOrEqual(1);
   });
 
   it('giving up in the moments after the kill is still the kill', () => {
