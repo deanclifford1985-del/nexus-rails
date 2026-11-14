@@ -158,8 +158,6 @@ async function main() {
   if (production) {
     const dist = path.join(root, 'dist');
     app.use(express.static(dist, { index: false, maxAge: '1h' }));
-    // Iron Dawn (the military RPG) is a second page of the same build.
-    app.get(['/irondawn', '/irondawn/'], (req, res) => res.sendFile(path.join(dist, 'irondawn', 'index.html')));
     app.get('*', (req, res) => res.sendFile(path.join(dist, 'index.html')));
   } else {
     const { createServer } = await import('vite');
