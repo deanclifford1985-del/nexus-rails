@@ -114,7 +114,9 @@ export function refreshWorld(conductor, { now }) {
     placeJobs(conductor, rng);
     const done = conductor.research.justDone;
     if (done) delete conductor.research.justDone;
-    return { researchDone: done ?? null };
+    const leftRun = conductor.leftRun ?? null;
+    if (leftRun) delete conductor.leftRun;
+    return { researchDone: done ?? null, leftRun };
   });
 }
 
@@ -608,7 +610,15 @@ export function payEntry(conductor, { ctx }) {
   return { fee };
 }
 
-export function settleRun(conductor, { ctx, result, now }) {
+export function settleRun(conductor, { ctx, result, now, left = false }) {
+  const receipt = settle(conductor, { ctx, result, now });
+  // Settled as the page was closing (a reload, a closed tab): a note for the next visit, which
+  // would otherwise open on a run that has simply vanished.
+  if (left) conductor.leftRun = { title: receipt.title, outcome: receipt.outcome };
+  return receipt;
+}
+
+function settle(conductor, { ctx, result, now }) {
   const J = B.JOBS;
   const receipt = {
     kind: ctx.kind,

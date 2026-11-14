@@ -41,7 +41,7 @@ function abilitiesOf(kind, d) {
     .map((t, i) => ({ key: `${t.id}-${i}`, name: `${t.rarity === 'profound' ? 'Profound ' : t.rarity === 'infused' ? 'Half ' : ''}${TRAITS[t.id].name}`, text: TRAITS[t.id].text, tone: 'trait' }));
 }
 
-export default function GameCard({ kind, data, rarity, serial, size = 'md', footer, children, className = '' }) {
+export default function GameCard({ kind, data, rarity, rarityLabel, serial, size = 'md', footer, children, className = '' }) {
   const d = data;
   const r = rarity ?? d.rarity ?? 'uncommon';
   const rating = ratingOf(kind, d);
@@ -64,7 +64,7 @@ export default function GameCard({ kind, data, rarity, serial, size = 'md', foot
             <span className="gcard-power-num">{rating.toLocaleString()}</span>
             <span className="gcard-power-lbl">Power</span>
           </div>
-          <span className="gcard-rarity">{B.RARITY[r]?.label ?? (r === 'common' ? 'Rookie' : r)}</span>
+          <span className="gcard-rarity">{rarityLabel ?? B.RARITY[r]?.label ?? (r === 'common' ? 'Rookie' : r)}</span>
           {r === 'legendary' || r === 'epic' ? <span className="gcard-foil" aria-hidden="true" /> : null}
         </div>
         <div className="gcard-body">

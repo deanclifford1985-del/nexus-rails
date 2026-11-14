@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import {
-  accelFuelMult,
   castBlocker,
   bootStatus,
   heatPenalty,
@@ -210,6 +209,17 @@ export default function Race() {
     return () => window.clearTimeout(timer);
   }, [count, race, paused]);
 
+  // The run is settled exactly once, by whichever asks first: the result timer below, or the page
+  // being closed. `left` marks a run settled on the way out, so the next visit can say so.
+  const paid = useRef(null);
+  const settleOnce = useCallback(
+    (left = false) => {
+      if (!paid.current) paid.current = { receipt: act('settleRun', { ctx: screen.ctx, result: race.result, ...(left ? { left: true } : {}) }) };
+      return paid.current.receipt;
+    },
+    [act, race, screen.ctx],
+  );
+
   // When the engine reports a finish, show the result for a moment, settle once and show the receipt.
   useEffect(() => {
     if (race.status !== 'finished' || settled.current) return;
@@ -227,14 +237,21 @@ export default function Race() {
     setToast({ text, until: Date.now() + 2300 });
     if (result.reason !== 'forfeit') (result.place === 1 && !result.derailed && !(result.boss && !result.boss.slain) ? sfx.win : sfx.lose)();
     // No cleanup on purpose: the HUD redraws ten times a second and this timer must survive that.
-    window.setTimeout(
-      () => {
-        const receipt = act('settleRun', { ctx: screen.ctx, result });
-        go('receipt', { receipt, ctx: screen.ctx });
-      },
-      result.reason === 'forfeit' ? 600 : 2400,
-    );
+    window.setTimeout(() => go('receipt', { receipt: settleOnce(), ctx: screen.ctx }), result.reason === 'forfeit' ? 600 : 2400);
   });
+
+  // Leaving the page in the middle of a run (a reload, a closed tab, the Back button) settles it
+  // there and then: as given up, or as its result if the engine had already called one. Otherwise
+  // a run that is going badly could be thrown away at no cost by reloading, entry fee and all.
+  // Before the flag drops nothing has been spent, and nothing is settled.
+  useEffect(() => {
+    const leave = () => {
+      if (race.status === 'running') forfeitRace(race);
+      if (race.status === 'finished') settleOnce(true);
+    };
+    window.addEventListener('pagehide', leave);
+    return () => window.removeEventListener('pagehide', leave);
+  }, [race, settleOnce]);
 
   // The guided first run: the engine stops at a prompt; the screen shows it until the player reads it.
   const guide = race.guide;
@@ -394,6 +411,7 @@ export default function Race() {
   const spotted = race.obstacles.filter((item) => item.seen && !item.destroyed && !item.struck && item.at >= player.distance);
   const rock = spotted[0] ?? null;
   const longest = Math.max(0, ...attacks.map((key) => armOf(player, key).range ?? 0));
+  const benchLead = bench ? Math.max(0, bench.distance - player.distance) : 0;
   const cine = sceneRef.current?.cineState?.() ?? null;
   const bend = bendAt(race.course, player.distance);
   const hillNow = hillAt(race.course, player.distance);
@@ -409,21 +427,44 @@ export default function Race() {
   const hasCharge = player.chargeMax > 0;
   const hasSpells = player.arms.some((kind) => C[kind]?.use === 'mp');
   const weight = player.baseWeight + player.cargo + player.fuel * B.LOCO.fuelLbPerGallon;
-  const ratio = player.vmax > 0 ? player.speed / player.vmax : 1;
-  const galPerMile = (weight / 2000 / player.tmpg) * leverFuelMult(player.lever) * accelFuelMult(ratio);
   const remaining = Math.max(0, race.distance - player.distance);
-  const rangeLeft = galPerMile > 0 ? player.fuel / galPerMile : 0;
   const limitLeft = race.timeLimit ? Math.max(0, race.timeLimit - race.game) / B.TIME_SCALE : null;
   // ETA: re-run twice a second from where the train is, at the current lever, bends included.
   const etaRef = useRef({ at: 0, value: null });
-  if (race.status === 'running' && !player.parked && Date.now() - etaRef.current.at > 500) etaRef.current = { at: Date.now(), value: projectFinish(race) };
-  const eta = race.status === 'running' && !player.parked ? etaRef.current.value : null;
+  const projecting = (race.status === 'running' || race.status === 'ready') && !player.parked;
+  if (projecting && Date.now() - etaRef.current.at > 500) etaRef.current = { at: Date.now(), value: projectFinish(race) };
+  const projection = projecting ? etaRef.current.value : null;
+  const eta = race.status === 'running' ? projection : null;
+  // How far the fuel on board goes. Pulling away burns several times the cruising rate, so the
+  // burn of this instant says nothing about the run: the range comes from the same projection as
+  // the ETA (the rest of the run, driven as it will be). With no projection (a parked train, a
+  // finished run), from the cruising rate.
+  const cruisePerMile = (weight / 2000 / player.tmpg) * leverFuelMult(player.lever);
+  const rangeLeft = !projection
+    ? cruisePerMile > 0
+      ? player.fuel / cruisePerMile
+      : 0
+    : projection.dryAt !== null
+      ? Math.max(0, projection.dryAt - player.distance)
+      : projection.fuelUsed > 0
+        ? Math.max(remaining, (remaining * player.fuel) / projection.fuelUsed)
+        : remaining;
+  const fuelShort = projection ? projection.dryAt !== null : rangeLeft < remaining;
   // Estimates are ranges; Intelligence narrows them. A fixed key per race keeps them steady.
   const band = screen.config.player.band ?? 0.02;
   const etaEst = eta && eta.realSeconds !== null ? estimateRange(eta.realSeconds, band, `${race.title}-eta`) : null;
   const spare = etaEst && limitLeft !== null ? { lo: limitLeft - etaEst.hi, hi: limitLeft - etaEst.lo } : null;
   const rangeEst = estimateRange(rangeLeft, band, `${race.title}-range`);
   const dry = race.status === 'running' && player.fuel <= 0 && player.speed < 1 && !race.emergency;
+  // Out of fuel: what the rest of the run would burn from a standstill, worked out once as the
+  // train stops (the same projection, given fuel to spare), with a tenth on top.
+  const needRef = useRef(null);
+  if (!dry) needRef.current = null;
+  else if (!needRef.current) {
+    const rest = projectFinish(race, { fuel: player.tank });
+    const covered = rest.dryAt === null ? remaining : Math.max(0.1, rest.dryAt - player.distance);
+    needRef.current = { gallons: Math.max(1, Math.ceil((rest.fuelUsed / Math.max(0.1, covered)) * remaining * 1.1)) };
+  }
   const showToast = toast && Date.now() < toast.until ? toast.text : paused ? 'Paused' : null;
   const done = race.status === 'finished';
 
@@ -663,7 +704,10 @@ export default function Race() {
                   // Before the start nothing has been spent, so simply step back to the setup screen.
                   if (race.status === 'ready') {
                     settled.current = true;
-                    go('setup', { ctx: screen.ctx });
+                    // Trials and festival contests start from their own boards, not a start-line screen.
+                    if (screen.ctx.kind === 'trial') go('jobs', { tab: 'races:trials' });
+                    else if (screen.ctx.festival !== undefined) go('festival');
+                    else go('setup', { ctx: screen.ctx });
                   } else forfeitRace(race);
                 }}
                 onBlur={() => setConfirmQuit(false)}
@@ -859,13 +903,13 @@ export default function Race() {
               </>
             ) : null}
             <span className="r3-lbl">Fuel</span>
-            <Bar kind="fuel" value={player.fuel} max={Math.max(player.fuelStart, player.fuel)} low={rangeLeft < remaining} />
+            <Bar kind="fuel" value={player.fuel} max={Math.max(player.fuelStart, player.fuel)} low={fuelShort} />
             <span>{fmt(player.fuel, player.fuel < 100 ? 1 : 0)}</span>
             <span className="r3-lbl">Heat</span>
             <Bar kind={player.heat >= 100 ? 'heat over' : player.heat >= 50 ? 'heat warm' : 'heat'} value={Math.min(100, player.heat)} max={100} low={player.heat >= 100} />
             <span className={player.heat >= 100 ? 'r3-danger' : ''}>{fmt(player.heat)}%</span>
           </div>
-          <div className={`r3-sub ${rangeLeft < remaining ? 'r3-danger' : ''}`}>
+          <div className={`r3-sub ${fuelShort ? 'r3-danger' : ''}`}>
             {race.freeFuel ? 'Free fuel' : `gal · good for ${range(rangeEst)} of ${fmt(remaining, 1)} mi`}
           </div>
           {player.heat >= 50 ? (
@@ -971,7 +1015,8 @@ export default function Race() {
                   Benchmark has opened its lever and is pulling away, {fmt(Math.max(0, bench.distance - player.distance), 2)} mi ahead. You will not out-run a better locomotive on the straight, so use your weapons to your advantage.
                 </p>
                 <p>
-                  Tap <b>{attacks.length ? labelOf(attacks[0]) : 'your weapon'}</b> (or press 1){longest > 0 ? `: it reaches ${fmt(longest, 1)} mi, and Benchmark is in range` : ''}.
+                  Tap <b>{attacks.length ? labelOf(attacks[0]) : 'your weapon'}</b> (or press 1)
+                  {longest > 0 ? (benchLead <= longest ? `: it reaches ${fmt(longest, 1)} mi, and Benchmark is in range` : `: it reaches ${fmt(longest, 1)} mi. Benchmark is further off than that, so open your lever (W) and close the gap first`) : ''}.
                 </p>
               </>
             )}
@@ -1003,7 +1048,15 @@ export default function Race() {
       ) : null}
       {guide && guide.stage === 'weapons' && !prompt ? (
         <div className="r3-guide-hint" role="status">
-          Fire! Tap <b>{attacks.length ? labelOf(attacks[0]) : 'a weapon'}</b> to hit Benchmark
+          {longest > 0 && benchLead > longest ? (
+            <>
+              Close the gap: open your lever. Your guns reach {fmt(longest, 1)} mi and Benchmark is {fmt(benchLead, 1)} mi ahead
+            </>
+          ) : (
+            <>
+              Fire! Tap <b>{attacks.length ? labelOf(attacks[0]) : 'a weapon'}</b> to hit Benchmark
+            </>
+          )}
         </div>
       ) : null}
       {guideNote && Date.now() < guideNote.until ? (
@@ -1041,7 +1094,7 @@ export default function Race() {
               })}
             </div>
             <p className="r3-sub" style={{ textAlign: 'left' }}>
-              The last {fmt(remaining, 1)} miles need about {fmt(Math.max(1, Math.ceil(remaining * galPerMile * 1.15)))} gallons.
+              The last {fmt(remaining, 1)} miles need about {fmt(needRef.current?.gallons ?? 1)} gallons.
             </p>
             <button type="button" className="r3-cmd" onClick={() => forfeitRace(race)}>
               <span className="r3-cur">▶</span>

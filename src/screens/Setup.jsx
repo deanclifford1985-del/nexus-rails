@@ -8,6 +8,7 @@ import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import { avgFuelCost } from '../game/conductor.js';
 import { pumpPrice } from '../game/economy.js';
+import { canTakeFuelAdvance } from '../game/actions.js';
 import { entryFee } from '../game/jobs.js';
 import { buildRaceConfig, describeRun } from '../game/setup.js';
 import { hasTrait } from '../game/traits.js';
@@ -98,11 +99,12 @@ function TaleOfTheTape({ conductor, run }) {
       <p className="small muted">Your conductor is far stronger.</p>
       <h4 className="tape-sub">On the line, everything counted</h4>
       {rows([
-        ['Top speed', Math.round(final.topSpeed), Math.round(theirs.topSpeed), 'mph'],
+        ['Rated top speed', Math.round(final.topSpeed), Math.round(theirs.topSpeed), 'mph'],
         ['Full speed after', Math.round(final.accelMiles * 10) / 10, Math.round(theirs.accelMiles * 10) / 10, 'mi', (v) => fmt(v, 1), true],
         ['Bend grip', Math.round(final.grip * 100), Math.round(theirs.grip * 100), '%'],
         ['Hull', Math.round(final.hull), Math.round(theirs.hull), 'HP'],
       ])}
+      <p className="small muted">Both are rated pulling the same {fmt(B.LOCO.quoteCargoLb)} lb, so they compare fairly. What you will do with this run's own load is under This load.</p>
       <p className="small">
         Your conductor makes you about {fmt((1 - T.ratio) * 100)}% quicker on the line. Benchmark is still stronger off the mark, and it carries a cannon: you carry {final.arms.length ? final.arms.map((a) => ARM_NAMES[a] ?? a).join(' and ') : 'nothing yet'}.
       </p>
@@ -150,6 +152,9 @@ export default function Setup() {
   const reserveAfter = conductor.fuel.gallons - load;
   const shortfall = Math.max(0, Math.ceil(suggested - run.maxLoad));
   const pump = pumpPrice(conductor, shortfall);
+  const pumpCost = Math.ceil(shortfall * pump * 10) / 10;
+  const canPump = conductor.lt >= pumpCost;
+  const advance = canTakeFuelAdvance(conductor);
   const limitReal = run.timeLimit ? run.timeLimit / B.TIME_SCALE : null;
   const willBeLate = limitReal !== null && timeEst.lo > limitReal;
   const mayBeLate = limitReal !== null && timeEst.hi > limitReal;
@@ -385,9 +390,29 @@ export default function Setup() {
                   <span>
                     Your reserve is {fmt(shortfall)} gallons short of the plan. The trackside pump sells at {fmt(pump, 2)} LT a gallon.
                   </span>
-                  <button type="button" className="btn btn-brass btn-sm" onClick={buyShortfall}>
+                  <button type="button" className="btn btn-brass btn-sm" onClick={buyShortfall} disabled={!canPump}>
                     <Fuel aria-hidden="true" />
-                    Buy {fmt(shortfall)} gal for {lt(Math.ceil(shortfall * pump * 10) / 10)} LT
+                    {canPump ? `Buy ${fmt(shortfall)} gal for ${lt(pumpCost)} LT` : `${fmt(shortfall)} gal costs ${lt(pumpCost)} LT: you have ${lt(conductor.lt)}`}
+                  </button>
+                  {!canPump && !advance ? <span className="small muted">Short of LocoTokens? The Proving Grounds (Dispatch, Races) cost nothing to run and pay for a medal, and gear sells for half its price in the Eng. Bay.</span> : null}
+                </div>
+              ) : null}
+              {advance ? (
+                <div className="note stack-sm">
+                  <span>
+                    Out of fuel and short of money. The company will front you {B.FUEL.advanceGallons} gallons and take {fmt(B.FUEL.advanceGallons * B.FUEL.base)} LT back out of your next pay.
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-brass btn-sm"
+                    onClick={() => {
+                      if (!act('takeFuelAdvance')) return;
+                      notify(`${B.FUEL.advanceGallons} gallons added to your reserve.`, 'good');
+                      setFuel(suggested);
+                    }}
+                  >
+                    <Fuel aria-hidden="true" />
+                    Take the fuel advance
                   </button>
                 </div>
               ) : null}

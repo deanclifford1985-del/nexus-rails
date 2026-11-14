@@ -84,12 +84,16 @@ export function GameProvider({ children }) {
       const current = savesRef.current;
       if (!current.slots[slot]) return;
       const conductor = structuredClone(current.slots[slot]);
-      actions.refreshWorld(conductor, { now: Date.now() });
+      const report = actions.refreshWorld(conductor, { now: Date.now() });
       const slots = current.slots.slice();
       slots[slot] = conductor;
       commit({ slots, active: slot });
+      // A run that was under way when the page was last closed was settled there and then.
+      const left = report?.leftRun;
+      if (left) notify(left.outcome === 'forfeit' ? `You left "${left.title}" under way, so it was settled as given up: the fuel it had burned is gone.` : `Your last run, "${left.title}", was settled when you left the page.`, 'info', 9000);
+      if (report?.researchDone) notify(`${RESEARCH[report.researchDone.category].name} tier ${report.researchDone.tier} complete.`, 'good');
     },
-    [commit],
+    [commit, notify],
   );
 
   const deleteSlot = useCallback(

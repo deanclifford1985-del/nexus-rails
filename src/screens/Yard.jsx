@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClipboardList, Plus } from 'lucide-react';
+import { ClipboardList, Plus, Users } from 'lucide-react';
 import { B } from '../game/balance.js';
 import { useGame } from '../state/store.jsx';
 import { ATTRIBUTES, activeLoco, avgFuelCost, xpForLevel } from '../game/conductor.js';
@@ -47,7 +47,14 @@ export default function Yard() {
             <span className="label">Conductor licence</span>
             <span className="stamp gold">Level {conductor.level}</span>
           </div>
-          <div className="licence-name">{conductor.name}</div>
+          <div className="spread">
+            <div className="licence-name">{conductor.name}</div>
+            {/* The title screen holds the other save slots: a second conductor, switching, deleting. */}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => go('title')}>
+              <Users aria-hidden="true" />
+              {IS_NFT ? 'Change Captain' : 'Change conductor'}
+            </button>
+          </div>
           <div>
             <div className="spread small">
               <span className="label">Experience</span>
@@ -62,7 +69,7 @@ export default function Yard() {
               <b>
                 {conductor.attributePoints} attribute point{conductor.attributePoints === 1 ? '' : 's'} to spend.
               </b>{' '}
-              Add it to one of the three below.
+              Add it to any of the attributes below.
             </p>
           ) : null}
           <div className="attr-row">
@@ -195,7 +202,7 @@ export default function Yard() {
       <section className="plate stack">
         <div className="plate-head">
           <h3>Card collection</h3>
-          <span className="muted small">Power ratings: Uncommon about 500 to 900, Legendary about 6,000</span>
+          <span className="muted small">Power ratings: Uncommon about 500 to 900, Legendary about 6,000{IS_NFT ? '' : '. Your conductor is rated on the attributes and traits you rolled, not on a grade'}</span>
         </div>
         <div className="gcard-grid">
           {conductor.locos.map((item) => (
@@ -209,7 +216,7 @@ export default function Yard() {
           ))}
           {IS_NFT
             ? (conductor.crew ?? []).map((c) => <GameCard kind="crew" data={c} key={c.id} size="sm" serial={c.nftId ?? 'Rookie'} />)
-            : <GameCard kind="crew" data={{ ...conductor, id: `captain-${conductor.createdAt}`, rarity: 'uncommon' }} size="sm" serial={`Level ${conductor.level}`} />}
+            : <GameCard kind="crew" data={{ ...conductor, id: `captain-${conductor.createdAt}`, rarity: 'uncommon' }} rarityLabel="Conductor" size="sm" serial={`Level ${conductor.level}`} />}
         </div>
       </section>
 

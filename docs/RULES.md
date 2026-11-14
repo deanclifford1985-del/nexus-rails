@@ -59,7 +59,7 @@ Technician, Mechanic and Team Player are defined but switched off (`enabled: fal
 | Agility | +0.5% fuel economy, and 0.5% lighter locomotive | #104, #209 |
 | Intelligence | +1% research speed, and each LT invested in research counts 0.5% more | #138 |
 
-One point per level, spent on any of the three (#46).
+One point per level, spent on any of the four (#46; Endurance joined on 5 Nov).
 
 ## Locomotives
 
@@ -112,7 +112,8 @@ Armor makes a locomotive heavier (slower) and lets it tow more and take more hit
 | Contract races | 3 to 6 rivals with locomotives within one point of yours on each stat | #76, #235 |
 | Out of fuel | Emergency fuel at 5 LT a gallon. The truck takes 4 seconds + 0.1 per mile travelled (20 max), then 0.05 seconds a gallon. The clock keeps running. | #81, timings shortened |
 | Unused fuel | Goes back to the reserve | #206 |
-| Forfeit | You lose the fuel burned. The job stays on the board. A fuel truck that has not arrived is not charged. | **new** |
+| Forfeit | You lose the fuel burned. The job stays on the board. A fuel truck that has not arrived is not charged. Before the flag drops nothing has been spent: giving up there steps back to where the run was started. | **new** |
+| Leaving mid-run | Reloading or closing the page while a run is under way settles it there and then: as given up, or as its result if the run had just ended. The next visit says so. (Otherwise a run going badly could be thrown away at no cost, entry fee and all.) Leaving during the 3-2-1 changes nothing. A browser that dies without warning cannot be caught: that run is simply gone. | **new** 14 Nov |
 | First run | 25 miles against Benchmark, pulling a 5,000 lb test car each. Benchmark is your own model, graded Rare, with +2 Efficiency, Armor and Endurance (a better locomotive) and a conductor with 30% of your attributes (a worse one), its engine tuned so it is 10% slower than you on the line. The setup screen compares both trains before the conductors, both conductors, and the result. It is a guided lesson: weapons are locked until lesson 2; Benchmark's better locomotive gets away first; at the first bend the race pauses to explain bends, Agility and acceleration; after it Benchmark surges to a 0.3 mi lead and the race pauses again ("You are losing ground") to tell you to use your weapons. From then your hits do 5× damage and the first one cripples Benchmark (half top speed for the rest of the run); it holds its fire until then. 150 LT and 375 XP for a win, 75 XP for a loss. | Dean, 5 Nov |
 | Time warp | 1x, 2x, 4x button in the race, for testing | **new** |
 | ETA | In the race: the time to the line from where you are, at the current lever, bends and fuel included (re-worked twice a second), against the time left, as time to spare or time late. Warns if the fuel will run out first. | Dean, 3 Nov |
@@ -153,7 +154,7 @@ Every rule here is **new**: the old game listed combat as not built. Spells belo
 | Targets | The nearest train in range. Rivals fight each other as well as you. | **new** |
 | Rival kit | A cannon and fuel storage; 45% also a plasma lance, 30% a shield, 35% an ammo crate | **new** |
 | Rival tactics | Think every 1.4-3.2 s (slower in a big field). 38% the big hit first (Bolt or Heavy Cannon), a shield at under 65% HP when something is incoming. | Duel |
-| Knock-off reward | +60 XP per rival knocked off the rails | **new** |
+| Knock-off reward | +60 XP per rival you knock off the rails yourself (kill credit: the last hit). A rival wrecked by another train is worth nothing to you. | **new**; credit 14 Nov |
 | Keys | 1-6 the commands in the order shown, F first weapon, B Bolt, R shield or Barrier, Q the locomotive's signature ability (Siphon Speed on the Phoenix; see the 13 Nov section), Up/W and Down/S the lever, C camera, P pause | Duel |
 
 Simulated with a starter engine and a player who fires about once a second: contract races are won 16% (36% at 110%). Starters with only their 3 rounds crash into about two thirds of obstacles and are knocked off the rails on about 1 delivery in 9; ammo crates, a plow and radar fix that. On rockfall deliveries, the starting 3 rounds clear about three boulders in four; the rest need ammo crates or a plasma lance.
@@ -167,7 +168,7 @@ All **new** (Dean, 3 Nov), numbers are first guesses.
 | Calendar | Day, Month, Year. 30-day months, 12-month years, 7-day weeks. A new conductor starts on Day 1, Month 1, Year 1 at 06:00. | Dean |
 | Time from runs | Each run takes its trip time on the line plus a 30-hour turnaround (loading, unloading, rest): about a day and a half for a typical run. Festival contests take 3 hours; a test drive 2. | Dean |
 | Time from the real clock | 1 real hour = 4 game hours, playing or away. A long absence moves the calendar at most 30 days. | Dean |
-| Rest | The yard can rest 12 hours or 3 days, to let research run | **new** |
+| Rest | The yard can rest 12 hours or 3 days, to let research run. Resting moves the game calendar and everything on it (the board, the depot, the week's orders, the World Open's week). It does not move the real clock: freight income and a boss's return wait for real time. | **new** |
 | Weekly turnover | Each game week: a new job board, fuel price and depot delivery (400-1,500 gallons), station lot, and Armory weapon offers | Dean |
 | Weekly deal | 85% of weeks: fuel 30% off, containers 25% off, repairs 40% off, or a free Ammo Crate | Dean |
 | Locomotive Festival | Days 1-3 of months 3, 6, 9 and 12: about 60 runs apart | Dean |
@@ -217,7 +218,7 @@ All **new** (Dean, 3 Nov), numbers are first guesses.
 | Trackside pump | Always available at the start line, 25% dearer | #201, markup is **new** |
 | Reserve | Bought fuel goes in at what you paid. Trips are costed at the reserve's weighted average. | #37 |
 | Cargo container | 2,000 LT | #35, Dean |
-| Fuel advance | 60 gallons fronted when you have under 25 gallons and cannot afford 60 at the pump. 120 LT comes back out of your next pay. One at a time. | **new**, stops a dead end |
+| Fuel advance | 60 gallons fronted when you have under 25 gallons and cannot afford 60 at the pump. 120 LT comes back out of your next pay. One at a time. Offered at the Market and on the start line, where a broke conductor is standing. | **new**, stops a dead end |
 
 ## Progress
 
@@ -475,7 +476,7 @@ Eight fixed engines, each on a 3D turntable in the Station's Hall of Legends. On
 
 | Rule | As built |
 |---|---|
-| The ability button | One per machine, key Q. It costs no MP, charge or ammo and recharges on its own clock (the real seconds in brackets above). It cannot be used while frozen, or with nothing in reach. |
+| The ability button | One per machine, key Q. It costs no MP, charge or ammo and recharges on its own clock (the real seconds in brackets above). It cannot be used while frozen. Six of the eight need something in reach and say so when there is nothing; Bulwark and Absolute Zero work at any time, on any run (Absolute Zero also drops your own engine's heat to nothing, like the cooling spells, which work with nothing to fight too). |
 | Ability damage | Tempest, Inferno and Black Hole grow with the conductor's Intelligence like spells (+2% a point). Maw and Black Hole ignore armor. |
 | Forging | A boss's relic builds its machine for half the list price. A forged machine is worth what was paid for it, so it sells back for half of that, like anything else. |
 | Rivals use them | The World Open champions drive these machines and use the ability when it has something to do: Siphon Speed when a rival within 2 miles is ahead; Black Hole when one in reach is ahead or close behind; Bulwark when shots are incoming and its hull is under 75%; Absolute Zero about half the time an enemy is in reach (always, if its own engine is hot); Maw at point-blank; the rest whenever an enemy is in reach. |
@@ -506,8 +507,8 @@ A boss is not raced. It shows itself 2.5 miles into the run, takes 3 seconds to 
 | Escape | A boss fights for the time in the table, then breaks off. No bounty for a boss that got away or knocked you off the rails; the fight is still worth up to a quarter of its XP, by how much of its hull you took. |
 | What the attacks do | Rustjaw: Scrap Cannon (aimed, 22-30), Grappling Hooks (8-12 and a 25% slow for 5 s), Broadside (4 x 14-18, charged). Frostmaw: Frost Breath (22-30 and a 30% slow, cannot be dodged), Ice Wall (drop), Hailstorm (5 x 8-12, charged). Dune Devourer: Acid Spit (aimed, 18-26 and a stack of Poison), Eruption (aimed, 50-65), Sandstorm (8-12, 12 heat, 20% slow), Swallow Whole (100-130, charged). Iron Bastion: Gun Battery (aimed, 3 x 22-30), Mine Mortar (2 mines), Aegis, Railgun (140-180, half armor penetration, charged). Vharzul: Dragonfire (38-50, 3 Burn, 10 heat), Dive Bomb (aimed, 95-120), Wing Gust (12-18, 35% slow for 6 s), Meteors (2 large rocks), Cataclysm (6 x 32-42 with Burn, charged). |
 | Rewards | The first kill pays the bounty in full, its XP, a weapon and the relic. Later kills pay 40% of the bounty, half the XP and a weapon one grade lower. No entry fee; fuel and wear are charged as on any run. Licence pay does not apply. |
-| Return | A boss brought down is back on its line 7 game days later. |
-| Raiders | A boss at large takes 25% of what a freight route on its line brings in. The Empire map marks it with a red skull. |
+| Return | A boss brought down is back on its line 20 hours later, counted from the end of the fight. **Real hours, like the freight's**: resting, running jobs and forfeits do not bring it back sooner. (On the game calendar a boss could be rested back at once: a new conductor farmed Rustjaw from 500 LT to 205,000 LT in a quarter of an hour of fights.) The bounty board counts it down. |
+| Raiders | A boss at large takes 25% of what a freight route on its line brings in. The Empire map marks it with a red skull. Bringing it down clears the line for exactly the 20 hours it is away: time with the game closed is paid clear for that part and raided for the rest. |
 | Start line | A hunt defaults to a full tank (missiles burn fuel, and the fight can last the whole run), and the briefing lists each attack and how to answer it. |
 | In the race | A boss bar under the top buttons (hull, armor, time left before it escapes), a warning banner with the fuse and the break bar, the boss as its own 3D model (two war-trains, two wyrms that fly beside the line, a sand wurm), and a diamond for it on the course map. |
 | Simulated | With a player who fires whenever something is ready, shields what cannot be dodged and dodges 7 aimed attacks in 10. Rustjaw: a starter engine with its starting kit wins every time, with about half its hull left (a fifth if it never dodges). Frostmaw: a starter cannot hurt it enough; a mid-game Rare with a cannon, plasma lance and shield wins about half the time; a strong Epic every time. The Dune Devourer: a strong Epic wins about 9 times in 10 if it dodges and about 1 in 10 if it does not; a kitted Legendary every time. The Iron Bastion: a kitted Legendary or the Phoenix about half the time. Vharzul: the Phoenix about 4 times in 10 and a kitted Legendary about 1 in 4, both without full workshop stages or Ordnance research, which is what the last stretch is for. A real player fires less cleanly than the simulation, so expect these to be a little harder in play. |
@@ -537,10 +538,10 @@ A railway company: terminals in the real cities of the rail map, and the locomot
 
 | Rule | As built |
 |---|---|
-| Orders | Four different orders are posted with each game week, drawn from the eleven below. Each pays LT and XP when claimed. An order not finished and claimed when the week turns is gone. |
+| Orders | Four different orders are posted with each game week, drawn from the eleven below. Each pays LT and XP when claimed. An order not finished and claimed when the week turns is gone. A run counts for the week it ends in: one that runs past the week's end goes towards the new week's orders. |
 | Tier | Orders are sized to the conductor: tier 1 to 4, the higher of the licence held (Apprentice 1, Fireman's 2, Engineer's 3, Road Foreman or better 4) and one tier for every five levels (level 6, 11, 16). |
 | Bonus | All four finished and claimed: half their LT again and a weapon for the shelf (Rare at tiers 1 and 2, Epic at tiers 3 and 4). |
-| What counts | Every settled run except a forfeit counts towards all four at once: deliveries, contract jobs and races, prize races, express legs, bounties, the World Open. Trials count their obstacles, knock-offs and damage. Festival contests do not count. |
+| What counts | Every settled run except a forfeit counts towards all four at once: deliveries, contract jobs and races, prize races, express legs, bounties, the World Open. Trials count their obstacles, knock-offs and damage. Festival contests do not count. Knock-offs are the rivals you put off the rails yourself. |
 | Milestones | Thirteen ladders. Each rung pays its LT once, and half as much XP. |
 
 | Order | Target by tier | LT by tier | XP by tier |
@@ -620,7 +621,7 @@ Twelve races on real routes around the world, shown on a world map. Anyone may e
 |---|---|
 | The champion | Drives its legendary machine tuned to the class of the event: Power 2 over the field's, 1 over on everything else, the same workshop stages, and a steady 95% on the lever. It uses its signature ability. The same event always has the same field, so it can be learned. |
 | Entry | Paid at the start line and not refunded, as for any race. A forfeit keeps your entry for the rest of that week. |
-| Once a week | Each event can be run to a result once a game week. |
+| Once a week | Each event can be run to a result once a game week (the game calendar's week, so resting brings the next one; the race still has to be run and won). |
 | Trophy | The first win of an event takes its trophy: the winner's purse is paid a second time, and the trophy counts 500 towards the empire rating for good. |
 | Beating the champion | Finishing ahead of the champion without winning adds a quarter of the win's experience. |
 | Licence pay | Applies to the purse, as on other races. |
@@ -629,7 +630,8 @@ Twelve races on real routes around the world, shown on a world map. Anyone may e
 ### Small things
 
 - **Receipts** show the bounty, relic, trophy or medal won, and the champion you did or did not beat. Free-fuel runs (trials, festival contests) no longer show fuel going "back in reserve".
-- **Kill credit:** whoever lands the last hit on a train gets the credit for knocking it off (Burn and Poison ticks count for whoever hit it last).
+- **Kill credit:** whoever lands the last hit on a train gets the credit for knocking it off (Burn and Poison ticks count for whoever hit it last). The Iron Brawl's score, the "Knock rivals off the rails" order, the Wrecker milestone and the +60 XP all follow it.
+- **A boss kill stands:** giving up (or closing the page) in the moments between the kill and the end of the run is still the kill.
 - **Crate conductors' traits (Nexus Rail):** a conductor from a crate stores its traits as plain names. Those traits did nothing in a race and broke the conductor's card on the Fleet screen. Both are fixed, and such traits are converted when the save is opened.
 - **The Iron Titan's hull bonus** was still shown as +1,200 HP after the 4 Nov rescale; it is +350, and now says so.
 - **Old saves:** version 7. A save from version 6 or earlier gets the two new research lines at tier 0 and empty records for bounties, relics, trophies and trials, and its orders are posted when it is next opened. Nothing else changes.

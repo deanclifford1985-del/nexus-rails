@@ -250,6 +250,24 @@ describe('race engine', () => {
     expect(need.fuelUsed).toBeLessThan((driven.fuelUsed - usedSoFar) * 1.5);
   });
 
+  it('a run settled as the page closes leaves a note for the next visit, once', () => {
+    const c = newConductor();
+    const job = c.board.simple[0];
+    const result = { kind: 'delivery', reason: 'forfeit', finished: false, place: 1, field: 1, distance: 4, raceDistance: job.distance, gameSeconds: 600, realSeconds: 24, underLimitPct: 0, fuelLoaded: 40, fuelUsed: 9, fuelLeft: 31, emergencyGallons: 0, emergencyCost: 0, standings: [] };
+    const fuel = c.fuel.gallons;
+    const receipt = actions.settleRun(c, { ctx: { kind: 'delivery', jobId: job.id }, result, now: NOW, left: true });
+    expect(receipt.outcome).toBe('forfeit');
+    expect(c.fuel.gallons).toBeCloseTo(fuel - 9, 6);
+    expect(c.leftRun).toEqual({ title: job.title, outcome: 'forfeit' });
+    expect(c.history[0]).toMatchObject({ outcome: 'forfeit' });
+    expect(actions.refreshWorld(c, { now: NOW + 1000 }).leftRun).toEqual({ title: job.title, outcome: 'forfeit' });
+    expect(c.leftRun).toBeUndefined();
+    expect(actions.refreshWorld(c, { now: NOW + 2000 }).leftRun).toBeNull();
+    // A run settled the ordinary way leaves no note.
+    actions.settleRun(c, { ctx: { kind: 'delivery', jobId: c.board.simple[1].id }, result: { ...result, reason: 'forfeit' }, now: NOW + 3000 });
+    expect(c.leftRun).toBeUndefined();
+  });
+
   it('the overdrive lever is faster and thirstier', () => {
     const run = (lever) => {
       const race = createRace({ kind: 'delivery', distance: 40, player: { name: 'p', stats, fuel: 200, cargoLb: 8000, lever } });

@@ -107,6 +107,8 @@ export default function Receipt() {
   const [stamp, tone] = STAMPS[receipt.outcome];
   const contest = !!receipt.contest || !!receipt.trial;
   const demo = receipt.kind === 'demo';
+  // What the settle put in the wallet: the pay, less ammunition, a repaid advance and any fuel truck.
+  const walletGain = (receipt.payout ?? 0) - (receipt.ammoCost ?? 0) - (receipt.advanceRepaid ?? 0) - (r?.emergencyCost ?? 0);
   const need = xpForLevel(conductor.level);
 
   return (
@@ -196,7 +198,7 @@ export default function Receipt() {
               </>
             ) : null}
             <dt>
-              Fuel burned: {fmt(r.fuelUsed, 1)} gal{r.emergencyGallons ? ` (${fmt(r.emergencyGallons)} gal trucked in)` : ''}
+              Fuel burned: {fmt(r.fuelUsed, 1)} gal{r.emergencyGallons ? ` (${fmt(r.emergencyGallons)} gal trucked in)` : receipt.fuelCost > 0 ? ' (from your reserve)' : ''}
             </dt>
             <dd className="stop">-{lt(receipt.fuelCost)} LT</dd>
             {receipt.entryFee ? (
@@ -226,6 +228,12 @@ export default function Receipt() {
               </>
             ) : null}
           </dl>
+        ) : null}
+        {/* Fuel is bought into the reserve beforehand, so the wallet moves by the pay, not by the profit. */}
+        {!demo && !contest && receipt.fuelCost > 0 && walletGain > 0 && Math.abs(walletGain - receipt.profit) >= 0.1 ? (
+          <p className="small muted">
+            Your LocoTokens went up by {lt(walletGain)} LT. The fuel came out of your reserve, which you paid for when you bought it{receipt.entryFee ? ', and the entry fee was paid at the start line' : ''}.
+          </p>
         ) : null}
 
         <hr className="rule" />

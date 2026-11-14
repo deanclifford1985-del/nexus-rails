@@ -219,7 +219,7 @@ function Founding({ conductor, act, notify }) {
           <div className="row" style={{ gap: 6 }}>
             {cities.map((id) => (
               <button type="button" key={id} className={`chip chip-pick ${hq === id ? 'on' : ''}`} onClick={() => setHq(id)} aria-pressed={hq === id}>
-                {CITIES[id].name} <small>{linesAt(id).length} lines</small>
+                {CITIES[id].name} <small>{linesAt(id).length} line{linesAt(id).length === 1 ? '' : 's'}</small>
               </button>
             ))}
           </div>
